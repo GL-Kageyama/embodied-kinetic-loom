@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.6.0 | canonical: README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.7.0 | canonical: README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -62,6 +62,7 @@ install.sh          installs the skill (--local writes .claude/skills/, which is
 
 - **No serial layer.** The backend frames, gates and transmits; nothing opens a port. ⛔ **This is the one part the machine gates**, because the control box has two generations and the protocol differs between them — and it is exactly where a mock and the machine diverge most.
 - ⚠️ **The vocabulary has one row, not five.** Of the five verbs it starts from — 傾く / 倒れる / 沈む / 跳ねる / 後退 — **three name a degree of freedom this machine does not have**, and the mapping carries an explicit column saying what the difference is. ⛔ **The four missing rows are the ones that were not used**, and writing them now would be writing down what has never run.
+- ⚠️ **No record of what happened.** `--motion` prints its numbers and they scroll away. **The vessel for records is `projects/`** (see `CLAUDE.md`) — **it is empty, and it is empty because the machine gates the one observation that would fill it.**
 
 ## Next
 
