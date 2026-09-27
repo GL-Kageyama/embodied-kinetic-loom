@@ -148,24 +148,25 @@ def test_a_late_body_skips_ticks_instead_of_bursting_them():
     assert ticks[-1].started >= DURATION
 
 
-def test_a_late_tick_freezes_the_axis_and_the_gate_does_not_recover():
-    """⛔ **これは限界であって、設計ではない。** **著者へ返す論点である。**
+def test_a_refused_axis_creeps_toward_the_target_instead_of_freezing():
+    """⛔ **弾かれた軸は、凍るのでなく、届く速さで目標へ寄る。**
 
-    飛ばした刻みでは、送信が**標本を飛び越える**（`transmit.py`）。
-    その段差を門が弾く。**門は「最後に通した組」を返す**——
-    ⇒ **軸はそこで止まる。** ⚠️ **そして、そこから戻る道が、いまの門には無い。**
+    ⚠️ **この検査は、前は逆を主張していた**——「軸が凍り、門は戻らない」と。
+    ⛔ **それは限界であり、著者へ返した論点だった**（[05] §2.2 の周期の話の続き）。
+    **3案のうち (b) を採った**——**(a) は凍り、(c) は計画を常に遅くする。**
 
-    理由: 門が保つ基準は「最後に**通した**値」であり、送信が提案するのは
+    **理由**（`engine/backend/gate.py` のモジュールを見よ）:
+    門が保つ基準は「最後に**通した**値」であり、送信が提案するのは
     「**いまの**壁時計の値」である。**提案は先へ進み続けるので、段差は縮まらない。**
-    ⇒ **`admit` を通った軌道でも、1回遅れると端に着かない。**
+    ⚠️ **そして弾くたびに `_last_t` が進むので、溜まった時間が毎回捨てられる**——
+    ⇒ **1回弾かれると、二度と通らない。**
 
-    ⚠️ **止まることは安全側である**（送り続けているのでトルクも保たれる）。
-    ⛔ **だが「着かない」は、この機構の目的を果たしていない。**
+    ⛔ **寄せる大きさは `limit × elapsed`——門がもともと通す大きさと同じである。**
+    ⇒ **新しい仮定を1つも足していない。**
 
-    **著者への選択肢**（[05] §2.2 の周期の話の続きとして）:
-    (a) **いまのまま**——弾いたら保つ。**凍る。**
-    (b) **弾いたとき、限界まで寄せた値を組む**——**届く速さで、目標へ向かって進む。**
-    (c) **速度の上限を、遅れを見込んだ値にする**（計画側で余裕を取る）。
+    ⚠️ **そして、この軌道は依然として端に着かない**——**門の上限（100 カウント/秒）が、
+    計画の速さの半分だからである。** **寄るという直しは、それを直さない**——
+    **計画が門の上限を超えていることを見つけるのは `admit` の仕事である。**
     """
     tx = _rig(limits=ChannelLimits(velocity=100.0))  # 100 カウント/秒
     box = MockBox()
@@ -173,15 +174,52 @@ def test_a_late_tick_freezes_the_axis_and_the_gate_does_not_recover():
 
     def body(tick):
         if tick.n == 1:
-            clock.advance(0.05)
+            clock.advance(0.05)  # ⛔ **刻みが1つ遅れる**
         frames = tx.frames_at(0.0, tick.started)
         for frame in frames.verdict.frames:
             box.feed(frame.raw, tick.started)
 
-    run(Schedule(PERIOD), clock, body, 25)
+    ticks = run(Schedule(PERIOD), clock, body, 25)
 
+    moved = box.positions[0] - 500.0
+    allowed = 100.0 * ticks[-1].started  # 門が、この時間に許した総量
+    assert moved > 0.0, "⛔ **凍っている**——弾かれた軸が1つも動いていない"
+    assert moved <= allowed + 1.0, f"⛔ **門の許す速さを超えて動いた**: {moved} > {allowed}"
+    assert moved >= allowed * 0.7, (
+        f"⚠️ **溜めた余裕を使い切っていない**: {moved} / {allowed}"
+        "——弾くたびに時間を捨てていないか"
+    )
     assert box.positions[0] < 600.0, "⚠️ 前提が変わった: いまは着いている"
     assert 600.0 not in [step.after for step in box.steps], (
         "⚠️ 前提が変わった: 目標が1回でも送られている"
     )
-    assert len(box.received) > 20, "⛔ **凍ることと、黙ることは別である**"
+    assert len(box.received) > 20, "⛔ **動くことと、黙ることは別である**"
+
+
+def test_the_gate_never_lets_an_axis_move_faster_than_its_limit():
+    """⛔ **寄せた値も、門の上限の中である。**
+
+    ⚠️ **これが (b) を選んでよい理由そのものである**——
+    **寄せた値は、門がもともと通す大きさを超えない。**
+    """
+    tx = _rig(limits=ChannelLimits(velocity=100.0))
+    box = MockBox()
+    clock = _clock()
+    seen = []
+
+    def body(tick):
+        if tick.n == 1:
+            clock.advance(0.05)
+        fs = tx.frames_at(0.0, tick.started)
+        seen.append((tick.started, fs.verdict.frames[0].value))
+        for frame in fs.verdict.frames:
+            box.feed(frame.raw, tick.started)
+
+    run(Schedule(PERIOD), clock, body, 25)
+
+    worst = 0.0
+    for (t0, v0), (t1, v1) in zip(seen, seen[1:]):
+        if t1 > t0:
+            worst = max(worst, abs(v1 - v0) / (t1 - t0))
+    assert worst <= 100.0 + 1e-9, f"⛔ **上限を超えた速さで指令した**: {worst} カウント/秒"
+

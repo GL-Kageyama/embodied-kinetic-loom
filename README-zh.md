@@ -26,7 +26,7 @@
 
 ⛔ **其中没有任何一个字节到达过机体。** 最后这一点是实测，不是主张。用 `import hid`、`hidapi`、`pygame`、`joystick`、`evdev`、`pyserial`、`import serial`、`IOHID` 扫描本工房自写的 143 个 Python 文件，结果为 **0 件**。**后端有意在离导线一层之前停住**——见下文。
 
-⚠️ **核心与后端是绿的**——**15 个文件、160 项测试，实测 2026-09-27**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
+⚠️ **核心与后端是绿的**——**15 个文件、164 项测试，实测 2026-09-27**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
 
 ## 骨架
 
@@ -34,7 +34,7 @@
 .claude-plugin/     plugin.json 与 marketplace.json——必须承载同一个版本的两个文件
 docs/               文档。英语为正典，-ja 与 -zh 镜像并列其旁
 tools/              check_i18n.py——读取镜像的检查
-tests/              测试——15 个文件、160 项测试
+tests/              测试——15 个文件、164 项测试
 schemas/            motion-intent.schema.json——Motion Intent 的类型
 engine/             决定论的核心。⚠️ 不调用 LLM，也不 import 任何会浮动之物
 engine/backend/     送出的一侧——协议、周期、门、轴对应、发送器、Mock

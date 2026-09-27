@@ -26,6 +26,21 @@
 **この機体に停止コマンドは無い**（同 §2.5）。**門は「止められない」ことを直せない。**
 **門にできるのは、悪い1フレームを出さないことだけである。**
 
+⛔ **そして——「保つ」だけでは、軸が凍る。**（2026-09-27、実装中に見つけた）
+
+**保つ基準が「最後に*通した*値」である一方、送信が提案するのは「*いまの*壁時計の値」である。**
+⇒ **提案は先へ進み続けるので、段差は縮まらない。**
+⚠️ **そして弾くたびに `_last_t` が進むので、溜まった時間が毎回捨てられる**——
+⇒ **1回弾かれると、二度と通らない。** `admit` を通った軌道でも、端に着かない。
+
+**⇒ ゆえに弾かれた軸は、止まるのでなく、届く速さで目標へ寄る**（`_slew`）。
+⛔ **そして、これは新しい仮定を1つも足さない**——**寄せる大きさは `limit × elapsed` であり、
+門がもともと通す大きさと同じである。** **門が「これは段差だ」と言った大きさの、
+いちばん大きいものが、そのまま「寄せてよい大きさ」になる。**
+
+⚠️ **枠（`target_min`／`target_max`）の外へは寄せない。** **保つ。**
+**寄せてよいのは、届く先が枠の中にあるときだけである**——**枠の外は、寄る先ではない。**
+
 ⚠️ **判断は「組ごと」である。** 1モーターずつ通すと、
 **誰も計画していない組み合わせ**が機体の上に現れる。
 """
@@ -35,7 +50,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..trajectory.limits import ChannelLimits, Envelope, Violation
-from .protocol import Frame
+from .protocol import Frame, encode_target
 
 __all__ = ["Gate", "Verdict"]
 
@@ -46,6 +61,8 @@ class Verdict:
 
     ⚠️ **`frames` が空になることは無い**（構築時に初期位置を渡している以上）。
     ⛔ **`held` が真なら、それは「弾いた」ではなく「前の組を保っている」である。**
+    ⚠️ **ただし `held` は「1つも動かない」ではない**——**弾かれた軸も、届く速さでなら寄る**
+    （`_slew` を見よ）。**`held` が言うのは「提案どおりには通さなかった」だけである。**
     """
 
     allowed: bool
@@ -110,11 +127,52 @@ class Gate:
             return Violation("step", motor, elapsed, delta, allowed)
         return None
 
+    def _slew(self, motor: int, value: int, elapsed: float) -> int:
+        """⛔ **弾かれた軸を、止めずに、届く速さで目標へ寄せる。**
+
+        **戻すのは `limit × elapsed` だけ寄せた値である**——
+        ⚠️ **これは門がもともと通す大きさと同じである。**
+        ⇒ **新しい仮定を1つも足していない。** **門が「段差だ」と言った大きさの、
+        いちばん大きいものが、そのまま「寄せてよい大きさ」になる。**
+
+        ⚠️ **`limit` が `None` なら、段差の検査が無い**（`limits.py`）——
+        **ゆえにここへは来ない。** 来たなら、寄せる理由が無いので提案をそのまま返す。
+        """
+        limit = self.limits_by_motor[motor].velocity
+        if limit is None:
+            return value
+        allowed = limit * elapsed
+        last = self._last_values[motor]
+        target = float(value)
+        if target > last + allowed:
+            return int(round(last + allowed))
+        if target < last - allowed:
+            return int(round(last - allowed))
+        return int(round(target))
+
+    def _previous(self, motor: int) -> Frame | None:
+        """⚠️ **そのモーターへ最後に送ったフレーム。** 無ければ `None`。"""
+        if self._last is not None:
+            for kept in self._last:
+                try:
+                    if kept.motor() == motor:
+                        return kept
+                except Exception:
+                    continue
+        if motor < len(self.starts_by_motor):
+            # ⚠️ **まだ1つも送っていない軸は、開始位置に居る。** **そこへ「保て」は、
+            # そこへ居ろということである**——**これが最初の1フレームの段差を防ぐ。**
+            return encode_target(motor, int(round(self.starts_by_motor[motor])))
+        return None
+
     def submit(self, now: float, proposed: tuple[Frame, ...]) -> Verdict:
-        """**この組を送ってよいか。** ⛔ **弾いたら、前の組を返す。**
+        """**この組を送ってよいか。** ⛔ **弾いても、黙らない。**
 
         `now` は呼ぶ側の時計である（`engine/` は `time` を import しない）。
         ⚠️ **単調でなければ落ちる**——**戻る時計の上では、刻みが負になる。**
+
+        ⚠️ **弾かれた軸にも、必ず何かが返る**——**前の値を保つか、届く速さで寄るかである。**
+        **空を返す軸は1つも無い**（モーターの対応が読めないフレームだけは、除く）。
         """
         if self._last_t is not None and now <= self._last_t:
             raise ValueError(
@@ -125,6 +183,16 @@ class Gate:
 
         violations: list[Violation] = []
         seen: set[int] = set()
+        out: dict[int, Frame] = {}
+        values: dict[int, float] = {}
+
+        def fall_back(motor: int) -> None:
+            """⚠️ **その軸について、実際に送るものを決める。**"""
+            kept = self._previous(motor)
+            if kept is not None:
+                out[motor] = kept
+                values[motor] = float(kept.value)
+
         for frame in proposed:
             try:
                 motor = frame.motor()
@@ -142,35 +210,43 @@ class Gate:
                 continue
             tv = self._target_violation(motor, frame.value)
             if tv is not None:
+                # ⛔ **枠の外へは寄せない。** **枠の外は、寄る先ではない。**
                 violations.append(tv)
+                fall_back(motor)
                 continue
             if self._last_t is not None:
                 sv = self._step_violation(motor, float(frame.value), elapsed)
                 if sv is not None:
                     violations.append(sv)
+                    slewed = self._slew(motor, frame.value, elapsed)
+                    out[motor] = encode_target(motor, slewed)
+                    values[motor] = float(slewed)
+                    continue
+            out[motor] = frame
+            values[motor] = float(frame.value)
+
+        emitted = tuple(out[m] for m in sorted(out))
+        # ⛔ **時計は必ず進める。** 弾いた回も、何かを**送っている**からである。
+        # ⇒ **次に許す量の基準は、その送信からの経過時間になる。**
+        self._last_t = now
+        # ⚠️ **値も進める**——**寄せた値は、機体へ行った値である。**
+        # **進めなければ、門は永久に同じ段差を見続け、軸は凍る。**
+        for motor, value in values.items():
+            self._last_values = (
+                self._last_values[:motor] + (value,) + self._last_values[motor + 1:]
+            )
+        self._last = emitted
 
         if violations:
-            held = self._last if self._last is not None else ()
-            # ⛔ **時計だけは進める。** 弾いた回も、保った組を**送っている**からである。
-            # ⇒ **次に許す量の基準は、その送信からの経過時間になる。**
-            # ⚠️ **値を進めないのは、機体が実際にそこに居るからである**——
-            # **拒否された値は、どこにも行っていない。**
-            self._last_t = now
-            return Verdict(allowed=False, frames=held, violations=tuple(violations), held=True)
+            return Verdict(allowed=False, frames=emitted, violations=tuple(violations),
+                           held=True)
+        return Verdict(allowed=True, frames=emitted)
 
-        self._last = proposed
-        self._last_t = now
-        for frame in proposed:
-            self._last_values = (
-                self._last_values[:frame.motor()]
-                + (float(frame.value),)
-                + self._last_values[frame.motor() + 1:]
-            )
-        return Verdict(allowed=True, frames=proposed)
 
     def hold(self) -> tuple[Frame, ...]:
-        """⚠️ **最後に通した組。** まだ1つも通していなければ空である。
+        """⚠️ **最後に送った組。** まだ1つも通していなければ空である。
 
         **これは「止める」ではない**——**保つことだけができる**（モジュールを見よ）。
+        ⚠️ **弾いた回も更新される**——**送ったものが入るのであって、通ったものではない。**
         """
         return self._last if self._last is not None else ()

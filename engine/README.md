@@ -64,6 +64,10 @@ backend/
 
 So a refusal returns **the last set that was allowed**, and keeps sending it. **That is the closest thing to standing still this machine has.** ⚠️ **It is not "stopping" either** — there is no stop command in the protocol. **The gate cannot fix that. All it can do is not send the bad frame.**
 
+⛔ **But holding alone freezes an axis, and that was found while writing the tests.** The gate's baseline is *the last value it allowed*; the transmitter proposes *the wall clock's value*; the proposal keeps moving ahead, so the gap never closes — and because the gate's clock advanced on every refusal, the time it had accumulated was thrown away each time. **One refusal, and the axis never moved again.**
+
+⇒ **A refused axis therefore creeps toward its target at the speed the gate itself allows** — `velocity × elapsed`, the very size the gate would otherwise admit. ⛔ **No new assumption enters the safety argument; the largest step the gate calls a step becomes the largest step it will take.** ⚠️ **A target outside the envelope is still held, not approached: outside the envelope is not a place to move toward.**
+
 ⚠️ **The gate judges a set as a unit.** Passing one motor at a time would put a combination on the machine that nobody planned.
 
 ## The clock is not imported

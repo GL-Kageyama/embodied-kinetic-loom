@@ -4,7 +4,7 @@
 
 # tests/
 
-**Fifteen files, one hundred and sixty tests, all green — measured 2026-09-27.**
+**Fifteen files, one hundred and sixty-four tests, all green — measured 2026-09-27.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -46,13 +46,17 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 **Running the same input twice and comparing is not proof.** The two runs might simply have agreed. **The imports are the thing to look at**, and an AST finds them where a grep would find the word inside a docstring instead.
 
-## A limit that is recorded rather than fixed
+## A limit that was recorded, and then fixed
 
-**When the gate refuses a frame, it holds the last set that was allowed — because *not sending* is not *stopping*. So a single late tick can freeze an axis, and nothing in the gate brings it back.**
+**When the gate refuses a frame it holds the last set that was allowed — because *not sending* is not *stopping*. That alone let a single late tick freeze an axis.** The gate's baseline is *the last value it allowed*, while the transmitter proposes *the wall clock's value*; the proposal keeps moving ahead, so the gap never closes. ⛔ **And because the gate's clock advanced on every refusal, the time it had accumulated was thrown away each time — so once an axis was refused, it was refused forever.**
 
-The reason is that the gate's baseline is *the last value it allowed*, while the transmitter proposes *the wall clock's value*. The proposal keeps moving ahead, so the gap never closes. **The machine is held, which is the safe direction, and it does not arrive, which is not the mechanism's purpose.**
+**The machine was held, which is the safe direction, and it never arrived, which is not the mechanism's purpose.**
 
-**`test_a_late_tick_freezes_the_axis_and_the_gate_does_not_recover` records this and lists the three options.** It is written as a limit, not as a design — **the choice is the author's**, and until it is made the behaviour is asserted so that changing it cannot be silent.
+**`test_a_refused_axis_creeps_toward_the_target_instead_of_freezing` records the fix.** A refused axis now moves toward its target at the speed the gate itself allows — `velocity × elapsed`, the very size the gate would otherwise admit — so ⛔ **no new assumption was added to the safety argument.** **`test_the_gate_never_lets_an_axis_move_faster_than_its_limit` is the same claim measured over a whole run.**
+
+⚠️ **An out-of-envelope target is still held rather than approached: outside the envelope is not a place to move toward.**
+
+⚠️ **And the fix does not repair a plan that exceeds the gate's limit.** In the end-to-end test the gate's ceiling is half the plan's speed and the axis still does not arrive. **Finding that mismatch is `admit`'s job, not the gate's.**
 
 ## The rule that holds this directory — applied to us
 

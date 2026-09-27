@@ -74,11 +74,66 @@ def test_a_refusal_still_sends_something():
     assert v.frames == good, "⛔ **弾いたときに空を返した。それは停止ではない**"
 
 
-def test_the_first_refusal_can_only_be_empty():
-    """⚠️ **まだ1つも通していなければ、保つものが無い。** これは限界であって、設計ではない。"""
+def test_the_first_refusal_does_not_go_silent():
+    """⛔ **まだ1つも通していなくても、門は黙らない。**
+
+    ⚠️ **この検査は、前は逆を主張していた**——「最初の拒否は空にしかなり得ない」と。
+    ⛔ **それは限界だった。** **門は開始位置を知っている**（`starts_by_motor` は必須である）——
+    **ゆえに「そこへ居ろ」を組める。** **空を返す理由が、1つも無い。**
+
+    ⛔ **そして空を返せば、機体はその瞬間から誰も何も言わなくなる**——
+    **15秒でトルクが 1/4 になり、モーターは止まらない**（`CLAUDE.md` の安全の節）。
+    """
     gate = _gate()
     v = gate.submit(1.0, (encode_target(0, 900),))
-    assert not v.allowed and v.frames == () and gate.hold() == ()
+    assert not v.allowed
+    assert [f.value for f in v.frames] == [500], "⛔ **開始位置を保つべきである**"
+    assert gate.hold() == v.frames
+
+
+def test_a_refused_axis_creeps_toward_the_target_and_does_not_freeze():
+    """⛔ **弾かれた軸は、凍るのでなく、届く速さで目標へ寄る。**
+
+    ⚠️ **この検査は、前は逆を主張していた**——「軸が凍り、門は戻らない」と
+    （`tests/test_backend.py` にあった）。**それは限界として著者へ返した**（`05 §2.2`）。
+
+    **寄せる大きさは `limit × elapsed`**——**門がもともと通す大きさと同じである。**
+    ⇒ **新しい仮定を1つも足していない。**
+    """
+    gate = _gate(limits=SLOW)  # 100 カウント/秒
+    gate.submit(0.0, (encode_target(0, 500),))
+    # ⚠️ 1秒あれば 100 カウント寄れる。600 はその外なので、まだ弾かれる。
+    v = gate.submit(1.0, (encode_target(0, 700),))
+    assert not v.allowed and v.held
+    assert [f.value for f in v.frames] == [600], (
+        "⛔ **寄せた値が機体へ行く**——`500 + 100 × 1.0` である"
+    )
+    # ⇒ **次は通る。** 溜まった時間を捨てないので、凍らない。
+    v = gate.submit(2.0, (encode_target(0, 700),))
+    assert v.allowed and v.frames[0].value == 700
+
+
+def test_the_slewed_value_never_exceeds_what_the_gate_would_admit():
+    """⛔ **寄せた値は、門が「段差だ」と言った大きさを超えない。**"""
+    gate = _gate(limits=SLOW)
+    gate.submit(0.0, (encode_target(0, 500),))
+    v = gate.submit(0.02, (encode_target(0, 900),))  # 枠の外——寄せない
+    assert not v.allowed and v.frames[0].value == 500
+    v = gate.submit(0.04, (encode_target(0, 700),))  # 段差——寄せる
+    assert [f.value for f in v.frames] == [502], "100 カウント/秒 × 0.02 秒 = 2"
+
+
+def test_an_out_of_envelope_target_is_not_slewed_toward():
+    """⛔ **枠の外は、寄る先ではない。** **保つ。**
+
+    ⚠️ **寄せれば、機体は枠へ向かって動き出す**——**門が止めようとしているのは、それである。**
+    """
+    gate = _gate(limits=SLOW)
+    gate.submit(0.0, (encode_target(0, 500),))
+    v = gate.submit(5.0, (encode_target(0, 900),))  # 5秒ぶんの余裕があっても
+    assert not v.allowed
+    assert [f.value for f in v.frames] == [500], "⛔ **枠へ寄ってしまった**"
+
 
 
 def test_a_refused_frame_does_not_move_the_last_value():

@@ -26,7 +26,7 @@ This repository holds what the engine *is*, what must never be assumed about the
 
 ⛔ **No byte of that has reached a machine.** That is measured, not asserted: a scan of this workshop's own Python — 143 files, searched for `import hid`, `hidapi`, `pygame`, `joystick`, `evdev`, `pyserial`, `import serial` and `IOHID` — returned **zero**. **The backend stops one layer short of the wire, on purpose** — see below.
 
-⚠️ **The core and the backend are green — fifteen files, one hundred and sixty tests, measured 2026-09-27 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
+⚠️ **The core and the backend are green — fifteen files, one hundred and sixty-four tests, measured 2026-09-27 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
 
 ## Structure
 
@@ -34,7 +34,7 @@ This repository holds what the engine *is*, what must never be assumed about the
 .claude-plugin/     plugin.json and marketplace.json — the two files that must carry one version
 docs/               the documents, canonical English with -ja and -zh mirrors beside them
 tools/              check_i18n.py — the check that reads the mirrors
-tests/              the suites — fifteen files, one hundred and sixty tests
+tests/              the suites — fifteen files, one hundred and sixty-four tests
 schemas/            motion-intent.schema.json — the Motion Intent type
 engine/             the deterministic core. ⚠️ It calls no LLM and imports nothing that varies
 engine/backend/     the sending side — protocol, cycle, gate, axis map, transmitter, mock

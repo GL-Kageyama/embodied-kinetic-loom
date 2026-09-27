@@ -55,7 +55,7 @@
 
 ## Tests
 
-**Fifteen files, one hundred and sixty tests, all green — measured 2026-09-27.** The five checks, and where each one lives, are in `tests/README.md`.
+**Fifteen files, one hundred and sixty-four tests, all green — measured 2026-09-27.** The five checks, and where each one lives, are in `tests/README.md`.
 
 ⚠️ **The core is implemented** — the trajectory family, easing, smoothing, plan, limits and admission, and the `Motion Intent` reader. **So is the sending side** — the frame protocol, the periodic loop, the run-time gate, the axis map, the transmitter, and a mock of the control box. **What is tested is that and nothing else**: interpolation, easing, smoothing, limiting, framing, deadlines, refusals. Those are functions, so they can be checked exactly. **What is not tested is whether the result is alive.**
 
