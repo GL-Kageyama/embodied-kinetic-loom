@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: docs/first-contact.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.0.1 | canonical: docs/first-contact.md | translated: 2026-09-28 -->
 
 **Language:** [English](first-contact.md) | [日本語](first-contact-ja.md) | [中文](first-contact-zh.md)
 
@@ -122,12 +122,16 @@ The vendor's tool page says: *"You can change your control box mode: 10 bit or 1
 
 ⛔ **When that happens, nothing has been finished.** The port opening is a fact about a USB device. **Reading "it opened" as "it moved" is the easiest mistake to make on this page** — and a green log makes it easier, because a log can only contain what left the host, **never whether anything moved.**
 
-**What to write down:**
+**What to write down, and where it goes.** ⚠️ **Two different things, going to two different places** — and conflating them is how a finding gets mistaken for a record.
 
-- the results of the port check — what `comports()` showed, whether it raised, **and which chip**
-- the nine machine-side items — **what was learned and what was not**
-- the seven host-side items
-- ⛔ **and what the machine did.** This is the one thing no log can carry.
+| what | where |
+|---|---|
+| **Everything that happened, in order** — what `comports()` showed and whether it raised, **which chip**, what you did, **and whether anything moved.** | **`projects/`** — the record vessel. ⚠️ **Its shape is deliberately undecided** (see `CLAUDE.md`). ⛔ **A log cannot carry the last part: a log can hold what left the host, never whether anything moved.** |
+| **The findings — the ones that change what a document now says** — the port check, the nine machine-side items, the seven host-side items. **Both what was found and what was not.** | ⚠️ **Back into the documents that currently say "unknown"** — `CLAUDE.md` § Safety, this page, and the `Envelope` default in `engine/trajectory/limits.py`. **A finding that is not folded back leaves the document lying.** |
+
+⚠️ **These overlap, and that is not a mistake — one result can belong to both.** **The record keeps the day; the correction keeps the documents honest.** ⛔ **What must not happen is writing one and calling it the other.**
+
+⛔ **And `examples/` does not exist.** **`projects/` is the only place for work and for records.**
 
 ## What is not here
 
