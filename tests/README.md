@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.1.0 | canonical: tests/README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.2.0 | canonical: tests/README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Nineteen files, two hundred and thirty-three tests, all green — measured 2026-09-28.**
+**Twenty files, two hundred and thirty-eight tests, all green — measured 2026-09-28.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -90,6 +90,22 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 ⚠️ **An out-of-envelope target is still held rather than approached: outside the envelope is not a place to move toward.**
 
 ⚠️ **And the fix does not repair a plan that exceeds the gate's limit.** In the end-to-end test the gate's ceiling is half the plan's speed and the axis still does not arrive. **Finding that mismatch is `admit`'s job, not the gate's.**
+
+## A rule that had no check, until now
+
+**`CLAUDE.md` says the version is one value in three places**: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and the newest `## <version>` in `HISTORY.md`.
+
+⚠️ **Two of the three were already watched.** `claude plugin validate --strict .` compares the two manifests. ⛔ **The third was read by nobody.**
+
+**Why that one matters more than it looks.** The two manifests are only read by tooling. **`HISTORY.md` is the file a person opens to find out what this version contains** — so a `HISTORY.md` left one version behind is not a bookkeeping slip. **It is the record disagreeing with the thing it records.** And it fails silently, in the direction that reads as correct: `validate` stays green, the suite stays green, and the only symptom is a reader who trusts the wrong paragraph.
+
+**`tests/test_versions.py` is check 10, and it is of a third kind.** Checks 1–5 are checks on a trajectory; checks 6–9 are checks on a drawing, on a directory, and on the joint between a trajectory and a drawing. **This one is a check on this repository's own bookkeeping** — it reads no engine code and no output, only three version strings.
+
+**It was reverted once, and the suite watched**: changing the `HISTORY.md` heading to `0.6.9` fails `test_history_agrees_with_the_manifests` and nothing else. ⚠️ **A test that has never been seen to fail is not yet a check.**
+
+⚠️ **What it does not see.** It asserts the three agree; it says nothing about whether the version is *earned*. It reads **the first heading only** — a skipped or duplicated version further down does not ring. And it does not touch `i18n-version`, which is a different number about a different thing, checked by `tools/check_i18n.py`.
+
+**And the parser is tested against itself.** `test_the_parser_finds_nothing_when_there_is_no_heading` feeds it a history with no version heading, a level-1 heading, a level-3 heading, and `0.6.0.1` — **because if `newest_version()` ever returns `""` instead of `None`, all three of the other assertions go green together.**
 
 ## The rule that holds this directory — applied to us
 

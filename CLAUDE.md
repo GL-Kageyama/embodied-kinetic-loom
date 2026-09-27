@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: CLAUDE.md | translated: 2026-09-27 -->
+<!-- i18n-version: 1.1.0 | canonical: CLAUDE.md | translated: 2026-09-27 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -57,7 +57,7 @@
 
 ## Tests
 
-**Nineteen files, two hundred and thirty-three tests, all green — measured 2026-09-28.** The five checks, and where each one lives, are in `tests/README.md`. ⚠️ **Three checks are not tests and do not live there** — `claude plugin validate --strict .`, `tools/check_i18n.py` and `tools/check_vocabulary.py`; the two tools have a `--self-test`.
+**Twenty files, two hundred and thirty-eight tests, all green — measured 2026-09-28.** The five checks, and where each one lives, are in `tests/README.md`. ⚠️ **Three checks are not tests and do not live there** — `claude plugin validate --strict .`, `tools/check_i18n.py` and `tools/check_vocabulary.py`; the two tools have a `--self-test`.
 
 ⚠️ **The core is implemented** — the trajectory family, easing, smoothing, plan, limits and admission, and the `Motion Intent` reader. **So is the sending side** — the frame protocol, the periodic loop, the run-time gate, the axis map, the transmitter, and a mock of the control box. **So is the Pet's screen** — `projects/pet/`, the five faces and the frame that carries them. **And so is one motion, end to end** — `motions/greeting.json` is an intent off disk, and `motion.py` carries it through admission and the gate to the mock **while drawing the face from the same tick.** ⛔ **That last one is the repository's first claim about a joint between the two, and it is asserted, not described**: two of the five faces are the same drawing. **What is tested is that and nothing else**: interpolation, easing, smoothing, limiting, framing, deadlines, refusals, the shape of a frame, and that one clock drives both the face and the body. Those are functions, so they can be checked exactly. **What is not tested is whether the result is alive.**
 
@@ -82,6 +82,7 @@ Run: `python3 -m pytest tests/`
 - ⛔ **Never `git add -A`.** Stage only the paths you actually touched. `git add -A` sweeps up whatever else is in the working tree, including the user's uncommitted work.
 - Append `Co-Authored-By: Claude Code <noreply@anthropic.com>` to the end of commit messages.
 - **The manifest version tracks `HISTORY.md`.** When a `## <version>` heading goes into `HISTORY.md`, **the same version goes into both `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`**. ⚠️ **Two files, one version** — and a third value that must agree: the newest `## <version>` in `HISTORY.md`, **which is the first one, because that file is written newest-first**.
+  ✅ **`tests/test_versions.py` checks all three, since 2026-09-28.** ⛔ **Before that, the third value was the one nobody read**: `validate --strict` compares the two manifests and stops there, and a `HISTORY.md` left at the last version is exactly the file a reader trusts to say what this version contains. **A rule with no check is this repository's own definition of a defect** — the same shape as the easing docstring that the four checks all passed over.
 - ⚠️ **Do not write `languages` into either manifest.** Claude Code does not know the field; `claude plugin validate --strict .` fails on it. Three sister repositories carry it and all three fail validation.
 - ⚠️ **Do not declare a path in `plugin.json` that does not exist yet.** Measured 2026-09-27: a `"skills": ["./skills/"]` entry with no `skills/` directory on disk fails validation with `Path not found: ./skills/. The runtime loader will report this as a load failure.` **The `skills` key arrives in the same commit as the first file under `skills/`** — not before, and the manifest does not announce a directory that is still gated. ✅ **It arrived on 2026-09-28, with `skills/embodied-kinetic-loom/SKILL.md`, and `validate --strict` passes with it.**
 - **`claude plugin validate --strict .` must pass before a commit that touches `.claude-plugin/`.**

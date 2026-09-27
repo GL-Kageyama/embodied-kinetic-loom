@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: CLAUDE.md | translated: 2026-09-27 -->
+<!-- i18n-version: 1.1.0 | canonical: CLAUDE.md | translated: 2026-09-27 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -57,7 +57,7 @@
 
 ## テスト
 
-**19ファイル・233テスト、すべて緑——実測 2026-09-28。** **5つの検査とその居場所は `tests/README.md` にある。** ⚠️ **検査のうち3つはテストではなく、そこには無い**——`claude plugin validate --strict .`・`tools/check_i18n.py`・`tools/check_vocabulary.py`。**後の2つは `--self-test` を持つ。**
+**20ファイル・238テスト、すべて緑——実測 2026-09-28。** **5つの検査とその居場所は `tests/README.md` にある。** ⚠️ **検査のうち3つはテストではなく、そこには無い**——`claude plugin validate --strict .`・`tools/check_i18n.py`・`tools/check_vocabulary.py`。**後の2つは `--self-test` を持つ。**
 
 ⚠️ **核心は実装された**——**軌道の族・イージング・平滑化・計画・制限・受理、そして `Motion Intent` の読み手。** **送る側も実装された**——**フレームのプロトコル・周期ループ・実行時の門・軸の対応・送信・制御箱の Mock。** **Pet の画面も実装された**——`projects/pet/`、**5つの顔と、それを運ぶフレームである。** **そして運動が1つ、端から端まで実装された**——`motions/greeting.json` はディスク上の意図であり、**`motion.py` がそれを受理と門を通って Mock へ運びながら、同じ刻みから顔を描く。** ⛔ **これが、このリポジトリで初めて「2つを繋ぐ」についての主張であり、説明ではなく検査で押さえてある**: **5つの顔のうち2つは同じ図である。** **検査しているのはそれであり、それだけである**——**補間・イージング・平滑化・制限・フレームの切り方・締切・拒否、フレームの形、そして顔と身体を1つの時計が駆動すること。** **これらは関数なので、厳密に検査できる。** **そして検査しないのは、その結果が生きているかどうかである。**
 
@@ -81,6 +81,7 @@
 - ⛔ **`git add -A` を、絶対に使わない。** **実際に触ったパスだけを stage する。** **`git add -A` は作業ツリーの他の全部を巻き込む**——**ユーザーの未コミットの作業を含めて。**
 - **コミットメッセージの末尾に `Co-Authored-By: Claude Code <noreply@anthropic.com>` を付ける。**
 - **manifest の版は、`HISTORY.md` に従う。** **`HISTORY.md` に `## <版>` の見出しが入ったら、同じ版を `.claude-plugin/plugin.json` と `.claude-plugin/marketplace.json` の両方に入れる。** ⚠️ **2つのファイル、1つの版**——**そして、一致すべき3つ目の値がある**——**`HISTORY.md` の最新の `## <版>`。それは先頭行である**——**あのファイルは新しい順に書くからである。**
+  ✅ **`tests/test_versions.py` が3つとも見ている（2026-09-28 から）。** ⛔ **それ以前、3つ目は誰も読まない値だった**——**`validate --strict` は2つの manifest を突き合わせて止まる。そして、前の版のまま残った `HISTORY.md` は、まさに「この版に何が入ったか」を読む者が信じるあのファイルである。** **検査の無い規則は、このリポジトリ自身が定義する欠陥である**——**4つの検査が全部素通りした `easing.py` の docstring と同じ形である。**
 - ⚠️ **どちらの manifest にも `languages` を書かない。** **Claude Code はその欄を知らない**——**`claude plugin validate --strict .` が落ちる。** **姉妹の3本がそれを持っており、3本とも検証に失敗する。**
 - ⚠️ **まだ存在しないパスを `plugin.json` に宣言しない。** **実測（2026-09-27）**: `skills/` がディスクに無いのに `"skills": ["./skills/"]` を書くと、**`Path not found: ./skills/. The runtime loader will report this as a load failure.` で検証が落ちる。** **`skills` の欄は、`skills/` の下に最初のファイルが入るのと同じコミットで入る**——**それより先ではない。manifest は、まだ止まっているディレクトリを告知しない。** ✅ **2026-09-28 に入った**——`skills/embodied-kinetic-loom/SKILL.md` と同じコミットで、**そして `validate --strict` はこの欄を持ったまま通る。**
 - **`.claude-plugin/` に触るコミットの前に、`claude plugin validate --strict .` が通ること。**

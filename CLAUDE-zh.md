@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: CLAUDE.md | translated: 2026-09-27 -->
+<!-- i18n-version: 1.1.0 | canonical: CLAUDE.md | translated: 2026-09-27 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -57,7 +57,7 @@
 
 ## 测试
 
-**19 个文件、233 项测试，全部通过——实测 2026-09-28。** **五项检查及其住处见 `tests/README.md`。** ⚠️ **有三项检查不是测试，也不在那里**——`claude plugin validate --strict .`、`tools/check_i18n.py`、`tools/check_vocabulary.py`。**后两者自带 `--self-test`。**
+**20 个文件、238 项测试，全部通过——实测 2026-09-28。** **五项检查及其住处见 `tests/README.md`。** ⚠️ **有三项检查不是测试，也不在那里**——`claude plugin validate --strict .`、`tools/check_i18n.py`、`tools/check_vocabulary.py`。**后两者自带 `--self-test`。**
 
 ⚠️ **核心已经实现**——**轨迹族、缓动、平滑、规划、限制、准入，以及 `Motion Intent` 的读取器。** **发送的一侧也已实现**——**帧协议、周期循环、运行时的门、轴对应、发送器，以及控制箱的 Mock。** **Pet 的画面也已实现**——`projects/pet/`，**五张脸，以及承载它们的帧。** **而有一个动作也从头到尾实现了**——`motions/greeting.json` 是磁盘上的意图，**而 `motion.py` 把它带着穿过准入与门送到 Mock，同时从同一个刻点画出脸。** ⛔ **这是本仓库第一次就「把两者接起来」作出主张，而且它被断言下来，不是被描述出来的**：**五张脸里有两张是同一幅画。** **被测试的是这些，也只是这些**——**插值、缓动、平滑、限幅、切帧、截止、拒绝、帧的形状，以及驱动脸与身体的是同一个时钟。** **它们是函数，所以可以被严格检验。** **而不检验的，是那结果是否活着。**
 
@@ -81,6 +81,7 @@
 - ⛔ **绝不使用 `git add -A`。** **只 stage 实际触及的路径。** **`git add -A` 会卷进工作树里的其他一切**——**包括用户尚未提交的工作。**
 - **在提交信息末尾附上 `Co-Authored-By: Claude Code <noreply@anthropic.com>`。**
 - **manifest 的版本跟随 `HISTORY.md`。** **当 `## <版>` 标题进入 `HISTORY.md` 时，同一个版本要进入 `.claude-plugin/plugin.json` 与 `.claude-plugin/marketplace.json` 两者。** ⚠️ **两个文件，一个版本**——**而且还有第三个必须一致的值**——**`HISTORY.md` 中最新的 `## <版>`。那就是首行**——**因为那个文件是按新的在前书写的。**
+  ✅ **`tests/test_versions.py` 三者都看（自 2026-09-28 起）。** ⛔ **在那之前，第三个值是没有人读的值**——**`validate --strict` 只对照两个 manifest 就停了。而停留在上一版的 `HISTORY.md`，正是读者用来相信「这一版里进了什么」的那个文件。** **没有检查的规则，就是本仓库自己定义的缺陷**——**与四项检查全部放过的 `easing.py` docstring 是同一种形状。**
 - ⚠️ **不要把 `languages` 写进任何一个 manifest。** **Claude Code 不认识该栏位**——**`claude plugin validate --strict .` 会失败。** **姊妹中有三本带有它，三本都验证失败。**
 - ⚠️ **不要在 `plugin.json` 里声明尚不存在的路径。** **实测（2026-09-27）**：磁盘上没有 `skills/` 却写 `"skills": ["./skills/"]`，**验证会以 `Path not found: ./skills/. The runtime loader will report this as a load failure.` 失败。** **`skills` 栏位与 `skills/` 下的第一个文件在同一次提交里进入**——**不早于此。manifest 不宣告一个仍然停滞的目录。** ✅ **2026-09-28 它进入了**——与 `skills/embodied-kinetic-loom/SKILL.md` 同一次提交，**而 `validate --strict` 带着这个栏位通过。**
 - **在触及 `.claude-plugin/` 的提交之前，`claude plugin validate --strict .` 必须通过。**
