@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.3.0 | canonical: README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.4.0 | canonical: README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -30,7 +30,7 @@
 
 **而写者现在存在了。** `skills/embodied-kinetic-loom/` 持有那一本——**写出 `Motion Intent` 的唯一之物。** ⛔ **它是文档，不是程序：本仓库的代码不调用模型，而正是这一点让它下面的轨迹可以被检查。** 它的词的来源是 `references/README.md`，而 ⚠️ **截至 2026-09-28，那个文件是映射，不是固定的表**——**以行写出，以名字取用，在使用中生长，而这是它生长的唯一道路。** ⛔ **由谁来取，才是这个问题的全部——是 Claude，不是程序**——**所以正典的形式是读者读的表，而不会做第二个只有机器用的副本：没有东西会读它。**
 
-⚠️ **核心、后端、Pet 的画面与 Pet 的运动是绿的**——**20 个文件、238 项测试，实测 2026-09-28**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
+⚠️ **核心、后端、Pet 的画面与 Pet 的运动是绿的**——**21 个文件、246 项测试，实测 2026-09-28**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
 
 ## 骨架
 
@@ -38,7 +38,7 @@
 .claude-plugin/     plugin.json 与 marketplace.json——必须承载同一个版本的两个文件
 docs/               文档。英语为正典，-ja 与 -zh 镜像并列其旁
 tools/              check_i18n.py——镜像。check_vocabulary.py——语汇的表。purity.py——禁止输入清单
-tests/              测试——20 个文件、238 项测试
+tests/              测试——21 个文件、246 项测试
 schemas/            motion-intent.schema.json——Motion Intent 的类型
 engine/             决定论的核心。⚠️ 不调用 LLM，也不 import 任何会浮动之物
 engine/backend/     送出的一侧——协议、周期、门、轴对应、发送器、Mock

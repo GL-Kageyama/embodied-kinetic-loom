@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.2.0 | canonical: CLAUDE.md | translated: 2026-09-27 -->
+<!-- i18n-version: 1.3.0 | canonical: CLAUDE.md | translated: 2026-09-28 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -58,7 +58,7 @@
 
 ## 测试
 
-**20 个文件、238 项测试，全部通过——实测 2026-09-28。** **五项检查及其住处见 `tests/README.md`。** ⚠️ **有三项检查不是测试，也不在那里**——`claude plugin validate --strict .`、`tools/check_i18n.py`、`tools/check_vocabulary.py`。**后两者自带 `--self-test`。**
+**21 个文件、246 项测试，全部通过——实测 2026-09-28。** **五项检查及其住处见 `tests/README.md`。** ⚠️ **有三项检查不是测试，也不在那里**——`claude plugin validate --strict .`、`tools/check_i18n.py`、`tools/check_vocabulary.py`。**后两者自带 `--self-test`。**
 
 ⚠️ **核心已经实现**——**轨迹族、缓动、平滑、规划、限制、准入，以及 `Motion Intent` 的读取器。** **发送的一侧也已实现**——**帧协议、周期循环、运行时的门、轴对应、发送器，以及控制箱的 Mock。** **Pet 的画面也已实现**——`projects/pet/`，**五张脸，以及承载它们的帧。** **而有一个动作也从头到尾实现了**——`motions/greeting.json` 是磁盘上的意图，**而 `motion.py` 把它带着穿过准入与门送到 Mock，同时从同一个刻点画出脸。** ⛔ **这是本仓库第一次就「把两者接起来」作出主张，而且它被断言下来，不是被描述出来的**：**五张脸里有两张是同一幅画。** **被测试的是这些，也只是这些**——**插值、缓动、平滑、限幅、切帧、截止、拒绝、帧的形状，以及驱动脸与身体的是同一个时钟。** **它们是函数，所以可以被严格检验。** **而不检验的，是那结果是否活着。**
 

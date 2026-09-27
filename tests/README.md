@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.3.0 | canonical: tests/README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.4.0 | canonical: tests/README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Twenty files, two hundred and thirty-eight tests, all green — measured 2026-09-28.**
+**Twenty-one files, two hundred and forty-six tests, all green — measured 2026-09-28.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -106,6 +106,22 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 ⚠️ **What it does not see.** It asserts the three agree; it says nothing about whether the version is *earned*. It reads **the first heading only** — a skipped or duplicated version further down does not ring. And it does not touch `i18n-version`, which is a different number about a different thing, checked by `tools/check_i18n.py`.
 
 **And the parser is tested against itself.** `test_the_parser_finds_nothing_when_there_is_no_heading` feeds it a history with no version heading, a level-1 heading, a level-3 heading, and `0.6.0.1` — **because if `newest_version()` ever returns `""` instead of `None`, all three of the other assertions go green together.**
+
+## The check that `08 §4` said could not be written
+
+**The design notes listed one row as *does not ring* — and named what would make it ring: *"does the CSS family's name appear in the backend's input? — that is writable with a `grep`."***
+
+⛔ **Written the way `08` imagined it, it would have been green for the wrong reason.** `08` proposed this question: *does any file under `engine/backend/` import `engine/trajectory/easing`?* ⚠️ **`engine/backend/transmit.py` imports `..trajectory.plan`, and that one line runs `engine/trajectory/__init__.py` — which re-exports `easing`.** **The module is loaded; the answer is `yes` before anything is asked.** A check asking that question cannot tell *not used* from *loaded by the package's own `__init__`*.
+
+**`test_expression_boundary.py` is check 11, and it asks about names instead of modules.** Three claims: `engine/backend/` does not name the expression module or any of its exports; it does not hold an expression word as a **value**; and the `Motion Intent` type names none of them. ⚠️ **The vocabulary is read from `CURVES`, so the list has one home** — plus the three families the survey names as the reason for the rule. ⛔ **Those three are in no source file here; the check is their only address.** **Check 11 is of a fourth kind**: not a trajectory, not a drawing or a directory or a joint, not bookkeeping — **it is a check on what may cross the boundary.**
+
+⚠️ **Prose does not ring.** The words are read from string constants that are *values*, not from docstrings — otherwise the check would fire on the schema's own `quality` description, **which names the very words it warns against.** **A check that rings on correct documentation is a check that gets deleted.**
+
+⚠️ **And green here means *not yet broken*, not *protected*.** The backend names none of these today because nothing has ever needed to name one.
+
+**It was reverted once, and the suite watched**: an expression import in `transmit.py`, an expression word as a value in `gate.py`, and a word added to the `dof` enum **each failed exactly one test, and the other five stayed green.** ⚠️ **A test that has never been seen to fail is not yet a check.**
+
+⚠️ **One measurement is kept here as a test rather than as a sentence**: `test_loading_a_backend_module_also_loads_the_expression_module` runs a subprocess and asserts that importing the backend **does** put `engine.trajectory.easing` into `sys.modules`. **That is not a defect** — it is the fact that makes *"does it import easing"* the wrong question. ⛔ **If it ever fails, the fact changed, not the code** — rewrite the note; do not delete the test.
 
 ## The rule that holds this directory — applied to us
 

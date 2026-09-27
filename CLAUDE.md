@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.2.0 | canonical: CLAUDE.md | translated: 2026-09-27 -->
+<!-- i18n-version: 1.3.0 | canonical: CLAUDE.md | translated: 2026-09-28 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -58,7 +58,7 @@
 
 ## Tests
 
-**Twenty files, two hundred and thirty-eight tests, all green — measured 2026-09-28.** The five checks, and where each one lives, are in `tests/README.md`. ⚠️ **Three checks are not tests and do not live there** — `claude plugin validate --strict .`, `tools/check_i18n.py` and `tools/check_vocabulary.py`; the two tools have a `--self-test`.
+**Twenty-one files, two hundred and forty-six tests, all green — measured 2026-09-28.** The five checks, and where each one lives, are in `tests/README.md`. ⚠️ **Three checks are not tests and do not live there** — `claude plugin validate --strict .`, `tools/check_i18n.py` and `tools/check_vocabulary.py`; the two tools have a `--self-test`.
 
 ⚠️ **The core is implemented** — the trajectory family, easing, smoothing, plan, limits and admission, and the `Motion Intent` reader. **So is the sending side** — the frame protocol, the periodic loop, the run-time gate, the axis map, the transmitter, and a mock of the control box. **So is the Pet's screen** — `projects/pet/`, the five faces and the frame that carries them. **And so is one motion, end to end** — `motions/greeting.json` is an intent off disk, and `motion.py` carries it through admission and the gate to the mock **while drawing the face from the same tick.** ⛔ **That last one is the repository's first claim about a joint between the two, and it is asserted, not described**: two of the five faces are the same drawing. **What is tested is that and nothing else**: interpolation, easing, smoothing, limiting, framing, deadlines, refusals, the shape of a frame, and that one clock drives both the face and the body. Those are functions, so they can be checked exactly. **What is not tested is whether the result is alive.**
 
