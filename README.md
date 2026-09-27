@@ -1,8 +1,12 @@
-<!-- i18n-version: 1.4.0 | canonical: README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.5.0 | canonical: README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # embodied-kinetic-loom
+
+<p align="center">
+  <img src="assets/repo-hero.png" width="100%" alt="embodied-kinetic-loom">
+</p>
 
 **An intent becomes motion, and the motion leaves the file.**
 
@@ -44,6 +48,7 @@ engine/             the deterministic core. ⚠️ It calls no LLM and imports n
 engine/backend/     the sending side — protocol, cycle, gate, axis map, transmitter, mock
 skills/             the one writer — the skill that writes a Motion Intent
 references/         the motion vocabulary — written as rows, drawn from by name, grown by use
+assets/             the repository's face (the README hero)
 projects/pet/       the Pet — the five faces, the frame that carries them, and the motion that runs
 install.sh          installs the skill (--local writes .claude/skills/, which is committed)
 ```
@@ -56,15 +61,13 @@ install.sh          installs the skill (--local writes .claude/skills/, which is
 
 - **No serial layer.** The backend frames, gates and transmits; nothing opens a port. ⛔ **This is the one part the machine gates**, because the control box has two generations and the protocol differs between them — and it is exactly where a mock and the machine diverge most.
 - ⚠️ **The vocabulary has one row, not five.** Of the five verbs it starts from — 傾く / 倒れる / 沈む / 跳ねる / 後退 — **three name a degree of freedom this machine does not have**, and the mapping carries an explicit column saying what the difference is. ⛔ **The four missing rows are the ones that were not used**, and writing them now would be writing down what has never run.
-- **No `assets/repo-hero.png`.** The picture on the front says what a repository is about; that sentence did not exist until this file did.
 
 ## Next
 
 1. **The serial layer** — the one step that reaches the wire. ⛔ **Gated on the machine**: confirm which generation of control box is in hand before trusting any protocol document, including this repository's.
 2. **A second motion** — the vocabulary starts from five verbs. ⚠️ **Three of them name a translation this machine does not have, so not one row has yet crossed the difference column** — and how that column behaves has never been exercised.
-3. **`assets/repo-hero.png`** — the last vessel item still empty, and nothing gates it.
 
-⚠️ **Step 1 is the only one the machine gates; steps 2 and 3 are waiting on work.** **And finishing any of them says nothing about whether anything is *there*.**
+⚠️ **Step 1 is the only one the machine gates; step 2 is waiting on work.** **And finishing either says nothing about whether anything is *there*.**
 
 ## Language
 
