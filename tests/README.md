@@ -4,7 +4,7 @@
 
 # tests/
 
-**Fifteen files, one hundred and sixty-four tests, all green — measured 2026-09-27.**
+**Eighteen files, two hundred and thirteen tests, all green — measured 2026-09-28.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -40,9 +40,27 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 **`test_intent.py` holds the boundary from both sides.** The `quality` field of the type is accepted by the schema and ignored by the code — and both halves are asserted, because either half alone would let the boundary collapse. **On the day the vocabulary lands, the second half is rewritten, not deleted.**
 
+## The checks that came with `projects/`
+
+**Three files arrived on 2026-09-28**, when the Pet's screen became the first thing to live in `projects/` — a decision that put code inside this repository but **outside the scan `test_purity.py` performs**.
+
+| # | the check | where it lives |
+|---|---|---|
+| **6** | the five faces are the ones the concept document draws, and no line is wider than its box | `test_pet_expressions.py` |
+| **7** | one frame is one write; the frame's shape does not change with the state; no character is wider than one column | `test_pet_screen.py` |
+| **8** | `projects/` imports nothing that varies — with `__main__.py` named in the exclusion, **and the exclusion itself asserted** | `test_pet_purity.py` |
+
+⚠️ **Numbering these 6, 7 and 8 is not a claim that there are eight checks of one kind.** The five above are checks on a trajectory. These are checks on a drawing and on a directory.
+
+### A defect the check agreed with
+
+**Running the entry point found it, not the suite.** `--state sleepy` printed `CSI ? 2026 l` although synchronised output had never been turned on — **`close()` was closing a borrow the screen had not taken.** ⚠️ **And `test_close_returns_the_terminal` asserted that exact string**, so the suite was green *and* agreed with the defect.
+
+⇒ **The check now names both directions.** No `SYNC_END` when the update was never opened; **and a second one, deliberately, when it was** — each frame closes its own pair, so the `l` emitted by `close()` is a rescue for a write torn in transit, and it is idempotent.
+
 ## Why determinism is checked statically
 
-**`test_purity.py` reads the imports of every file under `engine/` and fails if any is `random`, `time`, `os`, `socket`, or an LLM client.**
+**`test_purity.py` reads the imports of every file under `engine/` and fails if any is `random`, `time`, `os`, `socket`, or an LLM client.** ⚠️ **The list itself now lives in `tools/purity.py`, because a second scan reads it too** — **two copies of a rule means one of them gets updated.**
 
 **Running the same input twice and comparing is not proof.** The two runs might simply have agreed. **The imports are the thing to look at**, and an AST finds them where a grep would find the word inside a docstring instead.
 

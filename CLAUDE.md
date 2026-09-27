@@ -55,9 +55,11 @@
 
 ## Tests
 
-**Fifteen files, one hundred and sixty-four tests, all green — measured 2026-09-27.** The five checks, and where each one lives, are in `tests/README.md`.
+**Eighteen files, two hundred and thirteen tests, all green — measured 2026-09-28.** The five checks, and where each one lives, are in `tests/README.md`.
 
-⚠️ **The core is implemented** — the trajectory family, easing, smoothing, plan, limits and admission, and the `Motion Intent` reader. **So is the sending side** — the frame protocol, the periodic loop, the run-time gate, the axis map, the transmitter, and a mock of the control box. **What is tested is that and nothing else**: interpolation, easing, smoothing, limiting, framing, deadlines, refusals. Those are functions, so they can be checked exactly. **What is not tested is whether the result is alive.**
+⚠️ **The core is implemented** — the trajectory family, easing, smoothing, plan, limits and admission, and the `Motion Intent` reader. **So is the sending side** — the frame protocol, the periodic loop, the run-time gate, the axis map, the transmitter, and a mock of the control box. **And so is the Pet's screen** — `projects/pet/`, the five faces and the frame that carries them. **What is tested is that and nothing else**: interpolation, easing, smoothing, limiting, framing, deadlines, refusals, and the shape of a frame. Those are functions, so they can be checked exactly. **What is not tested is whether the result is alive.**
+
+⚠️ **`tests/test_purity.py` walks `engine/**` and nothing else.** `projects/pet/` came to live inside this repository on 2026-09-28, and it gets its own scan — `tests/test_pet_purity.py` — **over the same forbidden list, which now sits in `tools/purity.py` so that there is one list and not two.** ⛔ **That does not make the two directories equally safe: the scan reads imports, and imports are all it reads.**
 
 ⚠️ **Nothing in `engine/backend/` opens a port.** The serial layer is the one part the machine gates — two generations of control box, two protocols — and **it is where a mock and the machine diverge most**: `flush()` was measured blocking forever on a macOS pty. **A green suite says nothing about the wire.**
 
