@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.2.0 | canonical: README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.3.0 | canonical: README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -28,7 +28,7 @@ This repository holds what the engine *is*, what must never be assumed about the
 
 ⛔ **No byte of that has reached a machine.** That is measured, not asserted: a scan of this workshop's own Python — 143 files, searched for `import hid`, `hidapi`, `pygame`, `joystick`, `evdev`, `pyserial`, `import serial` and `IOHID` — returned **zero**. **The backend stops one layer short of the wire, on purpose** — see below.
 
-**And the writer now exists.** `skills/embodied-kinetic-loom/` holds the one skill — **the only thing that writes a `Motion Intent`.** ⛔ **It is a document, not a program: no code in this repository calls a model, and that is what makes the trajectory underneath it testable.** Its source of words is `references/README.md`, and ⚠️ **as of 2026-09-28 that file is a catalogue rather than a fixed table** — written as rows, drawn from by name, **and grown by use, which is the only way it grows.** ⛔ **Drawn from by whom is the whole question: by Claude, not by a program** — so the canonical form is a table a reader reads, and no second, machine-only copy is built, because nothing would read it.
+**And the writer now exists.** `skills/embodied-kinetic-loom/` holds the one skill — **the only thing that writes a `Motion Intent`.** ⛔ **It is a document, not a program: no code in this repository calls a model, and that is what makes the trajectory underneath it testable.** Its source of words is `references/README.md`, and ⚠️ **as of 2026-09-28 that file is a mapping rather than a fixed table** — written as rows, drawn from by name, **and grown by use, which is the only way it grows.** ⛔ **Drawn from by whom is the whole question: by Claude, not by a program** — so the canonical form is a table a reader reads, and no second, machine-only copy is built, because nothing would read it.
 
 ⚠️ **The core, the backend, the Pet's screen and the Pet's motion are green — twenty files, two hundred and thirty-eight tests, measured 2026-09-28 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
 

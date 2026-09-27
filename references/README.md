@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.0.0 | canonical: references/README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 2.1.0 | canonical: references/README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -6,7 +6,9 @@
 
 **The vocabulary is where a word becomes numbers. This directory holds the mapping, and nothing else.**
 
-**It is a catalogue: written as rows, drawn from by name, and grown by use.** ⛔ **It holds one entry today — the one that was used.** The vocabulary starts from five verbs, and four of them have never been sent to this machine.
+**It is a mapping: written as rows, drawn from by name, and grown by use.** ⛔ **It holds one entry today — the one that was used.** The vocabulary starts from five verbs, and four of them have never been sent to this machine.
+
+✅ **The word is *mapping*, and it is a ruling — the author's, 2026-09-28.** ⚠️ **A catalogue lists what exists; a mapping says what a word becomes on this machine.** Every row is one word moved onto this body: the words, the degree of freedom, the amount, the time, the difference the machine cannot cover, and the place it was used. ⇒ **A row can only exist where a word was actually turned into numbers** — ⛔ **which is why there is one, and why the four missing rows are not an omission.** The design notes' own line is the same claim from the other side: *three catalogues of motion words already exist outside this workshop; **a fourth is not what is missing**.*
 
 ## ✅ The decision this file is
 

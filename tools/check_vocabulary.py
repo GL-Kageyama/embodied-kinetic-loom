@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""語彙の目録を検査する——**正典は `references/README.md` の1つの表である。**
+"""語彙の写像を検査する——**正典は `references/README.md` の1つの表である。**
 
 ⚠️ **この検査は 2026-09-28 に書かれた。** その日 **D-02 に答が出て**、
-`references/README.md` は**固定の表ではなく目録**になった。**目録は規則を1つ持つ**
+`references/README.md` は**固定の表ではなく写像**になった。**写像は規則を1つ持つ**
 ——*語を作らない*——**そして規則は、読むものが無ければ守られているか分からない。**
 `references/README.md` がこの検査の名前を先に書き、**検査は同じコミットで来た。**
 
@@ -53,7 +53,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
-#: 正典。**目録はこの1本の表である。**
+#: 正典。**写像はこの1本の表である。**
 CANONICAL = "references/README.md"
 
 #: ミラーの言語接尾辞。**正典は英語なので `en` は無い。**
@@ -192,7 +192,7 @@ def check(root: Path) -> tuple[list[str], dict]:
     cands = [(i, rows) for i, rows in tables(lines) if rows and len(rows[0]) == COLUMNS]
     if not cands:
         return [
-            f"V1 {CANONICAL}: {COLUMNS}列の表が無い——**語彙の目録が消えている**"
+            f"V1 {CANONICAL}: {COLUMNS}列の表が無い——**語彙の写像が消えている**"
         ], stats
     if len(cands) > 1:
         return [
@@ -306,7 +306,7 @@ def _doc(
     wide: bool = False,
     extra_table: bool = False,
 ) -> str:
-    """合成の目録。**各引数は「壊す」ためのものである。**"""
+    """合成の表。**各引数は「壊す」ためのものである。**"""
     body = [_row()] if rows is None else rows
     out = ["# references/", "", "## A section", "", "Some prose.", ""]
     if header:
@@ -453,7 +453,7 @@ def self_test() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="語彙の目録を検査する（正典は references/README.md）")
+    ap = argparse.ArgumentParser(description="語彙の写像を検査する（正典は references/README.md）")
     ap.add_argument("--self-test", action="store_true", help="各規則の鳴る例と鳴らない例を走らせる")
     ap.add_argument("--root", default=str(REPO), help="リポジトリの根（既定はこのファイルの親の親）")
     args = ap.parse_args(argv)
@@ -467,7 +467,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"=== 型から読んだ自由度（{SCHEMA}）")
     print(f"    {' / '.join(stats['dof']) if stats['dof'] else '⚠️ 読めなかった'}")
     print()
-    print(f"=== 目録 {CANONICAL}")
+    print(f"=== 写像 {CANONICAL}")
     if stats["table"] is None:
         print("    ⚠️ 表を選べなかった——**この検査は、この版では表を1つも見ていない。**")
     else:
