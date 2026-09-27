@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: engine/README.md | translated: 2026-09-27 -->
+<!-- i18n-version: 1.1.0 | canonical: engine/README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -80,9 +80,20 @@ So a refusal returns **the last set that was allowed**, and keeps sending it. **
 
 ## What is not here
 
-**No serial layer, no Pet screen, no sound, no word-to-value mapping, no run-time monitoring.**
+⚠️ **This section lists what is not in `engine/`, and its entries do not all have the same reason.** **An absence and a placement read the same in a list, and they are not the same thing** — the Pet's screen was never meant to live inside the deterministic core.
 
-⚠️ **The serial layer is the one part the machine gates** — the control box has two generations, and the protocol differs between them, and **the place where a Mock and the machine diverge most is exactly there**: `flush()` was measured blocking forever on a macOS pty. **The Mock sits above the serial layer, so a green Mock says nothing about it.**
+| what | where it is | why |
+|---|---|---|
+| **the serial layer** | nowhere, yet | ⛔ **the machine gates it** — the control box has two generations and two protocols |
+| **sound** | nowhere | this engine drives motion; nothing here produces or consumes audio |
+| **the Pet's screen** | `projects/pet/`, arrived 0.4.0 | ⚠️ **not here by design.** The face and the body share a clock (`motion.py`) — **and a shared clock is not a reason to put a face inside the core** |
+| **the word-to-value mapping** | `references/README.md`, arrived 0.6.0 | ⚠️ **not here by design.** D-02's answer is a table a reader reads; the core reads the type, not the vocabulary |
+
+⛔ **And one entry left this list without anyone noticing.** It read *no run-time monitoring*, and it went stale in the version that edited the line — **`backend/gate.py` is in "What is here" above, and has been since 0.3.0.** That is the run-time gate, and it arrived that day. **This file said both things at once for eight versions.**
+
+⚠️ **What is still true is the narrower claim: nothing here watches what comes back.** The contract is open-loop — **the gate sees only what leaves.** `decode_frames` exists and `decode_feedback` deliberately does not, because the shape of the box's reply was never confirmed.
+
+**The serial layer is where a Mock and a machine diverge most** — ⛔ **`flush()` was measured blocking forever on a macOS pty.** **The Mock sits above the serial layer, so a green Mock says nothing about it.**
 
 ## The one thing the fallback costs
 
