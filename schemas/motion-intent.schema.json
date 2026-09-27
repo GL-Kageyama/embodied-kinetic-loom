@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Motion Intent",
+  "description": "The boundary type (D-06). Everything upstream of this object may vary; everything downstream of it must be a function. Closed by default — 2020-12, and `additionalProperties: false` everywhere, following the practice recorded in the design notes. Exactly one field is left open, and it is named in `$defs.move.properties.quality`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["moves"],
+  "properties": {
+    "moves": {
+      "description": "The moves, in execution order. Moves sharing a `group` happen together; groups run in ascending order. The engine additionally requires, in code rather than here, that (a) groups are contiguous from zero, and (b) every move within a group has the same `duration_ms` — a JSON Schema cannot say either.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/move" }
+    }
+  },
+  "$defs": {
+    "move": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dof", "target", "duration_ms", "group"],
+      "properties": {
+        "dof": {
+          "description": "The degree of freedom. ⚠️ These three names are ours, not the machine's — the control box documents no canonical axis correspondence, and the sign of every axis depends on the wiring. A name here is a label; it is not a motor number, and the engine never treats it as one.",
+          "type": "string",
+          "enum": ["pitch", "roll", "yaw"]
+        },
+        "target": {
+          "description": "Where to arrive, in the protocol's own units (counts). ⛔ The admissible range is deliberately NOT stated here. It is feedback-driven, not a constant that can be read off the protocol, and it belongs to the safety envelope that the host supplies at run time — not to the type. Holding the same number in two places is how the two come to disagree.",
+          "type": "number"
+        },
+        "duration_ms": {
+          "description": "How long the move takes, in milliseconds.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "group": {
+          "description": "Moves with the same group number run simultaneously. Groups run in ascending order, and must be contiguous from zero.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "quality": {
+          "description": "⛔ OPEN ON PURPOSE — the one field this type does not close. Its value type is undecided because the vocabulary that would fill it does not exist yet: the word-to-value mapping (08) is gated on D-12, which cannot be settled without the machine's response, and on D-02, which is gated on a question that is still open. Closing it now would make it impossible to write; but the engine does NOT read it — `engine/intent.py` builds its Move without this field, so a value written here changes nothing that runs. The boundary is therefore held from both sides: the schema allows the field, the code ignores it. This is where the collision between the type (D-06) and the vocabulary (08) is located — not erased.",
+          "type": "object"
+        }
+      }
+    }
+  }
+}

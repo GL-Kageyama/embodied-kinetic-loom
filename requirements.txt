@@ -1,0 +1,8 @@
+# 実行時の依存は、1つだけである——型を読むときに要る。
+# ⚠️ 軌道を計算する核心（engine/trajectory/）は、算術だけである。何も要らない。
+
+# Motion Intent の読み手（engine/intent.py）。型を読む側にだけ要る。
+jsonschema>=4.0
+
+# 試験（tests/ の pytest）。8ファイル・80テスト。
+pytest>=8.0
