@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.5.0 | canonical: CLAUDE.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.6.0 | canonical: CLAUDE.md | translated: 2026-09-28 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -18,6 +18,8 @@
 **The design notes for this engine are not in this repository.** This repository holds the vessel, the deterministic core, and — in time — the rest of the implementation. The reasoning behind a fixed policy is recorded with the policy, in the section that states it.
 
 **Where the boundary is argued — `docs/verification-boundary.md`.** The distinction between what can be verified and what cannot is the single most load-bearing document here. Read it before claiming that something works.
+
+**Where the machine is met — `docs/first-contact.md`.** ⚠️ **Not an argument; a checklist**, and it carries no claim of its own. ⛔ **Nothing rings on it** — the reason no checker was written for it is stated on the page, together with what that costs.
 
 ## Fixed Policy (do not change)
 
@@ -47,6 +49,11 @@
 - ⚠️ **This machine has a failure mode in which it leaves the floor.** The owner's report of "one centimetre" is a single visual estimate, not a measurement. **Treat it as an unbounded failure, not a small one.**
 
 **The first thing to check on the real machine:** ⛔ **the control box has two generations.** The earlier one is serial; the current one is an STM32 reached over HID. **Axis correspondence has no canonical form, and the sign of every axis depends on the wiring.** Confirm the generation before trusting any protocol document, including this one.
+✅ **The full checklist is `docs/first-contact.md`** — the four questions of the first hour, the one check that gates the backend design (**can the port be opened at 500000, and on which chip**), and what *stop* means here. ⚠️ **Four of its items steer code, and they are repeated here because they must be settled before a line of the serial layer is written:**
+  - ⛔ **The generation of the box** — two protocols, and only one of them is documented here.
+  - ⛔ **The bit mode.** **Every count in this repository is a 10-bit count** — the neutral `512`, and the envelope `190–833` in `engine/trajectory/limits.py`. **A box in 12-bit mode makes those numbers mean something else, silently.**
+  - ⛔ **The sign of each axis** — wiring-dependent, no canonical form. **Never bake one in as a constant.**
+  - ⛔ **The read scale.** **Position is sent as 0–1024 and read as `Feedback/4`, `Target/4` — 0–255.** **Sending a value you just read back flies to a quarter of that position.**
 
 ## What Must Not Be Broken
 

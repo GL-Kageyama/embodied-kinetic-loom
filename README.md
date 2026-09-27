@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.7.0 | canonical: README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.8.0 | canonical: README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -35,6 +35,12 @@ This repository holds what the engine *is*, what must never be assumed about the
 **And the writer now exists.** `skills/embodied-kinetic-loom/` holds the one skill — **the only thing that writes a `Motion Intent`.** ⛔ **It is a document, not a program: no code in this repository calls a model, and that is what makes the trajectory underneath it testable.** Its source of words is `references/README.md`, and ⚠️ **as of 2026-09-28 that file is a mapping rather than a fixed table** — written as rows, drawn from by name, **and grown by use, which is the only way it grows.** ⛔ **Drawn from by whom is the whole question: by Claude, not by a program** — so the canonical form is a table a reader reads, and no second, machine-only copy is built, because nothing would read it.
 
 ⚠️ **The core, the backend, the Pet's screen and the Pet's motion are green — twenty-two files, two hundred and sixty-seven tests, measured 2026-09-28 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
+
+## Before you connect a machine
+
+⛔ **Nothing here opens a port, and nothing here stops a motor.** If you are about to plug a control box into a computer, read **[`docs/first-contact.md`](docs/first-contact.md)** first — the four questions to settle in the first hour, the one check that gates the backend design, and the nine things about the machine that no document settles.
+
+⚠️ **It is a checklist and nothing rings on it**; that cost is written down on the page. **What it is for is the day the machine arrives** — reconstructing all of this from a design note while standing in front of the box is the situation it exists to prevent.
 
 ## Structure
 
