@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "language": "zh",
+    "language_native": "中文",
+    "canonical": "en",
+    "note": "运行时字符串。正典是 en，本文件照抄了它的键集合（tests/test_strings.py 会检查这一点）。"
+  },
+  "refusal": {
+    "unknown_dof_start": "自由度 {dof!r} 没有传入当前位置",
+    "unknown_dof_limit": "自由度 {dof!r} 没有传入上限",
+    "target_outside_envelope": "目标落在框架之外",
+    "unreachable_at_duration": "可达性: 对 {dof} 而言，在 {duration_ms} ms 内不存在遵守速度上限 {limit} 的梯形",
+    "trajectory_exceeds_limits": "轨迹超出上限"
+  },
+  "pet_cli": {
+    "description": "把 Pet 的脸画在终端里。加上 --motion，运动也会跑起来——⛔ 但目的地是 Mock，不是机体",
+    "help_state": "只画一个就结束。省略则按顺序轮完五个",
+    "help_motion": "运行 motions/<名称>.json 中的意图，并用同一个时钟画脸。⚠️ 脸不是 --state，而是那个名字的表情",
+    "help_interval": "轮换时的间隔（秒）。默认 1.5",
+    "help_sync": "使用同步更新（CSI ? 2026 h/l）。⚠️ 终端是否支持尚未测量，所以默认不用",
+    "help_lang": "语言（en/ja/zh）。默认取 EMBODIED_KINETIC_LOOM_LANG 环境变量，没有则为 en"
+  },
+  "pet_report": {
+    "refused": "{name}: ⛔ 计划时被拒——{reason}\n  ⇒ **一帧也没有发送。**",
+    "head": "{name}: {words}",
+    "counts": "  发送 {frames} 帧、刻点 {ticks}、门守住 {refusals} 次、放弃的刻点 {skipped}",
+    "lateness": "  最迟的刻点 +{worst_ms:.3f} ms",
+    "position": "  箱的位置 {arrived}",
+    "caveat": "  ⛔ 一个上限都没有传（全部为 None）——除框架（190〜833，实测）以外没有任何检查响过"
+  }
+}

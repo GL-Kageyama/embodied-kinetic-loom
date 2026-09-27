@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.4.0 | canonical: tests/README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.5.0 | canonical: tests/README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Twenty-one files, two hundred and forty-six tests, all green — measured 2026-09-28.**
+**Twenty-two files, two hundred and sixty-seven tests, all green — measured 2026-09-28.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -122,6 +122,56 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 **It was reverted once, and the suite watched**: an expression import in `transmit.py`, an expression word as a value in `gate.py`, and a word added to the `dof` enum **each failed exactly one test, and the other five stayed green.** ⚠️ **A test that has never been seen to fail is not yet a check.**
 
 ⚠️ **One measurement is kept here as a test rather than as a sentence**: `test_loading_a_backend_module_also_loads_the_expression_module` runs a subprocess and asserts that importing the backend **does** put `engine.trajectory.easing` into `sys.modules`. **That is not a defect** — it is the fact that makes *"does it import easing"* the wrong question. ⛔ **If it ever fails, the fact changed, not the code** — rewrite the note; do not delete the test.
+
+## The check that arrived with `--lang`
+
+**The rule was already written down.** `CLAUDE.md`'s Language section fixed the default at `en` and said a `--lang` argument and an environment variable may lower it — **and then said, in the same list, that the runtime string tables were not built yet.** ⛔ **The first stage with runtime strings was 0.5.0, when the Pet began printing a report.** By 0.10.0 the entry point held seventeen Japanese constants and there was no way to change them.
+
+**`test_strings.py` is check 12, and it is of a fifth kind**: not a trajectory, not a drawing or a directory or a joint, not bookkeeping, not what may cross the boundary — **it is a check on whether the words a person reads exist in the language they asked for.**
+
+### ⛔ The core had to change, and that is the point
+
+**`Rejection.reason` was a Japanese sentence, built inside `engine/trajectory/admit.py`.** `report()` printed it. **So `--lang en` would have produced English help text with a Japanese refusal on the next line** — a surface that is half translated, and visibly so.
+
+⇒ **The core now emits a code and the values to fill in; the edge turns that into a sentence.** Five codes, in `locales/`.
+
+⚠️ **That was not a translation chore.** A sentence is not a value — **nothing can branch on it and no table can reach it.** This repository's thesis is that the boundary is drawn at a typed value; **`Rejection` was on the wrong side of it.**
+
+### ⛔ `resolve()` does not read the environment
+
+**`os` is on the forbidden list in `tools/purity.py`, and the reason written beside it is `environ`.** So the language cannot be settled inside the core.
+
+**`strings.resolve(cli, env)` takes both as arguments.** `projects/pet/__main__.py` — the one file that scan excludes — reads `os.environ` and passes the value down. ⚠️ **That is the shape the clock already has**: `engine/` may not import `time`, so the loop takes its clock from the caller. **The edge reads the world; the core receives values.**
+
+⇒ **The priority order is therefore testable without touching the environment**, and one test asserts the boundary itself: with `EMBODIED_KINETIC_LOOM_LANG` set in the process, `strings.resolve()` still returns `en`, while `language_of()` returns the variable. **The day that line fails is the day the environment leaked into the core.**
+
+### What it sees, and what it cannot
+
+**Two of the checks are static.** `Rejection("…")` literals are walked with an AST across `engine/` — **the codes are built deep in the core, and the entry point cannot reach all five** — and each must be in all three tables. **`strings.text("section", "key")` literals are walked across `projects/`** for the same reason.
+
+⛔ **The entry point's own help strings are invisible to that walk.** `build_parser` reaches them through a local function, so the keys are not string arguments at any call site. **A static check that cannot see them is not a check on them** — so those six are checked instead **by building the parser in all three languages**: the three help texts must differ from one another, no brace may survive, and `--lang`, `--motion`, `--state` and the five state names must read the same in every language. **Spellings are not language.**
+
+⚠️ **And the tables are not documents.** `tools/check_i18n.py` reads mirrors of Markdown — headings, the `Language:` line, fences containing `←`. **A JSON table is a different medium**, so the mirror rule is asserted again here: the three files carry the same keys, and every template uses the same holes. **A rule living in two media needs two checks, and neither covers the other.**
+
+⛔ **What it does not see.** It cannot tell whether a translation is any good, or that the Japanese is Japanese. It cannot see a key that sits in the table and is reached by nothing — **the direction it checks is the one that breaks at run time.** **And it says nothing about the exception messages that remain Japanese throughout `engine/`**: those are written to the workshop, and **whether they should move is a decision not yet taken.**
+
+### Reverted five times, and the suite watched
+
+| what was broken | what rang |
+|---|---|
+| `help_lang` deleted from `locales/ja.json` | three tests — the parser cannot be built in `ja` |
+| `{frames}` → `{frame}` in `locales/zh.json` | `test_every_translation_fills_the_same_holes` |
+| a code added in `admit.py`, absent from the tables | `test_every_code_the_core_can_emit_is_in_the_table` |
+| one entry deleted from `locales/ja.json` | four tests, including the reached-key walk |
+| `cli` and `env` swapped in `resolve()` | the two priority tests |
+
+⚠️ **A test that has never been seen to fail is not yet a check.**
+
+### ⛔ A trap met while putting the files back
+
+**The same size, in the same second.** Two of the breaks changed a file without changing its length — `cli or env` becomes `env or cli`, and a restored file is byte-identical to the file it replaces. **Python decides a `.pyc` is still valid from the source's mtime in whole seconds and its size.** Restore a same-length file within the same second and the stale bytecode runs.
+
+**So the suite failed after the file had been put back, and `diff` said the file was right.** ⚠️ **"It still fails after I put it back" is not evidence that the check is missing.** Clear the bytecode caches and run it again — **and disbelieve the number in both directions.**
 
 ## The rule that holds this directory — applied to us
 

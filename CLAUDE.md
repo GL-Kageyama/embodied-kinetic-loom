@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.3.0 | canonical: CLAUDE.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.4.0 | canonical: CLAUDE.md | translated: 2026-09-28 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -58,9 +58,9 @@
 
 ## Tests
 
-**Twenty-one files, two hundred and forty-six tests, all green — measured 2026-09-28.** The five checks, and where each one lives, are in `tests/README.md`. ⚠️ **Three checks are not tests and do not live there** — `claude plugin validate --strict .`, `tools/check_i18n.py` and `tools/check_vocabulary.py`; the two tools have a `--self-test`.
+**Twenty-two files, two hundred and sixty-seven tests, all green — measured 2026-09-28.** The five checks, and where each one lives, are in `tests/README.md`. ⚠️ **Three checks are not tests and do not live there** — `claude plugin validate --strict .`, `tools/check_i18n.py` and `tools/check_vocabulary.py`; the two tools have a `--self-test`.
 
-⚠️ **The core is implemented** — the trajectory family, easing, smoothing, plan, limits and admission, and the `Motion Intent` reader. **So is the sending side** — the frame protocol, the periodic loop, the run-time gate, the axis map, the transmitter, and a mock of the control box. **So is the Pet's screen** — `projects/pet/`, the five faces and the frame that carries them. **And so is one motion, end to end** — `motions/greeting.json` is an intent off disk, and `motion.py` carries it through admission and the gate to the mock **while drawing the face from the same tick.** ⛔ **That last one is the repository's first claim about a joint between the two, and it is asserted, not described**: two of the five faces are the same drawing. **What is tested is that and nothing else**: interpolation, easing, smoothing, limiting, framing, deadlines, refusals, the shape of a frame, and that one clock drives both the face and the body. Those are functions, so they can be checked exactly. **What is not tested is whether the result is alive.**
+⚠️ **The core is implemented** — the trajectory family, easing, smoothing, plan, limits and admission, and the `Motion Intent` reader. **So is the sending side** — the frame protocol, the periodic loop, the run-time gate, the axis map, the transmitter, and a mock of the control box. **So is the Pet's screen** — `projects/pet/`, the five faces and the frame that carries them. **And so is one motion, end to end** — `motions/greeting.json` is an intent off disk, and `motion.py` carries it through admission and the gate to the mock **while drawing the face from the same tick.** ⛔ **That last one is the repository's first claim about a joint between the two, and it is asserted, not described**: two of the five faces are the same drawing. **What is tested is that and nothing else**: interpolation, easing, smoothing, limiting, framing, deadlines, refusals, the shape of a frame, and that one clock drives both the face and the body. **A twelfth file checks something else: that every word the entry point can print exists in all three languages, and that the core cannot emit a refusal code the tables cannot render.** Those are functions, so they can be checked exactly. **What is not tested is whether the result is alive.**
 
 ⚠️ **`tests/test_purity.py` walks `engine/**` and nothing else.** `projects/pet/` came to live inside this repository on 2026-09-28, and it gets its own scan — `tests/test_pet_purity.py` — **over the same forbidden list, which now sits in `tools/purity.py` so that there is one list and not two.** ⛔ **That does not make the two directories equally safe: the scan reads imports, and imports are all it reads.**
 
@@ -73,9 +73,11 @@ Run: `python3 -m pytest tests/`
 ## Language (i18n)
 
 - **Canonical English, with `-ja` and `-zh` mirrors in the same directory** (suffix style — see Document Rules).
-- **The default language is `en`.** A `--lang` argument and an environment variable may lower it to `ja`.
-- **Runtime string tables are not built yet.** They arrive with the first stage that has runtime strings. They are not built up front, alongside the document mirrors.
-- **`tools/check_i18n.py` is the check.** A mirror set that nothing checks rots without anyone noticing — three of the four sister repositories have mirrors and no checker.
+- **The default language is `en`.** A `--lang` argument and an environment variable may lower it to `ja` **or to `zh`** — ⚠️ **the sentence said `ja` alone until the tables arrived, and the document mirrors were already trilingual.**
+- ✅ **The runtime string tables arrived on 2026-09-28: `locales/{en,ja,zh}.json`.** They were not built up front, alongside the document mirrors — **they arrive with the first stage that has runtime strings, and that stage was 0.5.0.** ⚠️ **So the rule held and the table was late: five versions of the entry point printed strings that nothing could change.** The priority is `--lang` > `EMBODIED_KINETIC_LOOM_LANG` > `en`, and `zh` is included because the document mirrors are already trilingual.
+  ⛔ **`resolve()` is pure; the entry point reads the environment.** `os` is on the forbidden list with the reason *environ*, **so the core cannot settle a language** — `projects/pet/strings.py` is the reader and `tests/test_strings.py` is the check. ⚠️ **The shape is the clock's**: the edge reads the world, the core receives values.
+  ⛔ **An exception message is not a runtime string.** The messages that remain Japanese throughout `engine/` are written to the workshop, and **whether they should move is a decision not yet taken.** What moved is the one thing that reached a user's eyes: **`Rejection.reason` was a Japanese sentence, and it is now a code plus the values to fill in** — a sentence is not a value, and neither a machine nor a table can reach it.
+- **`tools/check_i18n.py` is the check for documents.** A mirror set that nothing checks rots without anyone noticing — three of the four sister repositories have mirrors and no checker. ⚠️ **It does not read the JSON tables** — a different medium, with a different shape — **so the same rule is asserted a second time in `tests/test_strings.py`, and neither check covers the other.**
 
 ## Git
 

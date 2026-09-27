@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.5.0 | canonical: README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.6.0 | canonical: README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -34,7 +34,7 @@
 
 **而写者现在存在了。** `skills/embodied-kinetic-loom/` 持有那一本——**写出 `Motion Intent` 的唯一之物。** ⛔ **它是文档，不是程序：本仓库的代码不调用模型，而正是这一点让它下面的轨迹可以被检查。** 它的词的来源是 `references/README.md`，而 ⚠️ **截至 2026-09-28，那个文件是映射，不是固定的表**——**以行写出，以名字取用，在使用中生长，而这是它生长的唯一道路。** ⛔ **由谁来取，才是这个问题的全部——是 Claude，不是程序**——**所以正典的形式是读者读的表，而不会做第二个只有机器用的副本：没有东西会读它。**
 
-⚠️ **核心、后端、Pet 的画面与 Pet 的运动是绿的**——**21 个文件、246 项测试，实测 2026-09-28**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
+⚠️ **核心、后端、Pet 的画面与 Pet 的运动是绿的**——**22 个文件、267 项测试，实测 2026-09-28**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
 
 ## 骨架
 
@@ -42,13 +42,14 @@
 .claude-plugin/     plugin.json 与 marketplace.json——必须承载同一个版本的两个文件
 docs/               文档。英语为正典，-ja 与 -zh 镜像并列其旁
 tools/              check_i18n.py——镜像。check_vocabulary.py——语汇的表。purity.py——禁止输入清单
-tests/              测试——21 个文件、246 项测试
+tests/              测试——22 个文件、267 项测试
 schemas/            motion-intent.schema.json——Motion Intent 的类型
 engine/             决定论的核心。⚠️ 不调用 LLM，也不 import 任何会浮动之物
 engine/backend/     送出的一侧——协议、周期、门、轴对应、发送器、Mock
 skills/             唯一的写者——写出 Motion Intent 的那个 Skill
 references/         运动的语汇——以行写出，以名字取用，在使用中生长
 assets/             本仓库的脸（README 的 hero）
+locales/            程序自己的话——en / ja / zh
 projects/pet/       Pet——五张脸、承载它们的帧，以及跑起来的运动
 install.sh          安装这个 Skill（--local 写进 .claude/skills/，那一份会被提交）
 ```
@@ -71,6 +72,8 @@ install.sh          安装这个 Skill（--local 写进 .claude/skills/，那一
 ## 语言
 
 **英语为正典，`-ja` 与 `-zh` 镜像并列在同一目录**（接尾辞方式——不使用子文件夹。**子文件夹会改变深度，而深度一变，文档内所有相对路径都会错位**）。`tools/check_i18n.py` 读取它们。
+
+⚠️ **程序自己也说三种语言。** `--lang {en,ja,zh}`——或者 `EMBODIED_KINETIC_LOOM_LANG` 环境变量——决定 Pet 打印出来的东西用哪种语言；**默认是 `en`。** 字符串住在 `locales/`，**而核心够不到它们**: 核心返回代码，把它们变成句子的是边缘。
 
 **本工房的工作语言是日语**——**因此 `HISTORY.md` 与提交信息用日语书写。** **那是与文档正典语言不同的另一回事。**
 

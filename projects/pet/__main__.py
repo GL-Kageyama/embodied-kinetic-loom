@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """**見るための入口。** `python3 -m projects.pet`（リポジトリの根から走らせる）。
 
-⛔ **このファイルは、このリポジトリで `time` を import してよい唯一の場所である。**
-`engine/` は `time` を import しない（`tests/test_purity.py`）——**ループは時計を
-呼ぶ側から受け取る。** **その「呼ぶ側」が、ここである。**
+⛔ **このファイルは、このリポジトリで外の世界を読んでよい唯一の場所である。**
+`engine/` は `time` も `os` も import しない（`tests/test_purity.py`）——
+**ループは時計を呼ぶ側から受け取り、言語は環境から受け取る。**
+**その「呼ぶ側」が、ここである。**
 ⚠️ **`tests/test_pet_purity.py` は、このファイルだけを名指しで除く**——
 **除いたことが検査の中に書いてある**。
 
@@ -14,17 +15,25 @@
 **`motions/<名>.json` の `Motion Intent` を読み、軌道を計算し、門を通し、
 Mock へ送りながら、同じ時計で顔を出す。**
 ⛔ **送り先は Mock であって、機体ではない**（シリアル層は機体の世代待ち）。
+
+✅ **同日、外の世界を読むものが1つ増えた。** この入口は `os.environ` を読む——
+**言語を決めるためである**（`--lang` > 環境変数 > `en`）。**核はこれを読めない。**
+⚠️ **文は1つもここに無い。** 雛形は `locales/`、引くのは `strings.py`、
+報告を組むのは `report.py` である。
 """
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 
 from engine.backend.mock import MockBox
 
+from . import strings
 from .expressions import State
-from .motion import Take, demo_rig, load_expression, perform
+from .motion import demo_rig, load_expression, perform
+from .report import report
 from .screen import CLOSE, Screen
 
 
@@ -38,65 +47,44 @@ class RealClock:
         time.sleep(seconds)
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="python3 -m projects.pet",
-        description=(
-            "Pet の顔を端末に出す。--motion を付けると、運動も走る"
-            "——⛔ ただし送り先は Mock であって、機体ではない"
-        ),
-    )
+def language_of(argv: list[str]) -> str:
+    """**言語だけを先に読む。** ⛔ **これが要る理由。**
+
+    ヘルプの文そのものが翻訳されるので、**本物の parser を組む前に言語が要る。**
+    ゆえに、ここで `--lang` だけを読む——**知らない引数は素通しする**（`parse_known_args`）。
+    ⚠️ **環境を読むのはこの関数の呼ぶ側である**（`strings.resolve` は値しか受け取らない）。
+    """
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--lang", default=None)
+    known, _ = pre.parse_known_args(argv)
+    return strings.resolve(known.lang, os.environ.get(strings.ENV_VAR))
+
+
+def build_parser(lang: str) -> argparse.ArgumentParser:
+    """⚠️ **`lang` を引数で受ける。** 既定へ落ちる道を作らないためである。"""
+    def t(name: str) -> str:
+        return strings.text("pet_cli", name, lang)
+
+    parser = argparse.ArgumentParser(prog="python3 -m projects.pet",
+                                     description=t("description"))
     parser.add_argument(
         "--state",
         choices=[state.value for state in State],
         default=None,
-        help="1つだけ出して終わる。省略すると5つを順に回す",
+        help=t("help_state"),
     )
-    parser.add_argument(
-        "--motion",
-        default=None,
-        help=(
-            "motions/<名>.json の意図を走らせ、同じ時計で顔を出す。"
-            "⚠️ 顔は --state ではなく、その名前の表情である"
-        ),
-    )
-    parser.add_argument(
-        "--interval",
-        type=float,
-        default=1.5,
-        help="回すときの間隔（秒）。既定 1.5",
-    )
-    parser.add_argument(
-        "--sync",
-        action="store_true",
-        help=(
-            "同期更新（CSI ? 2026 h/l）を使う。"
-            "⚠️ 端末が対応しているかは測っていないので、既定では使わない"
-        ),
-    )
+    parser.add_argument("--motion", default=None, help=t("help_motion"))
+    parser.add_argument("--interval", type=float, default=1.5, help=t("help_interval"))
+    parser.add_argument("--sync", action="store_true", help=t("help_sync"))
+    parser.add_argument("--lang", default=None, choices=list(strings.SUPPORTED),
+                        help=t("help_lang"))
     return parser
 
 
-def report(take: Take, name: str) -> str:
-    """⚠️ **何が起きたかを1箇所に書く。** 緑を「成立した」と読ませないためである。"""
-    if not take.ran:
-        return (f"{name}: ⛔ 計画時に弾かれた——{take.refusal.reason}\n"
-                "  ⇒ **1フレームも送っていない。**")
-
-    lines = [
-        f"{name}: {' → '.join(take.expression.words)}",
-        f"  送った {len(take.sent)} フレーム、刻み {len(take.ticks)}、"
-        f"門が保った回 {take.refusals}、諦めた刻み {take.skipped}",
-        f"  いちばん遅れた刻み +{take.worst_lateness * 1000:.3f} ms",
-        f"  箱の位置 {tuple(round(v, 1) for v in take.arrived)}",
-        "  ⛔ 上限を1つも渡していない（すべて None）——"
-        "枠（190〜833、実測）以外の検査は鳴っていない",
-    ]
-    return "\n".join(lines)
-
-
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    raw = sys.argv[1:] if argv is None else argv
+    lang = language_of(raw)
+    args = build_parser(lang).parse_args(raw)
     screen = Screen(sys.stdout, synchronised=args.sync)
     clock = RealClock()
 
@@ -110,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
                            screen=screen, box=MockBox(motors=rig.motors()))
             # ⚠️ **`CLOSE` は画面のものである。** ここで改行を書くと、
             # **端末の作法が2箇所に住む。**
-            print(CLOSE + report(take, args.motion), end="")
+            print(CLOSE + report(take, args.motion, lang), end="")
             return 0
 
         if args.state is not None:

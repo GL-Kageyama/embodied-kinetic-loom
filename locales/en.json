@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "language": "en",
+    "language_native": "English",
+    "canonical": "en",
+    "note": "Runtime strings. The canonical language is en; ja and zh mirror this exact key set, and tests/test_strings.py asserts that they do."
+  },
+  "refusal": {
+    "unknown_dof_start": "no current position was supplied for degree of freedom {dof!r}",
+    "unknown_dof_limit": "no limit was supplied for degree of freedom {dof!r}",
+    "target_outside_envelope": "a target lies outside the envelope",
+    "unreachable_at_duration": "reachability: for {dof}, no trapezoid in the family honours the velocity limit {limit} within {duration_ms} ms",
+    "trajectory_exceeds_limits": "the trajectory exceeds a limit"
+  },
+  "pet_cli": {
+    "description": "Draw the Pet's face in the terminal. With --motion the motion runs too — ⛔ but it is sent to a mock, not to the machine",
+    "help_state": "Draw one and exit. Without it, the five are cycled in order",
+    "help_motion": "Run the intent in motions/<name>.json and draw the face from the same clock. ⚠️ The face is not --state: it is the expression of that name",
+    "help_interval": "Seconds between frames while cycling. Default 1.5",
+    "help_sync": "Use synchronised updates (CSI ? 2026 h/l). ⚠️ Whether the terminal supports it has not been measured, so it is off by default",
+    "help_lang": "Language (en/ja/zh). Defaults to the EMBODIED_KINETIC_LOOM_LANG environment variable, or en"
+  },
+  "pet_report": {
+    "refused": "{name}: ⛔ refused at plan time — {reason}\n  ⇒ **not a single frame was sent.**",
+    "head": "{name}: {words}",
+    "counts": "  sent {frames} frames, {ticks} ticks, the gate held {refusals} times, {skipped} ticks given up",
+    "lateness": "  worst tick late by +{worst_ms:.3f} ms",
+    "position": "  box position {arrived}",
+    "caveat": "  ⛔ not one limit was passed (all None) — nothing outside the envelope (190–833, measured) has rung"
+  }
+}

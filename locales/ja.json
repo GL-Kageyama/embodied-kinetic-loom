@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "language": "ja",
+    "language_native": "日本語",
+    "canonical": "en",
+    "note": "実行時の文字列。正典は en であり、このファイルはその鍵の集合をそのまま写したものである（tests/test_strings.py がそれを検査する）。"
+  },
+  "refusal": {
+    "unknown_dof_start": "自由度 {dof!r} の現在位置が渡されていない",
+    "unknown_dof_limit": "自由度 {dof!r} の上限が渡されていない",
+    "target_outside_envelope": "目標が枠の外である",
+    "unreachable_at_duration": "可到達性: {dof} は {duration_ms} ms では、速度上限 {limit} を守る台形が族に無い",
+    "trajectory_exceeds_limits": "軌道が上限を超える"
+  },
+  "pet_cli": {
+    "description": "Pet の顔を端末に出す。--motion を付けると、運動も走る——⛔ ただし送り先は Mock であって、機体ではない",
+    "help_state": "1つだけ出して終わる。省略すると5つを順に回す",
+    "help_motion": "motions/<名>.json の意図を走らせ、同じ時計で顔を出す。⚠️ 顔は --state ではなく、その名前の表情である",
+    "help_interval": "回すときの間隔（秒）。既定 1.5",
+    "help_sync": "同期更新（CSI ? 2026 h/l）を使う。⚠️ 端末が対応しているかは測っていないので、既定では使わない",
+    "help_lang": "言語（en/ja/zh）。既定は EMBODIED_KINETIC_LOOM_LANG 環境変数、なければ en"
+  },
+  "pet_report": {
+    "refused": "{name}: ⛔ 計画時に弾かれた——{reason}\n  ⇒ **1フレームも送っていない。**",
+    "head": "{name}: {words}",
+    "counts": "  送った {frames} フレーム、刻み {ticks}、門が保った回 {refusals}、諦めた刻み {skipped}",
+    "lateness": "  いちばん遅れた刻み +{worst_ms:.3f} ms",
+    "position": "  箱の位置 {arrived}",
+    "caveat": "  ⛔ 上限を1つも渡していない（すべて None）——枠（190〜833、実測）以外の検査は鳴っていない"
+  }
+}

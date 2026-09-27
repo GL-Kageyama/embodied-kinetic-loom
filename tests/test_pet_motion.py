@@ -236,7 +236,7 @@ def test_a_target_outside_the_envelope_sends_nothing_at_all():
     assert isinstance(take.refusal, Rejection)
     assert take.sets == (), "⛔ **1フレームも組まない**"
     assert box.received == [] and box.commands == []
-    assert "枠" in take.refusal.reason
+    assert take.refusal.code == "target_outside_envelope"
 
 
 def test_a_motor_with_no_known_position_is_not_filled_in_with_zero():

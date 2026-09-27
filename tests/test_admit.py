@@ -80,7 +80,7 @@ def test_admitting_twice_gives_the_same_trajectory():
 def test_an_unknown_degree_of_freedom_is_refused():
     result = admit(_intent({"dof": "roll"}), {"pitch": 400.0}, {"pitch": GENEROUS})
     assert isinstance(result, Rejection)
-    assert "現在位置" in result.reason or "上限" in result.reason
+    assert result.code in ("unknown_dof_start", "unknown_dof_limit")
 
 
 def test_a_target_outside_the_clip_range_is_refused():
@@ -90,7 +90,7 @@ def test_a_target_outside_the_clip_range_is_refused():
     """
     result = admit(_intent({"target": 900}), {"pitch": 400.0}, {"pitch": GENEROUS})
     assert isinstance(result, Rejection)
-    assert result.reason == "目標が枠の外である"
+    assert result.code == "target_outside_envelope"
     assert result.violations[0].kind == "target"
 
     # ⚠️ **枠を外しても、制限は残る。** 900 へ 0.8 秒で行くには 1172 出る。
@@ -99,7 +99,7 @@ def test_a_target_outside_the_clip_range_is_refused():
     still_limited = admit(_intent({"target": 900}), {"pitch": 400.0},
                           {"pitch": ChannelLimits(velocity=1000.0)}, envelope=opened)
     assert isinstance(still_limited, Rejection)
-    assert still_limited.reason == "軌道が上限を超える"
+    assert still_limited.code == "trajectory_exceeds_limits"
 
     assert isinstance(
         admit(_intent({"target": 900}), {"pitch": 400.0},
@@ -113,7 +113,7 @@ def test_a_trajectory_that_exceeds_its_limit_is_refused():
     tight = ChannelLimits(velocity=100.0)  # 262.5 出るので超える
     result = admit(_intent(), {"pitch": 400.0}, {"pitch": tight})
     assert isinstance(result, Rejection)
-    assert result.reason == "軌道が上限を超える"
+    assert result.code == "trajectory_exceeds_limits"
     assert any(v.kind == "velocity" for v in result.violations)
 
 
@@ -121,7 +121,7 @@ def test_too_short_a_time_is_refused_by_the_limits_not_by_a_special_case():
     """⚠️ **「短すぎる」という特別扱いを作らない。** 制限が捕まえる。"""
     result = admit(_intent({"duration_ms": 20}), {"pitch": 400.0}, {"pitch": GENEROUS})
     assert isinstance(result, Rejection)
-    assert result.reason == "軌道が上限を超える"
+    assert result.code == "trajectory_exceeds_limits"
 
 
 # --------------------------------------------------------------------------
@@ -157,7 +157,7 @@ def test_reachability_refuses_when_no_trapezoid_can_honour_the_limit():
                    {"pitch": ChannelLimits(velocity=100.0, acceleration=5000.0)},
                    profile=Trapezoid(0.5))
     assert isinstance(result, Rejection)
-    assert "可到達性" in result.reason
+    assert result.code == "unreachable_at_duration"
 
 
 def test_reachability_is_quiet_when_the_limit_is_above_the_floor():
@@ -173,7 +173,7 @@ def test_the_reachability_check_only_runs_for_the_trapezoid():
     result = admit(_intent(), {"pitch": 400.0},
                    {"pitch": ChannelLimits(velocity=100.0, acceleration=5000.0)})
     assert isinstance(result, Rejection)
-    assert result.reason == "軌道が上限を超える"  # ← #3 ではなく #4 が捕まえている
+    assert result.code == "trajectory_exceeds_limits"  # ← #3 ではなく #4 が捕まえている
 
 
 # --------------------------------------------------------------------------
@@ -260,4 +260,4 @@ def test_reachability_measures_the_second_group_from_the_first_groups_end():
         profile=Trapezoid(0.5),
     )
     assert isinstance(result, Rejection)
-    assert "可到達性" in result.reason
+    assert result.code == "unreachable_at_duration"

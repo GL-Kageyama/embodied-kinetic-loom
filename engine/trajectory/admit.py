@@ -34,10 +34,24 @@ class Admission:
 
 @dataclass(frozen=True)
 class Rejection:
-    """弾いた。**理由の名前と、違反の列を持つ**——「弾いた」だけでは直せない。"""
+    """弾いた。**理由の名前と、違反の列を持つ**——「弾いた」だけでは直せない。
 
-    reason: str
+    ⛔ **ここに文章は無い。** この関門は決定論的な核の側に在り、**核は言語を持たない。**
+    文章にするのは縁の仕事である——表は `locales/`、描くのは `projects/pet/strings.py`。
+    ⚠️ **コードは値である。** 文章を返していた版では、弾かれた理由を機械が分岐に使えず、
+    人間が読むしかなかった——**そして `--lang` は、その文章には届かなかった。**
+
+    ⚠️ **`values` は、コードに埋める値を名前で持つ**（`tuple` なので凍っている）。
+    数を文章に混ぜてからでは、その数を取り出せない。
+    """
+
+    code: str
     violations: tuple[Violation, ...] = ()
+    values: tuple[tuple[str, object], ...] = ()
+
+    def mapping(self) -> dict:
+        """⚠️ **コードに埋める値の辞書。** 描く側が `format(**…)` に渡す。"""
+        return dict(self.values)
 
 
 def trapezoid_reachability(intent, starts_by_dof, limits_by_dof,
@@ -72,8 +86,9 @@ def trapezoid_reachability(intent, starts_by_dof, limits_by_dof,
             _, ok = trapezoid_for_velocity(move.target - start, move.duration_ms / 1000.0, limit)
             if not ok:
                 out.append(Rejection(
-                    f"可到達性: {move.dof} は {move.duration_ms} ms では、"
-                    f"速度上限 {limit} を守る台形が族に無い"
+                    "unreachable_at_duration",
+                    values=(("dof", move.dof), ("duration_ms", move.duration_ms),
+                            ("limit", limit)),
                 ))
         for move in group:
             position[move.dof] = move.target
@@ -104,14 +119,14 @@ def admit(intent, starts_by_dof, limits_by_dof, envelope: Envelope | None = None
     # 1. 知らない自由度
     for move in intent.moves:
         if move.dof not in starts_by_dof:
-            return Rejection(f"自由度 {move.dof!r} の現在位置が渡されていない")
+            return Rejection("unknown_dof_start", values=(("dof", move.dof),))
         if move.dof not in limits_by_dof:
-            return Rejection(f"自由度 {move.dof!r} の上限が渡されていない")
+            return Rejection("unknown_dof_limit", values=(("dof", move.dof),))
 
     # 2. 枠
     violations = list(check_targets(tuple(m.target for m in intent.moves), envelope))
     if violations:
-        return Rejection("目標が枠の外である", tuple(violations))
+        return Rejection("target_outside_envelope", tuple(violations))
 
     # 3. 可到達性（台形のときだけ）
     if isinstance(profile, Trapezoid):
@@ -144,7 +159,7 @@ def admit(intent, starts_by_dof, limits_by_dof, envelope: Envelope | None = None
                           profile=profile, labels=labels, count=count)
         found = list(check_trajectory(trajectory, limits, envelope))
         if found:
-            return Rejection("軌道が上限を超える", tuple(found))
+            return Rejection("trajectory_exceeds_limits", tuple(found))
         trajectories.append(trajectory)
         # ⛔ **1組終わるたびに、位置を更新する。** **標本の最後ではなく、目標を書く**——
         # `plan` の端の値は目標そのものである（端の条件）。

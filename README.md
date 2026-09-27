@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.5.0 | canonical: README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.6.0 | canonical: README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -34,7 +34,7 @@ This repository holds what the engine *is*, what must never be assumed about the
 
 **And the writer now exists.** `skills/embodied-kinetic-loom/` holds the one skill — **the only thing that writes a `Motion Intent`.** ⛔ **It is a document, not a program: no code in this repository calls a model, and that is what makes the trajectory underneath it testable.** Its source of words is `references/README.md`, and ⚠️ **as of 2026-09-28 that file is a mapping rather than a fixed table** — written as rows, drawn from by name, **and grown by use, which is the only way it grows.** ⛔ **Drawn from by whom is the whole question: by Claude, not by a program** — so the canonical form is a table a reader reads, and no second, machine-only copy is built, because nothing would read it.
 
-⚠️ **The core, the backend, the Pet's screen and the Pet's motion are green — twenty-one files, two hundred and forty-six tests, measured 2026-09-28 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
+⚠️ **The core, the backend, the Pet's screen and the Pet's motion are green — twenty-two files, two hundred and sixty-seven tests, measured 2026-09-28 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
 
 ## Structure
 
@@ -42,13 +42,14 @@ This repository holds what the engine *is*, what must never be assumed about the
 .claude-plugin/     plugin.json and marketplace.json — the two files that must carry one version
 docs/               the documents, canonical English with -ja and -zh mirrors beside them
 tools/              check_i18n.py — the mirrors; check_vocabulary.py — the vocabulary table; purity.py — the forbidden imports
-tests/              the suites — twenty-one files, two hundred and forty-six tests
+tests/              the suites — twenty-two files, two hundred and sixty-seven tests
 schemas/            motion-intent.schema.json — the Motion Intent type
 engine/             the deterministic core. ⚠️ It calls no LLM and imports nothing that varies
 engine/backend/     the sending side — protocol, cycle, gate, axis map, transmitter, mock
 skills/             the one writer — the skill that writes a Motion Intent
 references/         the motion vocabulary — written as rows, drawn from by name, grown by use
 assets/             the repository's face (the README hero)
+locales/            the program's own words — en / ja / zh
 projects/pet/       the Pet — the five faces, the frame that carries them, and the motion that runs
 install.sh          installs the skill (--local writes .claude/skills/, which is committed)
 ```
@@ -72,6 +73,8 @@ install.sh          installs the skill (--local writes .claude/skills/, which is
 ## Language
 
 **Canonical English, with `-ja` and `-zh` mirrors in the same directory** (suffix style, never subfolders — a subfolder changes the depth, and a changed depth breaks every relative path in the document). `tools/check_i18n.py` reads them.
+
+⚠️ **The program speaks three languages too.** `--lang {en,ja,zh}` — or the `EMBODIED_KINETIC_LOOM_LANG` environment variable — picks the language of what the Pet prints; **the default is `en`.** The strings live in `locales/`, and **the core cannot reach them**: it returns codes, and the edge turns them into sentences.
 
 **The working language of this workshop is Japanese**, which is why `HISTORY.md` and commit messages are written in it. That is a different thing from the canonical language of the documents.
 
