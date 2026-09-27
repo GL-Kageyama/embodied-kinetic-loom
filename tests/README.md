@@ -4,7 +4,7 @@
 
 # tests/
 
-**Eighteen files, two hundred and thirteen tests, all green — measured 2026-09-28.**
+**Nineteen files, two hundred and thirty-three tests, all green — measured 2026-09-28.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -42,15 +42,30 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The checks that came with `projects/`
 
-**Three files arrived on 2026-09-28**, when the Pet's screen became the first thing to live in `projects/` — a decision that put code inside this repository but **outside the scan `test_purity.py` performs**.
+**Three files arrived on 2026-09-28**, when the Pet's screen became the first thing to live in `projects/` — a decision that put code inside this repository but **outside the scan `test_purity.py` performs**. **A fourth arrived the same day**, when one motion was carried end to end.
 
 | # | the check | where it lives |
 |---|---|---|
 | **6** | the five faces are the ones the concept document draws, and no line is wider than its box | `test_pet_expressions.py` |
 | **7** | one frame is one write; the frame's shape does not change with the state; no character is wider than one column | `test_pet_screen.py` |
 | **8** | `projects/` imports nothing that varies — with `__main__.py` named in the exclusion, **and the exclusion itself asserted** | `test_pet_purity.py` |
+| **9** | the face and the body come from the same tick, the second group starts where the first ended, and nothing jumps at the boundary | `test_pet_motion.py` |
 
-⚠️ **Numbering these 6, 7 and 8 is not a claim that there are eight checks of one kind.** The five above are checks on a trajectory. These are checks on a drawing and on a directory.
+⚠️ **Numbering these 6 to 9 is not a claim that there are nine checks of one kind.** The five above are checks on a trajectory. **These are checks on a drawing, on a directory, and on the join between a trajectory and a drawing.**
+
+### Two defects that hid each other
+
+**Neither was found by reading the code. Both were found by running it and disbelieving the number that came back.**
+
+⛔ **The first is in `admit.py`, and it is safety-relevant.** Every group of an intent was planned from `starts_by_dof` — the machine's position before the *motion*, not before *that group*. So when one degree of freedom appears in two groups — tilt forward, come back — the second group was planned from where the first one started, and the machine, which is by then at the peak, was handed a trajectory whose first sample is somewhere else. **At the boundary the machine jumps to that sample. That is a step, and the upstream firmware has no soft start.**
+
+**It stayed green because the only two-group test in the suite used a different degree of freedom per group.** The suite was not wrong; it was blind.
+
+⚠️ **The fix was three lines — carry a running position across the groups — and the same error was found a second time in `trapezoid_reachability`, which measured the second group's distance from the wrong end as well.** ⛔ **A move that cannot be reached can pass that check when the error points the wrong way.**
+
+⚠️ **And the second defect was hiding behind the first.** `motion.py` chose the group by accumulating an offset, and clamped the group index back to the last one when the performance ended — **without clamping the offset.** So the ticks after the end re-sent the *first* sample of the last group instead of its last. **The machine, halfway back to where it started, was commanded away from it.** ⚠️ **Under the first defect the second group was a flat line beginning at the start position, so its first sample was that position too — and the arrival test passed because two errors cancelled.** **Repairing one exposed the other.**
+
+⇒ **Each fix was then reverted once, and the suite watched**: three tests fail for each. ⚠️ **A test that has never been seen to fail is not yet a check.**
 
 ### A defect the check agreed with
 

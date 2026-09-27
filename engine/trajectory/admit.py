@@ -59,10 +59,13 @@ def trapezoid_reachability(intent, starts_by_dof, limits_by_dof,
     ⚠️ **`profile` は使わない。** 引数に在るのは、**族を明示するためである**——
     `admit` が `isinstance(profile, Trapezoid)` で呼び分けている。
     """
+    # ⛔ **ここも組を跨いで位置が動く。** `admit` の 4 と同じ理由である——
+    # **2組目の移動量は、1組目の終わりからの距離である。**
+    position = dict(starts_by_dof)
     out = []
     for group in intent.groups():
         for move in group:
-            start = starts_by_dof[move.dof]
+            start = position[move.dof]
             limit = limits_by_dof[move.dof].velocity
             if limit is None:
                 continue
@@ -72,6 +75,8 @@ def trapezoid_reachability(intent, starts_by_dof, limits_by_dof,
                     f"可到達性: {move.dof} は {move.duration_ms} ms では、"
                     f"速度上限 {limit} を守る台形が族に無い"
                 ))
+        for move in group:
+            position[move.dof] = move.target
     return tuple(out)
 
 
@@ -114,9 +119,24 @@ def admit(intent, starts_by_dof, limits_by_dof, envelope: Envelope | None = None
             return rejection
 
     # 4. 制限
+    #
+    # ⛔ **組を跨いで、位置は動く。** `starts_by_dof` は**最初の1組の開始位置**であって、
+    # すべての組の開始位置ではない——**2組目は、1組目が終わった場所から始まる。**
+    #
+    # ⚠️ **この版の最初は、どの組も `starts_by_dof` から始めていた。**
+    # 同じ自由度が2つの組に現れると（例: 前傾して、戻る）、**2組目の軌道が
+    # 「初期位置 → 2組目の目標」になり**、機体は1組目の終わりに居るのに
+    # **その場所から始まる軌道が組まれる。**
+    # ⇒ **組の境目で、機体は軌道の最初の標本へ飛ぶ。** **それは段差である**——
+    # **上流ファームにソフトスタートは無く、`CLAUDE.md` は「段差を送るな」と書いている。**
+    # ⛔ **そして、この誤りは制限の検査では捕まらない。** 戻る軌道は、
+    # **どの上限の内側にも収まっている**——**合法な形をした、意味の違う軌道である。**
+    # ⚠️ **既存の唯一の2組の検査（`tests/test_admit.py`）は、組ごとに別の自由度を使っていた**——
+    # **ゆえに緑のまま、この誤りを1度も踏まなかった**（実測 2026-09-28）。
+    position = dict(starts_by_dof)
     trajectories = []
     for group in intent.groups():
-        starts = tuple(starts_by_dof[m.dof] for m in group)
+        starts = tuple(position[m.dof] for m in group)
         ends = tuple(m.target for m in group)
         labels = tuple(m.dof for m in group)
         limits = tuple(limits_by_dof[m.dof] for m in group)
@@ -126,5 +146,9 @@ def admit(intent, starts_by_dof, limits_by_dof, envelope: Envelope | None = None
         if found:
             return Rejection("軌道が上限を超える", tuple(found))
         trajectories.append(trajectory)
+        # ⛔ **1組終わるたびに、位置を更新する。** **標本の最後ではなく、目標を書く**——
+        # `plan` の端の値は目標そのものである（端の条件）。
+        for move in group:
+            position[move.dof] = move.target
 
     return Admission(trajectories)

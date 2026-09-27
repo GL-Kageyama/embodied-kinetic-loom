@@ -174,3 +174,90 @@ def test_the_reachability_check_only_runs_for_the_trapezoid():
                    {"pitch": ChannelLimits(velocity=100.0, acceleration=5000.0)})
     assert isinstance(result, Rejection)
     assert result.reason == "軌道が上限を超える"  # ← #3 ではなく #4 が捕まえている
+
+
+# --------------------------------------------------------------------------
+# ⛔ 組を跨ぐ位置——**2組目は、1組目が終わった場所から始まる**
+# --------------------------------------------------------------------------
+
+
+def test_a_second_group_starts_where_the_first_one_ended():
+    """⛔ **同じ自由度が2つの組に現れるとき、2組目の開始位置は「初期位置」ではない。**
+
+    **機体は1組目を走り終えた場所に居る。** ゆえに `starts_by_dof` は
+    **最初の1組の開始位置**であって、すべての組の開始位置ではない。
+
+    ⚠️ **この検査が書かれた理由**（実測 2026-09-28）: **この版の最初は、
+    どの組も `starts_by_dof` から始めていた。** 既存の唯一の2組の検査は
+    **組ごとに別の自由度**を使っていたので、**緑のまま、この誤りを1度も踏まなかった。**
+    """
+    # ⚠️ **`projects/pet/motions/greeting.json` と同じ形である**——前傾して、戻る。
+    result = admit(
+        _intent({"group": 0, "target": 552}, {"dof": "pitch", "target": 512, "group": 1}),
+        {"pitch": 512.0},
+        {"pitch": GENEROUS},
+    )
+    assert isinstance(result, Admission)
+    first, second = result.trajectories
+
+    assert first.ends == (552.0,)
+    assert second.starts == (552.0,), "⛔ **2組目が、機体の居ない場所から始まっている**"
+    assert second.ends == (512.0,), "⛔ **戻りの終わりは、意図が書いた 512 である**"
+
+
+def test_the_second_group_does_not_jump_back_to_the_initial_position():
+    """⛔ **境目に段差が生まれないこと。** **段差は `CLAUDE.md` が禁じている。**
+
+    ⚠️ **この誤りは制限の検査では捕まらない。** 後退する軌道は、
+    **どの上限の内側にも収まっている**——**合法な形をした、意味の違う軌道である。**
+    """
+    result = admit(
+        _intent({"group": 0, "target": 552}, {"dof": "pitch", "target": 512, "group": 1}),
+        {"pitch": 400.0},
+        {"pitch": GENEROUS},
+    )
+    assert isinstance(result, Admission)
+    first, second = result.trajectories
+
+    # ⚠️ **1組目は 400 から始まる**（そこに機体が居るからである）。
+    assert first.starts == (400.0,)
+    # ⛔ **2組目は 552 から始まる。** **400 へは戻らない**——
+    # **戻れば、機体は軌道の最初の標本へ飛ぶ。**
+    assert second.starts == (552.0,)
+    assert second.starts != first.starts
+
+
+def test_the_boundary_between_two_groups_is_continuous():
+    """⚠️ **標本の上でも、境目は繋がっている。** **端の値は目標そのものである。**"""
+    result = admit(
+        _intent({"group": 0, "target": 552}, {"dof": "pitch", "target": 512, "group": 1}),
+        {"pitch": 512.0},
+        {"pitch": GENEROUS},
+    )
+    assert isinstance(result, Admission)
+    first, second = result.trajectories
+    assert second.samples[0].position == first.samples[-1].position
+    assert second.samples[0].velocity == (0.0,), "⚠️ **境目で、速度は0に戻る**"
+
+
+def test_reachability_measures_the_second_group_from_the_first_groups_end():
+    """⛔ **可到達性も、組を跨いで位置が動く。**
+
+    512 → 900（0.8 秒）→ 512（0.2 秒）。⚠️ **枠は開けてある**——
+    900 は既定の枠（190〜833）の外だからである。
+
+    **2組目の移動量は 388 であって、0 ではない。**
+    ⇒ **0.2 秒で 388 は 1940 を要するので、速度上限 500 では族に無い。**
+    ⛔ **初期位置から測っていたら、2組目の Δ は 0 であり、この検査は鳴らなかった。**
+    """
+    moved = Envelope(target_min=None, target_max=None)
+    result = admit(
+        _intent({"group": 0, "target": 900, "duration_ms": 800},
+                {"dof": "pitch", "target": 512, "duration_ms": 200, "group": 1}),
+        {"pitch": 512.0},
+        {"pitch": ChannelLimits(velocity=500.0, acceleration=50000.0, jerk=1000000.0)},
+        envelope=moved,
+        profile=Trapezoid(0.5),
+    )
+    assert isinstance(result, Rejection)
+    assert "可到達性" in result.reason
