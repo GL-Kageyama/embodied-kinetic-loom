@@ -20,13 +20,13 @@ This is a favourable position, and it is worth stating plainly: **a trajectory i
 
 ## What exists today
 
-⚠️ **The vessel, and the deterministic core inside it — and nothing that moves.**
+⚠️ **The vessel, the deterministic core, and the sending side down to — but not including — the serial port.**
 
-This repository holds what the engine *is*, what must never be assumed about the machine it will drive, which checks exist, and now the part that computes: the `Motion Intent` type with its schema and its reader, the trajectory profiles, easing, smoothing, planning, the limit envelope, and admission. **It does not hold a backend, a mock, or a single line that has driven a physical machine.**
+This repository holds what the engine *is*, what must never be assumed about the machine it will drive, which checks exist, and now the part that computes and sends: the `Motion Intent` type with its schema and its reader, the trajectory profiles, easing, smoothing, planning, the limit envelope, admission — and a backend that frames what leaves, gates each frame against the elapsed time, and drives a mock of the control box from a periodic loop.
 
-That last point is measured, not asserted. A scan of this workshop's own Python — 143 files, searched for `import hid`, `hidapi`, `pygame`, `joystick`, `evdev`, `pyserial`, `import serial` and `IOHID` — returned **zero**.
+⛔ **No byte of that has reached a machine.** That is measured, not asserted: a scan of this workshop's own Python — 143 files, searched for `import hid`, `hidapi`, `pygame`, `joystick`, `evdev`, `pyserial`, `import serial` and `IOHID` — returned **zero**. **The backend stops one layer short of the wire, on purpose** — see below.
 
-⚠️ **The core is green — eight files, eighty tests, measured 2026-09-27 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
+⚠️ **The core and the backend are green — fifteen files, one hundred and sixty tests, measured 2026-09-27 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
 
 ## Structure
 
@@ -34,9 +34,10 @@ That last point is measured, not asserted. A scan of this workshop's own Python 
 .claude-plugin/     plugin.json and marketplace.json — the two files that must carry one version
 docs/               the documents, canonical English with -ja and -zh mirrors beside them
 tools/              check_i18n.py — the check that reads the mirrors
-tests/              the suites — eight files, eighty tests
+tests/              the suites — fifteen files, one hundred and sixty tests
 schemas/            motion-intent.schema.json — the Motion Intent type
 engine/             the deterministic core. ⚠️ It calls no LLM and imports nothing that varies
+engine/backend/     the sending side — protocol, cycle, gate, axis map, transmitter, mock
 skills/             ⚠️ not yet — one skill, gated
 references/         ⚠️ not yet — the motion vocabulary, partly gated
 projects/           work and records. ⚠️ not yet — the record starts when the machine arrives
@@ -46,7 +47,7 @@ projects/           work and records. ⚠️ not yet — the record starts when 
 
 ## What is not here yet
 
-- **No backend and no mock.** The core computes a trajectory; nothing sends one. ⚠️ **And the limit check runs at plan time — there is no gate on what actually leaves.**
+- **No serial layer.** The backend frames, gates and transmits; nothing opens a port. ⛔ **This is the one part the machine gates**, because the control box has two generations and the protocol differs between them — and it is exactly where a mock and the machine diverge most.
 - **No `skills/`.** One skill is decided; what it contains is gated on a question that is still open — *who writes when no session is running*.
 - **No `references/`.** The motion vocabulary exists as research. Of the five verbs it starts from — 傾く / 倒れる / 沈む / 跳ねる / 後退 — three name a degree of freedom this machine does not have, so three cannot be written yet.
 - **No `install.sh`.** It is written the way the sister repositories write it, and that way pre-validates that the skill exists — so it cannot be written before the skill is.
@@ -54,7 +55,7 @@ projects/           work and records. ⚠️ not yet — the record starts when 
 
 ## Next
 
-1. **The sending side** — a backend, a mock, and the gate that checks each frame as it leaves. ⚠️ **This one is gated on the machine**: the control box has two generations, and the protocol differs between them.
+1. **The serial layer** — the one step that reaches the wire. ⛔ **Gated on the machine**: confirm which generation of control box is in hand before trusting any protocol document, including this repository's.
 2. **`skills/`** — one skill is decided, and what it contains is still gated on *who writes when no session is running*. **That question is the author's, not this repository's.**
 3. **`references/`** — the motion vocabulary. Three of its five starting verbs name a degree of freedom this machine does not have, and how to carry them across is also the author's.
 

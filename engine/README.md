@@ -17,6 +17,13 @@ trajectory/
   limits.py         per-axis limits, and the combined one
   plan.py           a trajectory, and its samples
   admit.py          pass or refuse — the plan-time side only
+backend/
+  protocol.py       5-byte frames. ⛔ the three hazards, and the one thing deliberately unwritten
+  cycle.py          the periodic loop — absolute deadlines, and a clock that is passed in
+  gate.py           the gate on what actually leaves. ⛔ a refusal is not a silence
+  axis_map.py       degree of freedom → motor. ⛔ no defaults: the correspondence has no canonical form
+  transmit.py       the trajectory at the wall clock — the nearest sample, not the next one
+  mock.py           the box that pretends. ⚠️ a test of the protocol, not of the machine's safety
 ```
 
 ## Why the two families live in two modules
@@ -37,21 +44,47 @@ trajectory/
 
 ⚠️ **The ends of a trajectory are placed exactly.** The first sample is the start and the last is the end, as given — `start + (end - start)` is not always `end` in floating point, and a command that misses its target by one unit in the last place is a command that did not arrive.
 
-## The gate, and the seat that is not decided
+## The two gates, and the seat that is not decided
 
 **`admit.py` is a decision, not a placement.** Whether Safety is a layer or a gate is undecided; this function is called either way, which is why the file is not named `safety.py`. Naming it that would settle a question that is still open.
 
-⛔ **And it is the plan-time side only.** The design notes are unambiguous that plan-time assurance alone is insufficient. **The run-time gate does not exist yet** — it needs the machine and a backend.
+⛔ **And it is the plan-time side only.** It checks a trajectory against the limits, knowing nothing about the clock. **`backend/gate.py` is the other side** — it sees one frame as it leaves, with the elapsed time measured rather than assumed.
+
+**What only the run-time gate can see**, and why:
+
+| what | why plan time cannot see it |
+|---|---|
+| the step between two consecutive frames | ⛔ **the upstream firmware has no soft start and no soft stop.** Whether a command is a step depends on the interval it is sent at, and a plan has no clock |
+| the moment of sending | a plan is a function of `t`; it does not know `now` |
+| which motor a degree of freedom maps to | ⛔ there is no canonical correspondence, so the gate does not decide it — the caller passes it in |
+
+⛔ **And the gate's heaviest decision is the shape of a refusal: it does not return nothing.**
+
+> **If you stop sending, torque falls to roughly a quarter within 15 seconds — and the motors do not stop.**
+
+So a refusal returns **the last set that was allowed**, and keeps sending it. **That is the closest thing to standing still this machine has.** ⚠️ **It is not "stopping" either** — there is no stop command in the protocol. **The gate cannot fix that. All it can do is not send the bad frame.**
+
+⚠️ **The gate judges a set as a unit.** Passing one motor at a time would put a combination on the machine that nobody planned.
+
+## The clock is not imported
+
+**`engine/` must not import `time`** — the purity test enforces it, because a trajectory that reads the clock is not a function. **The periodic loop therefore takes `now()` and `sleep()` from its caller.**
+
+⚠️ **That is not only a purity accommodation.** It is what makes the cycle testable: with a clock passed in, two things the design notes could only state as *"written in deadline style"* and *"doesn't call `sleep(period)`"* become runnable assertions. A grep can see that a line is in the source; it cannot see that the line holds when it runs.
+
+⛔ **And `period` has no default.** The notes measured the same machine taking two states, 5 ms and 10 ms. **Choosing one of them as a default would turn a measurement into a constant.**
+
+## What is not here
+
+**No serial layer, no Pet screen, no sound, no word-to-value mapping, no run-time monitoring.**
+
+⚠️ **The serial layer is the one part the machine gates** — the control box has two generations, and the protocol differs between them, and **the place where a Mock and the machine diverge most is exactly there**: `flush()` was measured blocking forever on a macOS pty. **The Mock sits above the serial layer, so a green Mock says nothing about it.**
 
 ## The one thing the fallback costs
 
 **`trapezoid` fails two of the five checks by construction: its acceleration is not zero at the ends, and its jerk is undefined at the corners.**
 
 That is not a defect in the code. It is what a trapezoid profile is. **But it means that choosing the fallback means turning a check off**, and this repository records that in a test rather than leaving it to be discovered. With a jerk limit set, `admit` refuses every trapezoid; without one, it passes.
-
-## What is not here
-
-**No backend, no mock, no Pet screen, no sound.** Those need the machine's response, and nothing here has driven a physical machine. **No word-to-value mapping** — the vocabulary that would fill the `quality` field of the type is gated. **No run-time monitoring.**
 
 ## Running the tests
 

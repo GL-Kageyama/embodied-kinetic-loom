@@ -10,8 +10,8 @@
     {
       "name": "embodied-kinetic-loom",
       "source": "./",
-      "description": "Embodied Kinetic Loom — carries an intent to motion. The unit is the Motion Intent: one typed value that the machine reads, and the line between what must be reproducible and what may vary is drawn at that type. Motion is not written to a file, so a plan is verified as a mechanism and never as an outcome. ⚠️ The sending side is not built — this repository holds the deterministic core and no backend: it computes a trajectory and nothing sends it. A green Mock does not guarantee the safety of the machine.",
-      "version": "0.2.0",
+      "description": "Embodied Kinetic Loom — carries an intent to motion. The unit is the Motion Intent: one typed value that the machine reads, and the line between what must be reproducible and what may vary is drawn at that type. Motion is not written to a file, so a plan is verified as a mechanism and never as an outcome. ⚠️ The sending side is built up to the serial port and stops there: the frames, the periodic loop, the run-time gate and a mock of the control box exist, and nothing opens a port. A green Mock does not guarantee the safety of the machine.",
+      "version": "0.3.0",
       "author": {
         "name": "GL-Kageyama"
       },

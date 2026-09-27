@@ -1,6 +1,6 @@
 {
   "name": "embodied-kinetic-loom",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A foundation that carries an intent all the way to motion. The output is not a file — it is an event in a room, and an event that has happened cannot be taken back. The boundary between the deterministic and the free is drawn at one typed value, the Motion Intent, and the machine reads it. Safety is a stage before the backend rather than an option: the vendor's own control box does not check the values it receives, and the protocol has no stop command. Mock is a test of the protocol, not of the machine's safety.",
   "author": {
     "name": "GL-Kageyama"

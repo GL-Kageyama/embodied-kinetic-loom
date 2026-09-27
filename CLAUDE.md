@@ -55,9 +55,11 @@
 
 ## Tests
 
-**Eight files, eighty tests, all green — measured 2026-09-27.** The five checks, and where each one lives, are in `tests/README.md`.
+**Fifteen files, one hundred and sixty tests, all green — measured 2026-09-27.** The five checks, and where each one lives, are in `tests/README.md`.
 
-⚠️ **The core is implemented** — the trajectory family, easing, smoothing, plan, limits and admission, and the `Motion Intent` reader. **What is tested is that core and nothing else**: interpolation, easing, smoothing, limiting. Those are functions, so they can be checked exactly. **What is not tested is whether the result is alive.**
+⚠️ **The core is implemented** — the trajectory family, easing, smoothing, plan, limits and admission, and the `Motion Intent` reader. **So is the sending side** — the frame protocol, the periodic loop, the run-time gate, the axis map, the transmitter, and a mock of the control box. **What is tested is that and nothing else**: interpolation, easing, smoothing, limiting, framing, deadlines, refusals. Those are functions, so they can be checked exactly. **What is not tested is whether the result is alive.**
+
+⚠️ **Nothing in `engine/backend/` opens a port.** The serial layer is the one part the machine gates — two generations of control box, two protocols — and **it is where a mock and the machine diverge most**: `flush()` was measured blocking forever on a macOS pty. **A green suite says nothing about the wire.**
 
 **This section must not say "there is nothing yet" while test files sit on disk.** That state is not hypothetical — a sister repository is in it right now: it has seven test files and fifty-four tests, and its `CLAUDE.md` still reads "not yet built". ⚠️ **That is why this section changed in the same commit as the tests** — the rule was applied to itself, on the day it was written.
 
