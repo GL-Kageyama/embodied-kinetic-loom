@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: tests/README.md | translated: 2026-09-27 -->
+<!-- i18n-version: 1.1.0 | canonical: tests/README.md | translated: 2026-09-28 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -99,12 +99,17 @@ That state is not hypothetical — **a sister repository is in it right now**: s
 
 ## What is checked today, and where
 
-**The two checks that are not tests do not live here.**
+**The three checks that are not tests do not live here.**
 
 - **`claude plugin validate --strict .`** — the manifest fields and the two versions against each other.
 - **`python3 tools/check_i18n.py`** — the document mirrors. It has its own `--self-test`.
+- **`python3 tools/check_vocabulary.py`** — the vocabulary table. It has its own `--self-test`.
 
-⚠️ **Together they see five of the fifteen conventions this repository follows. Nothing checks the other ten.**
+⚠️ **The first two see five of the fifteen conventions this repository follows. Nothing checks the other ten.**
+
+⛔ **The third guards a rule that is not one of the fifteen.** It arrived on 2026-09-28 with the catalogue, for a rule this repository wrote for itself that day — *do not invent a word* — **and the fifteen predate it.** ⇒ **Counting it against the fifteen would be counting a different thing**; what it reads is the table's shape (columns, degrees of freedom, paths, and that the two mirrors agree), **and never whether the mapping is right.**
+
+⚠️ **And it found its own author's mistake first.** Its V5 compared the mirror's header row too, where the column *names* are translated — so three correct catalogues rang as four violations. **A check that has just been written is the first thing to disbelieve.**
 
 ## Running this directory
 
