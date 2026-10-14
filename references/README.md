@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.2.0 | canonical: references/README.md | translated: 2026-10-15 -->
+<!-- i18n-version: 2.3.0 | canonical: references/README.md | translated: 2026-10-15 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -8,7 +8,7 @@
 
 **It is a mapping: written as rows, drawn from by name, and grown by use.** ⛔ **It holds one entry today — the one that was used.** The vocabulary starts from five verbs, and four of them have never been sent to this machine.
 
-✅ **The word is *mapping*, and it is a ruling — the author's, 2026-09-28.** ⚠️ **A catalogue lists what exists; a mapping says what a word becomes on this machine.** Every row is one word moved onto this body: the words, the degree of freedom, the amount, the time, the difference the machine cannot cover, and the place it was used. ⇒ **A row can only exist where a word was actually turned into numbers** — ⛔ **which is why there is one, and why the four missing rows are not an omission.** The design notes' own line is the same claim from the other side: *three catalogues of motion words already exist outside this workshop; **a fourth is not what is missing**.*
+✅ **The word is *mapping*, and it is a ruling — the author's, 2026-09-28.** ⚠️ **A catalogue lists what exists; a mapping says what a word becomes on this machine.** Every row is one word moved onto this body: the words, the degree of freedom, the amount, the time, the difference the machine cannot cover, the place it was used, and the machine it was written on. ⇒ **A row can only exist where a word was actually turned into numbers** — ⛔ **which is why there is one, and why the four missing rows are not an omission.** The design notes' own line is the same claim from the other side: *three catalogues of motion words already exist outside this workshop; **a fourth is not what is missing**.*
 
 ## ✅ The decision this file is
 
@@ -31,23 +31,24 @@
 ## How it is drawn from
 
 1. ⛔ **A word that is not in the table is not in the vocabulary.** **The writer does not invent a word at the point of writing an intent.** If the motion needs a word the table does not have, **the row is written first** — deliberately, with its difference column filled in — **and the intent is written second.** **That is what *grown by use* means here, and it is the only way this table grows.**
-2. **A row names a degree of freedom the machine has**, never the freedom the word implies. ⛔ **When the two differ, the difference column carries the gap** — and **`none` in that column is a result, not a blank.**
+2. **A row names a degree of freedom the machine has**, never the freedom the word implies. ⛔ **When the two differ, the difference column carries the gap** — and **`none` in that column is a result, not a blank.** ⚠️ **And a row is written on one machine, which the last column names.** ⇒ **A word turned into numbers on a second machine gets its own row; it does not widen this one.**
 3. **The words are not written into a `Motion Intent`.** The schema sets `additionalProperties: false`, and the one field it leaves open is not a home for them. ⛔ **An `Intent` is already counts, and it cannot say why the number is that number.** **This table is the only place the two are held together.**
-4. **`tools/check_vocabulary.py` reads the tables, not this prose**: the header row and every row must have the same number of columns, every row's degree of freedom must be one the type can name, every path in the last column must exist, **and the tables in the two mirrors must say the same three things** — ⚠️ **the column names are translated, and the degrees of freedom and the paths are not.** ⛔ **What it does not check is whether the mapping is right** — and it never can. **The round trip through the writer's judgement is the one step that has no check.**
+4. **`tools/check_vocabulary.py` reads the tables, not this prose**: the header row and every row must have the same number of columns, every row's degree of freedom must be one the type can name, every path in the *where it was used* column and in the *the machine* column must exist, **and the tables in the two mirrors must say the same four things** — ⚠️ **the column names are translated, and the degrees of freedom, the paths and the machine are not.** ⛔ **What it does not check is whether the mapping is right** — and it never can. **The round trip through the writer's judgement is the one step that has no check.**
 
 ## The one entry that was used
 
-⛔ **The row below was written on machine 1** — the DOF Reality control box. **The three names the schema allows are its three axes.** ⚠️ **Which machine a row was written on is not a column in this table** — so a word that has only ever been turned into numbers on *a second* machine has nowhere to go yet. **The omission is written out here rather than left blank**: a table that does not say whose numbers these are gets read as saying everyone's.
+⛔ **The row below was written on machine 1** — the DOF Reality control box. **The three names the schema allows are its three axes.** ✅ **Which machine a row was written on is a column now — the seventh, added 2026-10-15.** ⚠️ **Until that day it was not one, and the omission was written out here rather than left blank**: a table that does not say whose numbers these are gets read as saying everyone's. ⇒ **The column was added before the second machine, not after it** — **a row that cannot say where it was written is exactly the row that gets borrowed.** ⛔ **It is a place, not content: not one word was added to the vocabulary, and the second machine's column is empty because no word has been turned into numbers on it.**
 
-| the words | degree of freedom | the amount | the time | ⛔ the difference this machine cannot cover | where it was used |
-|---|---|---|---|---|---|
-| `small forward tilt` → `return` | `pitch` | `+40` counts | `600` ms each way | **none** — this word names a freedom the machine has | `projects/pet/motions/greeting.json` |
+| the words | degree of freedom | the amount | the time | ⛔ the difference this machine cannot cover | where it was used | ⛔ the machine this row was written on |
+|---|---|---|---|---|---|---|
+| `small forward tilt` → `return` | `pitch` | `+40` counts | `600` ms each way | **none** — this word names a freedom the machine has | `projects/pet/motions/greeting.json` | `engine/backend/protocol.py` |
 
 ### What the row says, column by column
 
 - **The words are the concept document's §5, verbatim.** `greeting` is paired there with *small forward tilt → return*, and the Pet's five faces were already copied the same way — one character unchanged.
 - **The degree of freedom is the machine's, not the word's.** `tilt` is a rotation and `pitch` is one of the three machine 1 has; **this row is the case where the two agree, which is why the difference column says `none`.**
 - ⛔ **The amount is not a measurement.** `+40` counts is `552 − 512`, and both of those are choices — `demo_rig()` lists every number it supplies and what each one is not. **The words came from the concept document. The numbers did not come from anywhere.**
+- ⛔ **The machine column is the only one added after the row was written.** It holds the module that speaks for that machine — `engine/backend/protocol.py`, where machine 1's envelope and its wire both live. ⚠️ **What the checker does with it is ask whether the path exists, and nothing more** — ⛔ **whether that module is machine 1's is not something a path can say**, and the checker's own list of what it cannot catch says so.
 - ⛔ **The warning column is the decision of 2026-09-28 (D-12).** Of the five verbs the vocabulary starts from — 傾く / 倒れる / 沈む / 跳ねる / 後退 — **three name a translation machine 1 does not have. The verbs stay in the vocabulary, and this column carries the difference.**
 
 ## What is not here

@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.7.0 | canonical: CLAUDE.md | translated: 2026-10-15 -->
+<!-- i18n-version: 1.8.0 | canonical: CLAUDE.md | translated: 2026-10-15 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -26,7 +26,7 @@
 - **The output is not a file.** Every other repository in this workshop writes a file and stops: images, audio, text. **Motion is an event in a room, and an event that has happened cannot be taken back.** There is no undo, no re-render, and no second take.
 - **The boundary between the deterministic and the free is drawn at one type — the `Motion Intent`.** Everything upstream of it may vary. Everything downstream of it must be a function: the same input produces the same output. Interpolation, easing, smoothing and limiting are the core of this engine, not the model call.
 - **Code in this repository does not call an LLM.** The `Motion Intent` is written in the session, by Claude, guided by the skill. The code reads it and computes. This is what makes the trajectory testable.
-- ⛔ **The vocabulary is a mapping, not a fixed table, and a word that is not in it is not in the vocabulary.** A row is written **before** the intent that needs it, and it carries a column for the difference this machine cannot cover. **This is D-02, answered 2026-09-28** — ⚠️ **the drawer is Claude, not a program**, which is why the canonical form is a table a reader reads and no machine-only second copy exists.
+- ⛔ **The vocabulary is a mapping, not a fixed table, and a word that is not in it is not in the vocabulary.** A row is written **before** the intent that needs it, and it carries a column for the difference this machine cannot cover — **and, since 2026-10-15, a seventh column naming the machine the row was written on.** ⚠️ **That column is a place, not content**: adding it put no word into the vocabulary, and ⛔ **it is a module path, so the only thing a checker can ask of it is whether the path exists.** **This is D-02, answered 2026-09-28** — ⚠️ **the drawer is Claude, not a program**, which is why the canonical form is a table a reader reads and no machine-only second copy exists.
   ⚠️ **The word is *mapping*, by the author's ruling of 2026-09-28** — **a catalogue lists what exists; a mapping says what a word becomes on this machine.** ⇒ **A row can only exist where that actually happened.** The file was called a catalogue until that day; the name changed, the rule did not.
 - **`projects/` is the only place for work and for records.** There is no `examples/`. ⚠️ **The unit is not decided** — one reaction, one day's session, or the Pet's whole life all go into the same vessel.
   ⛔ **The records vessel is empty, and nothing fills it.** `--motion` prints its numbers and the terminal scrolls; **printing is not recording.** It is empty because **the machine has never been reached** — and with no machine there is nothing to observe, and **observation is the only route to the goal.**

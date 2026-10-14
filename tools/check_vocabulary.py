@@ -14,21 +14,21 @@
 規則は5つ。**各規則に「鳴る例」と「鳴らない例」が `--self-test` に在る。**
 
     V0 型           `schemas/motion-intent.schema.json` から自由度の一覧が読める
-    V1 表           6列の表が**ちょうど1つ**在る（0でも2つでも鳴る）
-    V2 列           見出し・区切り・データのすべてが6列。2行目が区切り行である
+    V1 表           7列の表が**ちょうど1つ**在る（0でも2つでも鳴る）
+    V2 列           見出し・区切り・データのすべてが7列。2行目が区切り行である
     V3 自由度       データ行が1つ以上あり、各行の自由度が**型の名指せるもの**である
-    V4 パス         各行の最後の欄が、リポジトリに**実在する**パスである
-    V5 ミラー       `-ja` / `-zh` の表が、正典と**行数・自由度の欄・パスの欄**で一致する
+    V4 パス         各行の「使われた場所」の欄と「機体」の欄が、**実在する**パスである
+    V5 ミラー       `-ja` / `-zh` の表が、正典と**行数・自由度・使われた場所・機体**で一致する
 
 ⚠️ **V1 は列の数で表を選ぶ。** 見出しの文言は3言語で違うので、選ぶ目印にできない。
-**だから同じ6列の表がもう1つ現れたら、選ばずに鳴る**——**黙って片方を選ぶ検査は、
+**だから同じ7列の表がもう1つ現れたら、選ばずに鳴る**——**黙って片方を選ぶ検査は、
 選ばなかったほうを検査していないと言えない。**
 
 ⚠️ **V3 は自由度の一覧をスキーマから読む。** この3つの名前をここに写さない——
 **同じ規則を2箇所に持てば、片方が更新される**（`tools/purity.py` と同じ理由である）。
 
 ⚠️ **V5 が見るのはデータ行だけである。** ⛔ **見出し行は比べない**——**欄の名は訳される**
-（`degree of freedom` ＝ `自由度` ＝ `自由度`）。**比べるのは、自由度の欄と使われた場所の欄である。**
+（`degree of freedom` ＝ `自由度` ＝ `自由度`）。**比べるのは、自由度・使われた場所・機体の3つの欄である。**
 
 ⚠️ **V5 はミラーを「正典と一致するか」で見る。** ミラーの行を V3・V4 で**検査し直さない**
 ——**リポジトリに実在することを要求されるのは正典の行だけである。**
@@ -40,6 +40,9 @@
   * ⛔ **表に無い語が `Motion Intent` に書かれていないか。** それは `references/` を
     **読む側**の話であり、静的に見る方法が無い（**語はスキーマの欄ではない**）。
   * **量と時間の値が妥当か。** 数は選択であり、測定ではない。
+  * ⛔ **機体の欄が、その機体を正しく名指しているか。** **実在は見るが、正しさは見ない**
+    ——**`engine/backend/protocol.py` が機体1のモジュールであることを、この検査は知らない。**
+    分かるのは「そのパスが在る」ことだけである。
   * **訳文の散文が正しいか。**（上に書いたとおり、`check_i18n.py` の担当である）
 """
 from __future__ import annotations
@@ -64,13 +67,18 @@ SCHEMA = "schemas/motion-intent.schema.json"
 DOF_POINTER = ("$defs", "move", "properties", "dof", "enum")
 
 #: 語彙の表の列数。**表はこの数で選ばれる**（見出しの文言は3言語で違う）。
-COLUMNS = 6
+COLUMNS = 7
 
-#: 自由度が入っている欄（0から数える）。**V1 で6列と決めたうえでの位置である。**
+#: 自由度が入っている欄（0から数える）。**V1 で7列と決めたうえでの位置である。**
 DOF_COLUMN = 1
 
-#: 使われた場所が入っている欄。**最後の欄である。**
+#: 使われた場所が入っている欄。⚠️ **最後の欄ではない**（2026-10-15）。
 PATH_COLUMN = 5
+
+#: 機体が入っている欄。**最後の欄である。** ⚠️ **この欄が入った理由は
+#: `references/README.md` に書いてある**——**どの機体で書かれた行かは、場所であって中身ではない。**
+#: ⛔ **中身は1行も増えていない。** 増えたのは「この行は誰のものか」を書く欄である。
+MACHINE_COLUMN = 6
 
 FENCE_RE = re.compile(r"^\s*```")
 SEPARATOR_RE = re.compile(r"^:?-{1,}:?$")
@@ -156,7 +164,7 @@ def dof_names(root: Path) -> tuple[tuple[str, ...] | None, str | None]:
 
 
 def vocabulary_table(lines: list[str]) -> tuple[int, list[list[str]]] | None:
-    """語彙の表（**6列の表**）を1つだけ選ぶ。**0でも2つでも `None` を返す。**
+    """語彙の表（**7列の表**）を1つだけ選ぶ。**0でも2つでも `None` を返す。**
 
     ⚠️ **選べなかったことを黙って隠さないために、呼ぶ側が鳴らす。**
     """
@@ -170,7 +178,8 @@ def check(root: Path) -> tuple[list[str], dict]:
     stats: dict = {
         "table": None,  # (行番号, 行数, データ行数)
         "dof": (),  # 型から読んだ一覧
-        "paths": [],  # (パス, 在るか)
+        "paths": [],  # (使われた場所, 在るか)
+        "machines": [],  # (機体のパス, 在るか)
         "mirrors": [],  # (rel, 行数, 一致したか)
     }
 
@@ -231,13 +240,20 @@ def check(root: Path) -> tuple[list[str], dict]:
                 f"V3 {CANONICAL}:{n}: 自由度 `{dof}` を型が名指せない"
                 f"（型が持つのは {' / '.join(dofs)}）"
             )
-        path = strip_code(row[PATH_COLUMN])
-        exists = bool(path) and (root / path).exists()
-        stats["paths"].append((path, exists))
-        if not path:
-            bad.append(f"V4 {CANONICAL}:{n}: 最後の欄が空である（**使われた場所が無い行**）")
-        elif not exists:
-            bad.append(f"V4 {CANONICAL}:{n}: `{path}` がリポジトリに無い")
+        for col, label, key in (
+            (PATH_COLUMN, "使われた場所", "paths"),
+            (MACHINE_COLUMN, "機体", "machines"),
+        ):
+            where = strip_code(row[col])
+            exists = bool(where) and (root / where).exists()
+            stats[key].append((where, exists))
+            if not where:
+                bad.append(
+                    f"V4 {CANONICAL}:{n}: {label}の欄が空である"
+                    f"（**{'使われた場所が無い行' if col == PATH_COLUMN else 'どの機体の行か言えない行'}**）"
+                )
+            elif not exists:
+                bad.append(f"V4 {CANONICAL}:{n}: {label}の欄の `{where}` がリポジトリに無い")
 
     # ---- V5 ミラー
     for lang in LANGS:
@@ -268,7 +284,11 @@ def check(root: Path) -> tuple[list[str], dict]:
             for n, (a, b) in enumerate(zip(data, mdata), start=start + 3):
                 if len(a) != COLUMNS or len(b) != COLUMNS:
                     continue
-                for col, label in ((DOF_COLUMN, "自由度"), (PATH_COLUMN, "使われた場所")):
+                for col, label in (
+                    (DOF_COLUMN, "自由度"),
+                    (PATH_COLUMN, "使われた場所"),
+                    (MACHINE_COLUMN, "機体"),
+                ):
                     if strip_code(a[col]) != strip_code(b[col]):
                         bad.append(
                             f"V5 {rel}:{n}: {label}の欄が正典と違う"
@@ -286,16 +306,27 @@ def check(root: Path) -> tuple[list[str], dict]:
 
 DOF_ENUM = ("pitch", "roll", "yaw")
 ROW_PATH = "projects/x/motions/a.json"
+ROW_MACHINE = "engine/backend/protocol.py"
 
+#: ⚠️ **7列である。** ⛔ **合成の表を6列のままにすると、`extra_table` は
+#: 7列の表として数えられず、V1 が鳴るはずの例が黙って通る**——
+#: **自己検査は、正典の表と同じ列数を持たなければ意味を持たない。**
 HEADER_ROW = (
     "| the words | degree of freedom | the amount | the time"
-    " | ⛔ the difference | where it was used |"
+    " | ⛔ the difference | where it was used | ⛔ the machine |"
 )
-SEP_ROW = "|---|---|---|---|---|---|"
+SEP_ROW = "|---|---|---|---|---|---|---|"
 
 
-def _row(dof: str = "pitch", path: str = ROW_PATH) -> str:
-    return f"| `a word` → `return` | `{dof}` | `+40` counts | `600` ms | **none** | `{path}` |"
+def _row(
+    dof: str = "pitch",
+    path: str = ROW_PATH,
+    machine: str = ROW_MACHINE,
+) -> str:
+    return (
+        f"| `a word` → `return` | `{dof}` | `+40` counts | `600` ms | **none**"
+        f" | `{path}` | `{machine}` |"
+    )
 
 
 def _doc(
@@ -318,9 +349,9 @@ def _doc(
     if extra_table:
         out += [
             "",
-            "| a | b | c | d | e | f |",
-            "|---|---|---|---|---|---|",
-            "| 1 | 2 | 3 | 4 | 5 | 6 |",
+            "| a | b | c | d | e | f | g |",
+            "|---|---|---|---|---|---|---|",
+            "| 1 | 2 | 3 | 4 | 5 | 6 | 7 |",
         ]
     return "\n".join(out) + "\n"
 
@@ -349,27 +380,28 @@ def _write_tree(
             encoding="utf-8",
         )
     if path_file:
-        q = root / ROW_PATH
-        q.parent.mkdir(parents=True, exist_ok=True)
-        q.write_text("{}\n", encoding="utf-8")
+        for rel in (ROW_PATH, ROW_MACHINE):
+            q = root / rel
+            q.parent.mkdir(parents=True, exist_ok=True)
+            q.write_text("{}\n", encoding="utf-8")
 
 
 def self_test() -> int:
     """**各規則に「鳴る例」と「鳴らない例」。**"""
     cases: list[tuple[str, callable, str | None]] = [
-        ("V1 鳴らない — 6列の表がちょうど1つ", lambda r: _write_tree(r), None),
+        ("V1 鳴らない — 7列の表がちょうど1つ", lambda r: _write_tree(r), None),
         (
-            "V1 鳴る — 6列の表が無い（3列の表だけ）",
+            "V1 鳴る — 7列の表が無い（3列の表だけ）",
             lambda r: _write_tree(r, canon=_doc(["| a | b | c |"], header=False, sep=False)),
             "V1",
         ),
         (
-            "V1 鳴る — 6列の表が2つある",
+            "V1 鳴る — 7列の表が2つある",
             lambda r: _write_tree(r, canon=_doc(extra_table=True)),
             "V1",
         ),
         (
-            "V2 鳴る — 列が7つある",
+            "V2 鳴る — 列が8つある",
             lambda r: _write_tree(r, canon=_doc(wide=True)),
             "V2",
         ),
@@ -394,8 +426,13 @@ def self_test() -> int:
             "V4",
         ),
         (
-            "V4 鳴る — 最後の欄が空である",
+            "V4 鳴る — 使われた場所の欄が空である",
             lambda r: _write_tree(r, canon=_doc([_row(path="")])),
+            "V4",
+        ),
+        (
+            "V4 鳴る — 機体の欄のパスがリポジトリに無い",
+            lambda r: _write_tree(r, canon=_doc([_row(machine="engine/backend/missing.py")])),
             "V4",
         ),
         (
@@ -412,6 +449,13 @@ def self_test() -> int:
             "V5 鳴る — ミラーの使われた場所の欄が違う",
             lambda r: _write_tree(
                 r, zh=_doc([_row(path="projects/x/motions/missing.json")])
+            ),
+            "V5",
+        ),
+        (
+            "V5 鳴る — ミラーの機体の欄が違う",
+            lambda r: _write_tree(
+                r, ja=_doc([_row(machine="engine/backend/missing.py")])
             ),
             "V5",
         ),
@@ -473,11 +517,18 @@ def main(argv: list[str] | None = None) -> int:
     else:
         line, nrows, ndata = stats["table"]
         print(f"    {line} 行目から {nrows} 行（見出し1・区切り1・データ{ndata}）")
+    print(f"    ⚠️ {COLUMNS}列である——**使われた場所の欄と機体の欄は、どちらもパスである。**")
     print()
     print("=== 各行の使われた場所")
     if not stats["paths"]:
         print("    ⚠️ 1つも無い——**この検査は、パスを1つも見ていない。**")
     for path, exists in stats["paths"]:
+        print(f"    {'✅' if exists else '⛔'} `{path}`")
+    print()
+    print("=== 各行の機体")
+    if not stats["machines"]:
+        print("    ⚠️ 1つも無い——**この検査は、機体を1つも見ていない。**")
+    for path, exists in stats["machines"]:
         print(f"    {'✅' if exists else '⛔'} `{path}`")
     print()
     print("=== ミラー")

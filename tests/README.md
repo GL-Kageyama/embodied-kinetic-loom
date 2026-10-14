@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.6.0 | canonical: tests/README.md | translated: 2026-10-15 -->
+<!-- i18n-version: 1.7.0 | canonical: tests/README.md | translated: 2026-10-15 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -207,7 +207,9 @@ That state is not hypothetical — **a sister repository is in it right now**: s
 
 ⚠️ **The first two see five of the fifteen conventions this repository follows. Nothing checks the other ten.**
 
-⛔ **The third guards a rule that is not one of the fifteen.** It arrived on 2026-09-28 with the mapping, for a rule this repository wrote for itself that day — *do not invent a word* — **and the fifteen predate it.** ⇒ **Counting it against the fifteen would be counting a different thing**; what it reads is the table's shape (columns, degrees of freedom, paths, and that the two mirrors agree), **and never whether the mapping is right.**
+⛔ **The third guards a rule that is not one of the fifteen.** It arrived on 2026-09-28 with the mapping, for a rule this repository wrote for itself that day — *do not invent a word* — **and the fifteen predate it.** ⇒ **Counting it against the fifteen would be counting a different thing**; what it reads is the table's shape (columns, degrees of freedom, the two path columns, and that the two mirrors agree), **and never whether the mapping is right.**
+
+⚠️ **Its seventh column arrived on 2026-10-15** — the machine a row was written on. **The column is a place, not content: not one word was added to the vocabulary.** ⛔ **And the checker asks only that the path exists.** Whether `engine/backend/protocol.py` is *machine 1's* is not something a path can say, and the checker's own list of what it cannot catch says as much.
 
 ⚠️ **And it found its own author's mistake first.** Its V5 compared the mirror's header row too, where the column *names* are translated — so three correct mappings rang as four violations. **A check that has just been written is the first thing to disbelieve.**
 
