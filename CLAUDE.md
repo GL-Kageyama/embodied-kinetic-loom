@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.9.0 | canonical: CLAUDE.md | translated: 2026-10-15 -->
+<!-- i18n-version: 1.10.0 | canonical: CLAUDE.md | translated: 2026-10-15 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -19,7 +19,7 @@
 
 **Where the boundary is argued — `docs/verification-boundary.md`.** The distinction between what can be verified and what cannot is the single most load-bearing document here. Read it before claiming that something works.
 
-**Where the machine is met — `docs/first-contact.md`.** ⚠️ **Not an argument; a checklist**, and it carries no claim of its own. ⛔ **Nothing rings on it** — the reason no checker was written for it is stated on the page, together with what that costs.
+**Where the machine is met — `docs/first-contact.md`, and its second page `docs/first-contact-stackchan.md`.** ⚠️ **Not an argument; a checklist**, and it carries no claim of its own. ⛔ **Nothing rings on either one** — the reason no checker was written is stated on each page, together with what that costs. ⚠️ **And the two pages face opposite ways:** the first was written while no machine existed, so **not one of its items has been done**; the second was written after two units had been measured, so **most of its items already have answers** — **and every line names the unit the answer came from.**
 
 ## Fixed Policy (do not change)
 
