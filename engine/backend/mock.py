@@ -32,6 +32,8 @@ __all__ = ["Step", "MockBox", "TORQUE_DECAY_SECONDS"]
 
 #: ⛔ **ホストが黙ると、この秒数でトルクがおよそ 1/4 になる**（[02_調査/01] §2.4）。
 #: ⚠️ **そして、モーターは止まらない。**
+#: ⛔ **これは機体1（DOF Reality の制御箱）の数である**（2026-10-15）——
+#: **2台目に、この数の出典は1つも無い**（`mock_stackchan.py` はこれを持ち込まない）。
 TORQUE_DECAY_SECONDS = 15.0
 
 
@@ -68,9 +70,14 @@ class MockBox:
 
     ⚠️ **`locked` は `one motor locks all` の模型である**（ベンダー自身の言葉）。
     **1本が強制停止に入ると、残る2本も操作できない**——`locked` の間、命令は届かない。
+
+    ⛔ **この型は機体1のものである**（2026-10-15）——`MOTOR_LETTERS`（`A`/`B`/`C`）も、
+    `locked` も、上の15秒も、**すべて機体1のベンダー文書から来ている。**
+    ⚠️ **2台目はこれらを1つも共有しない**——**共有しないものは、
+    この型に既定として足すのではなく、別の型に書く**（`mock_stackchan.py`）。
     """
 
-    motors: int = len(MOTOR_LETTERS)
+    motors: int = len(MOTOR_LETTERS)   # ⚠️ **機体1の3本である。** 機体ごとの数ではない
     positions: tuple[float, ...] = ()
     locked: bool = False
     reporting: bool = True

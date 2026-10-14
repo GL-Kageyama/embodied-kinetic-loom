@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.1.0 | canonical: engine/README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.2.0 | canonical: engine/README.md | translated: 2026-10-15 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -18,7 +18,8 @@ trajectory/
   plan.py           a trajectory, and its samples
   admit.py          pass or refuse — the plan-time side only
 backend/
-  protocol.py       5-byte frames. ⛔ the three hazards, and the one thing deliberately unwritten
+  protocol.py       5-byte frames. ⛔ machine 1's — the three hazards, and the one thing deliberately unwritten
+  wire.py           ⛔ the seam: what a machine's numbers are, and how they become bytes
   cycle.py          the periodic loop — absolute deadlines, and a clock that is passed in
   gate.py           the gate on what actually leaves. ⛔ a refusal is not a silence
   axis_map.py       degree of freedom → motor. ⛔ no defaults: the correspondence has no canonical form
@@ -46,6 +47,8 @@ backend/
 
 ## The two gates, and the seat that is not decided
 
+⚠️ **Every machine-specific fact in this section belongs to machine 1** — the DOF Reality control box. **The gate itself names no machine**: `backend/gate.py` is handed a `Wire` and a set of numbers, and it does not know which machine it is guarding.
+
 **`admit.py` is a decision, not a placement.** Whether Safety is a layer or a gate is undecided; this function is called either way, which is why the file is not named `safety.py`. Naming it that would settle a question that is still open.
 
 ⛔ **And it is the plan-time side only.** It checks a trajectory against the limits, knowing nothing about the clock. **`backend/gate.py` is the other side** — it sees one frame as it leaves, with the elapsed time measured rather than assumed.
@@ -54,7 +57,7 @@ backend/
 
 | what | why plan time cannot see it |
 |---|---|
-| the step between two consecutive frames | ⛔ **the upstream firmware has no soft start and no soft stop.** Whether a command is a step depends on the interval it is sent at, and a plan has no clock |
+| the step between two consecutive frames | ⛔ **machine 1's upstream firmware has no soft start and no soft stop.** Whether a command is a step depends on the interval it is sent at, and a plan has no clock |
 | the moment of sending | a plan is a function of `t`; it does not know `now` |
 | which motor a degree of freedom maps to | ⛔ there is no canonical correspondence, so the gate does not decide it — the caller passes it in |
 
@@ -78,13 +81,32 @@ So a refusal returns **the last set that was allowed**, and keeps sending it. **
 
 ⛔ **And `period` has no default.** The notes measured the same machine taking two states, 5 ms and 10 ms. **Choosing one of them as a default would turn a measurement into a constant.**
 
+## The seam — whose numbers these are
+
+**`backend/wire.py` is the one place that knows what a machine's numbers are.** Three methods, and no more:
+
+| method | what it does | ⛔ when |
+|---|---|---|
+| `axis_count()` | how many axes this machine has | at construction — a gate cannot command an axis its wire cannot carry |
+| `quantize(value)` | round to this machine's counting, or raise | ⛔ **before the gate.** See below |
+| `encode(commands)` | turn a rounded set into bytes | ⛔ **after the gate** |
+
+- **`Command(axis, value)` is the currency the gate speaks** — a motor number and a value in *that machine's* counting. ⛔ **`axis` is not a degree of freedom.** The name (`pitch`, `roll`, `yaw`) belongs to `axis_map.py`; the wire never sees a name, because machine 2 does not have three axes to name.
+- ⛔ **`envelope()` is deliberately not on the `Wire`.** The envelope is a policy derived from a measurement, not a property of the encoding — an operator must be able to narrow it without touching the wire.
+- ⛔ **`decode` is not on it either.** Machine 1's read side disagrees between two sources and is deliberately unwritten; **a Protocol that requires a method nobody can implement is a lie with a type on it.**
+- ⛔ **The order matters, and the wrong order is a defect.** `Transmitter.frames_at` quantizes **before** `gate.submit`, so an unrepresentable value raises before the gate has advanced its clock or its last value; and encodes **after**, from `verdict.commands` — the set the gate allowed, never the proposal.
+
+⛔ **And the number that used to be a default is now a name.** Until 2026-10-15, `Envelope` carried `target_min = 190.0` / `target_max = 833.0`, and `Gate`, `admit` and the Pet's rig each distributed that default — **four places that all silently meant *machine 1*.** **A default cannot say whose number it is.** The measurement now appears once, as `backend.protocol.DOF_REALITY_ENVELOPE`, and is passed **by name**; `Envelope` holds no numbers at all, and `Envelope()` no longer constructs. `tests/test_limits.py` walks `engine/` and fails if a counted envelope is built anywhere else.
+
+⚠️ **There is still one machine.** `DofRealityWire` is the only wire in this repository, so *the wire is swappable* is a statement about the design and not yet a measurement.
+
 ## What is not here
 
 ⚠️ **This section lists what is not in `engine/`, and its entries do not all have the same reason.** **An absence and a placement read the same in a list, and they are not the same thing** — the Pet's screen was never meant to live inside the deterministic core.
 
 | what | where it is | why |
 |---|---|---|
-| **the serial layer** | nowhere, yet | ⛔ **the machine gates it** — the control box has two generations and two protocols |
+| **the serial layer** | nowhere, yet | ⛔ **the machine gates it** — machine 1's control box has two generations and two protocols |
 | **sound** | nowhere | this engine drives motion; nothing here produces or consumes audio |
 | **the Pet's screen** | `projects/pet/`, arrived 0.4.0 | ⚠️ **not here by design.** The face and the body share a clock (`motion.py`) — **and a shared clock is not a reason to put a face inside the core** |
 | **the word-to-value mapping** | `references/README.md`, arrived 0.6.0 | ⚠️ **not here by design.** D-02's answer is a table a reader reads; the core reads the type, not the vocabulary |

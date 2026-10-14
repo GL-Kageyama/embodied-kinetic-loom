@@ -20,12 +20,12 @@
       "required": ["dof", "target", "duration_ms", "group"],
       "properties": {
         "dof": {
-          "description": "The degree of freedom. ⚠️ These three names are ours, not the machine's — the control box documents no canonical axis correspondence, and the sign of every axis depends on the wiring. A name here is a label; it is not a motor number, and the engine never treats it as one.",
+          "description": "The degree of freedom. ⚠️ These three names are ours, not the machine's — machine 1's control box documents no canonical axis correspondence, and the sign of every axis depends on the wiring. A name here is a label; it is not a motor number, and the engine never treats it as one. ⛔ Which of the three a given machine actually has is that machine's business, not this type's, and this enum is deliberately left alone: a machine that lacks one of them simply has no row for it in the vocabulary, where the difference is stated.",
           "type": "string",
           "enum": ["pitch", "roll", "yaw"]
         },
         "target": {
-          "description": "Where to arrive, in the protocol's own units (counts). ⛔ The admissible range is deliberately NOT stated here. It is feedback-driven, not a constant that can be read off the protocol, and it belongs to the safety envelope that the host supplies at run time — not to the type. Holding the same number in two places is how the two come to disagree.",
+          "description": "Where to arrive, in machine 1's own units (counts). ⛔ The admissible range is deliberately NOT stated here. It is feedback-driven, not a constant that can be read off the protocol, and it belongs to the safety envelope that the host supplies at run time, by name, with no default — not to the type. Holding the same number in two places is how the two come to disagree.",
           "type": "number"
         },
         "duration_ms": {

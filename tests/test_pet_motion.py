@@ -23,7 +23,8 @@ import pytest
 from conftest import FakeClock
 from engine.backend.axis_map import AxisMap, ChannelCalibration
 from engine.backend.mock import MockBox
-from engine.trajectory import ChannelLimits, Envelope, Rejection
+from engine.backend.protocol import DOF_REALITY_ENVELOPE, DofRealityWire
+from engine.trajectory import ChannelLimits, Rejection
 from engine.intent import IntentError, Move
 from projects.pet.expressions import FACES, State
 from projects.pet.motion import (
@@ -42,6 +43,8 @@ def _rig(start: float = 512.0, limits: ChannelLimits | None = None) -> Rig:
         starts_by_dof={"pitch": start},
         limits_by_dof={"pitch": limits if limits is not None else ChannelLimits()},
         limits_by_motor=(limits if limits is not None else ChannelLimits(),),
+        envelope=DOF_REALITY_ENVELOPE,   # ⛔ **既定ではない。ここで名指ししている**
+        wire=DofRealityWire(),
         period=PERIOD,
     )
 
@@ -196,7 +199,14 @@ def test_nothing_opens_a_port():
     **`engine/backend/` は1行もポートを開かない**（`CLAUDE.md` の安全の節）。
     """
     take, _, box = _run()
-    assert box.received and all(len(f.raw) == 5 for f in take.sent)
+    assert box.received, "⛔ **箱に1つも届いていない**"
+    assert all(len(frame.raw) == 5 for frame in box.received), (
+        "⚠️ **箱が読んだのは5バイトのフレームである**"
+        "——**ゆえに、この経路は電線を1本通っている**"
+    )
+    assert all(isinstance(c.value, float) for c in take.sent), (
+        "⚠️ **この記録が持つのは軸と値である**——**バイト列は電線の仕事である**"
+    )
 
 
 # ───────────────── 型が表現できない前提 ─────────────────
@@ -253,6 +263,8 @@ def test_a_motor_with_no_known_position_is_not_filled_in_with_zero():
         starts_by_dof={"pitch": 512.0, "roll": 512.0},
         limits_by_dof={},
         limits_by_motor=(ChannelLimits(), ChannelLimits(), ChannelLimits()),
+        envelope=DOF_REALITY_ENVELOPE,
+        wire=DofRealityWire(),
         period=PERIOD,
     )
     assert rig.motors() == 3
@@ -281,4 +293,9 @@ def test_the_demo_rig_is_the_only_place_those_numbers_live():
     rig = demo_rig()
     assert rig.starts_by_dof == {"pitch": 512.0}
     assert rig.period == PERIOD
-    assert rig.envelope == Envelope(), "⚠️ **枠だけは既定＝実測である**"
+    assert rig.envelope == DOF_REALITY_ENVELOPE, (
+        "⚠️ **枠は既定ではない。** **機体1の測定値に、この関数が名前を付けている**"
+    )
+    assert rig.wire == DofRealityWire(), (
+        "⚠️ **電線も同じである。** **このリポジトリに在る唯一の電線を、ここが名指しする**"
+    )

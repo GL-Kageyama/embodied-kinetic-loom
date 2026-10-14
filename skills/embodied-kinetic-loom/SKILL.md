@@ -1,10 +1,10 @@
 ---
 name: embodied-kinetic-loom
-description: 'Writes a Motion Intent — the one typed value where this engine draws the line between the reproducible and the free. Use when a motion has to be given to the machine: a greeting, a reaction, a settling. Draws words from the motion vocabulary in references/README.md, turns them into counts on the machine''s three degrees of freedom, and writes the JSON the engine reads. ⛔ The output is not a file: it is what the machine will do in a room, once, with no undo.'
+description: 'Writes a Motion Intent — the one typed value where this engine draws the line between the reproducible and the free. Use when a motion has to be given to the machine: a greeting, a reaction, a settling. Draws words from the motion vocabulary in references/README.md, turns them into counts on that machine''s degrees of freedom, and writes the JSON the engine reads. ⛔ The output is not a file: it is what the machine will do in a room, once, with no undo.'
 argument-hint: '(optional) the work, and the motion in words. e.g. /embodied-kinetic-loom:embodied-kinetic-loom pet "a small forward tilt, and back"'
 ---
 
-<!-- i18n-version: 1.0.0 | canonical: skills/embodied-kinetic-loom/SKILL.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.1.0 | canonical: skills/embodied-kinetic-loom/SKILL.md | translated: 2026-10-15 -->
 
 **Language:** [English](SKILL.md) | [日本語](SKILL-ja.md) | [中文](SKILL-zh.md)
 
@@ -17,7 +17,7 @@ argument-hint: '(optional) the work, and the motion in words. e.g. /embodied-kin
 ## What this skill is
 
 - **It is the only writer.** ⛔ **Not *the writer in this repository* — the writer.** When no session is running and the Pet is on, the application's own AI writes the intent (decision C), **and it writes it by following this file.** One specification, two callers. **That is why one skill is enough.**
-- **Its product is a `Motion Intent`** — a small JSON object, in counts and milliseconds, on the machine's three degrees of freedom.
+- **Its product is a `Motion Intent`** — a small JSON object, in counts and milliseconds, on the degrees of freedom that machine has. ⛔ **Which freedoms exist is a property of the machine, not of the type** — the three names below are ours.
 - **Its source of words is `references/README.md`** — the vocabulary. **Read it before writing anything.**
 
 ## ⛔ Read this before the first motion
@@ -28,7 +28,7 @@ argument-hint: '(optional) the work, and the motion in words. e.g. /embodied-kin
 - **There is no stop command in the protocol.** `[mo0]` means *stop reporting*. `[sav]` writes to EEPROM. ⛔ **Neither one stops a motor.**
 - **The firmware has no soft start and no soft stop.** A step command arrives as a step. **The engine's profiles exist to avoid this, and this skill must not defeat them.**
 - **Only the host can hold the machine still.** If sending stops, torque falls to about a quarter within fifteen seconds — **and the motors do not stop.**
-- **If one axis enters a forced stop, the other two can no longer be operated.**
+- **On machine 1 (the control box): if one axis enters a forced stop, the other two can no longer be operated.**
 
 ⚠️ **These are not cautions about this skill.** They are the reason the deterministic core exists. **They are written out, with the measurements behind them, in `CLAUDE.md`.**
 
@@ -61,8 +61,8 @@ argument-hint: '(optional) the work, and the motion in words. e.g. /embodied-kin
 }
 ```
 
-- **`dof` is one of `pitch`, `roll`, `yaw`.** ⚠️ **These names are ours, not the machine's** — the control box documents no canonical axis correspondence, and the sign of every axis depends on the wiring.
-- **`target` is in counts**, the protocol's own unit. ⛔ **The admissible range is deliberately not in the type.** By default the host may command 190–833, and the box's limits are feedback-driven rather than constants. **The envelope is supplied at run time; do not write a range into an intent and then trust it.**
+- **`dof` is one of `pitch`, `roll`, `yaw`.** ⚠️ **These names are ours, not the machine's** — machine 1's control box documents no canonical axis correspondence, and the sign of every axis depends on the wiring. ⛔ **A machine that lacks one of the three simply has no row for it** — the vocabulary's difference column is where that distance is stated, not the schema.
+- **`target` is in counts** — machine 1's unit, the protocol's own. ⛔ **The admissible range is deliberately not in the type.** On machine 1 the host may command 190–833, and the box's limits are feedback-driven rather than constants. **The envelope is supplied at run time, by name, and it defaults to nothing** — do not write a range into an intent and then trust it.
 - **`duration_ms`** is how long the move takes. **Moves sharing a `group` run together**, every move in a group must have the same duration, **and groups run in ascending order from zero.**
 - ⛔ **The words are not written into the intent.** The schema is closed, and it is right to be. **An intent is already counts, and it cannot say why the number is that number** — `references/README.md` is the only place the two are held together.
 - **`quality` is the one field left open, and the engine ignores it.** A value written there changes nothing that runs. **It stays open because the half of the mapping that would fill it does not exist yet** — the adverbs.

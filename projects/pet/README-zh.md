@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: projects/pet/README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.1.0 | canonical: projects/pet/README.md | translated: 2026-10-15 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -110,7 +110,7 @@ python3 -m projects.pet --motion greeting  # 跑运动，并从同一个时钟�
 
 - **没有串口层。** Mock 是一个假装成控制箱的 Python 对象，**帧走不到它之外。**
   ⛔ **机器唯一握着的就是这一层**——**而它也正是 Mock 与实机分歧最大的地方。**
-- **只有一个运动，五个动词里只用了一个。** ⚠️ **语汇的五个动词里有三个指向这台机器没有的平移**
+- **只有一个运动，五个动词里只用了一个。** ⚠️ **语汇的五个动词里有三个指向机器1没有的平移**
   ——**所以还没有一个响过 D-12 加在 `references/` 上的那一栏。**
 - **没有 LLM。** 何时何地改变，见上面的决定 C。
 - **没有反馈。** 起始位置是手填的——**`demo_rig()` 写着那个数是哪一个，以及它不是测量。**

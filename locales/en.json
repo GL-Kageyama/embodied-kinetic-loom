@@ -26,6 +26,6 @@
     "counts": "  sent {frames} frames, {ticks} ticks, the gate held {refusals} times, {skipped} ticks given up",
     "lateness": "  worst tick late by +{worst_ms:.3f} ms",
     "position": "  box position {arrived}",
-    "caveat": "  ⛔ not one limit was passed (all None) — nothing outside the envelope (190–833, measured) has rung"
+    "caveat": "  ⛔ not one limit was passed (all None) — the only check that rang is the envelope, and the rig names which"
   }
 }

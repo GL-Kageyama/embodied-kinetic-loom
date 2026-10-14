@@ -26,6 +26,6 @@
     "counts": "  送った {frames} フレーム、刻み {ticks}、門が保った回 {refusals}、諦めた刻み {skipped}",
     "lateness": "  いちばん遅れた刻み +{worst_ms:.3f} ms",
     "position": "  箱の位置 {arrived}",
-    "caveat": "  ⛔ 上限を1つも渡していない（すべて None）——枠（190〜833、実測）以外の検査は鳴っていない"
+    "caveat": "  ⛔ 上限を1つも渡していない（すべて None）——鳴ったのは枠だけで、どの枠かは rig が名指ししている"
   }
 }

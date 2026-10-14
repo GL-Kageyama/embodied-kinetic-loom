@@ -95,7 +95,7 @@ def trapezoid_reachability(intent, starts_by_dof, limits_by_dof,
     return tuple(out)
 
 
-def admit(intent, starts_by_dof, limits_by_dof, envelope: Envelope | None = None,
+def admit(intent, starts_by_dof, limits_by_dof, envelope: Envelope,
           profile="min-jerk", count: int = DEFAULT_SAMPLES):
     """意図を検めて、通すか弾くか。
 
@@ -103,6 +103,10 @@ def admit(intent, starts_by_dof, limits_by_dof, envelope: Envelope | None = None
     現在位置は機体のフィードバックから来て、上限は配線から来る——
     **どちらも自由度とモーターの対応を知っている側にしか無い**（`plan.py` を見よ）。
     **このリポジトリは、その対応を決めない。**
+
+    ⛔ **`envelope` も、呼ぶ側が渡す。** 既定値を持たない——
+    **既定を持てば、計画時の検査が静かに1台目の枠で走る**（`limits.py` の `Envelope` を見よ）。
+    **枠は計画時に効く唯一の検査であり、いちばん先に鳴るものである。**
 
     順に、4つを見る:
 
@@ -113,8 +117,6 @@ def admit(intent, starts_by_dof, limits_by_dof, envelope: Envelope | None = None
 
     ⛔ **4 は 2 を含まない。** 目標が枠の内側でも、途中で超えることはある。
     """
-    if envelope is None:
-        envelope = Envelope()
 
     # 1. 知らない自由度
     for move in intent.moves:

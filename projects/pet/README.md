@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: projects/pet/README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.1.0 | canonical: projects/pet/README.md | translated: 2026-10-15 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -72,6 +72,6 @@ python3 -m projects.pet --motion greeting  # the motion, and the face from the s
 ## What is not here
 
 - **No serial layer.** The mock is a Python object pretending to be the control box; the frames go no further. ⛔ **This is the one part the machine gates**, and where a mock and the machine diverge most.
-- **One motion, and one of five verbs.** ⚠️ **Three of the vocabulary's five verbs name a translation this machine does not have**, so not one of them has exercised the column that D-12 added to `references/`.
+- **One motion, and one of five verbs.** ⚠️ **Three of the vocabulary's five verbs name a translation machine 1 does not have**, so not one of them has exercised the column that D-12 added to `references/`.
 - **No LLM.** See decision C above for when and where that changes.
 - **No feedback.** The start position is supplied by hand — `demo_rig()` says which number that is and that it is not a measurement. **The machine does not report back what it did.**

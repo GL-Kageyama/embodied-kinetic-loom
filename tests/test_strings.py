@@ -21,6 +21,7 @@ from __future__ import annotations
 import ast
 import io
 import pathlib
+import re
 import string
 
 import pytest
@@ -28,7 +29,7 @@ import pytest
 from conftest import FakeClock
 from engine.backend.mock import MockBox
 from engine.intent import Intent, Move
-from engine.trajectory import Rejection, admit
+from engine.trajectory import Envelope, Rejection, admit
 from projects.pet import strings
 from projects.pet.__main__ import build_parser, language_of
 from projects.pet.expressions import State
@@ -38,6 +39,12 @@ from projects.pet.screen import Screen
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 ENGINE = REPO / "engine"
+
+#: ⚠️ **枠を外した枠である**（`tests/test_limits.py` と同じ形）。
+#: ⛔ **このファイルが見たいのは「知らない軸」の断りであって、枠の話ではない**——
+#: **枠は `admit` の必須引数になったので（2026-10-15）、ここは明示的に外して渡す。**
+#: **既定値が消えたので、黙って機体1の数を借りる道はもう無い。**
+_OPEN = Envelope(None, None)
 PROJECTS = REPO / "projects"
 
 #: ⚠️ **`_meta` も節として数える。** **表自身の素性も、3本で揃っていなければならない。**
@@ -290,13 +297,37 @@ def test_the_report_speaks_the_language_it_was_given():
         assert len(out.splitlines()) == 5
 
 
+def test_a_count_of_the_machine_is_not_written_into_the_table():
+    """⛔ **表は、どの機体の数か言えない。**
+
+    ⚠️ **この1行は、かつて「枠（190〜833、実測）」と書いていた**——
+    **機体1の `Clip Input` の測定値である。**
+    ⛔ **同じ削除を、この版は `Envelope` の既定にも行った**（`limits.py`）——
+    **理由も同じである: 共有された場所は、数の持ち主を名乗れない。**
+    ⇒ **数は消えていない。** **`demo_rig()` の表と README に、機体の名前と一緒に在る。**
+
+    ⚠️ **見ているのは2桁以上の数である。** 測定値は必ず2桁以上であり、
+    **その持ち主は表の外にしか書けない。**
+    ⛔ **1桁は数詞である**——「1つも渡していない」の `1` は数ではなく語であり、
+    **これを禁じると、日本語の断りが書けなくなる。**
+    """
+    for lang in strings.SUPPORTED:
+        out = strings.text("pet_report", "caveat", lang)
+        counts = re.findall(r"\d{2,}", out)
+        assert not counts, (
+            f"⛔ **{lang} の断りが数を名乗っている: {counts}**——"
+            "**表は、その数がどの機体のものかを言えない**"
+        )
+
+
 def test_a_refusal_is_rendered_with_its_values_in_every_language():
     """⛔ **核はコードしか渡さない。** **文にするのは表の側である。**
 
     ⚠️ **値を1つも持たない断りでは、この検査は半分しか鳴らない**——
     ゆえに**値を含む断り**（`unknown_dof_start`）で引く。
     """
-    refusal = admit(Intent(moves=(Move(dof="roll", target=400, duration_ms=500, group=0),)), {}, {})
+    refusal = admit(Intent(moves=(Move(dof="roll", target=400, duration_ms=500, group=0),)),
+                          {}, {}, _OPEN)
     assert isinstance(refusal, Rejection)
 
     for lang in strings.SUPPORTED:
@@ -310,7 +341,8 @@ def test_the_refusal_line_says_no_frame_was_sent_in_every_language():
     """⚠️ **「送った 0 フレーム」と書かない。** **0 は緑に見える。**"""
     take = type(_take())(
         expression=load_expression("greeting"),
-        admission=admit(Intent(moves=(Move(dof="roll", target=400, duration_ms=500, group=0),)), {}, {}),
+        admission=admit(Intent(moves=(Move(dof="roll", target=400, duration_ms=500, group=0),)),
+                          {}, {}, _OPEN),
         ticks=(), sets=(), steps=(), arrived=(),
     )
     assert not take.ran

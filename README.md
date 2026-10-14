@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.8.0 | canonical: README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.9.0 | canonical: README.md | translated: 2026-10-15 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -30,11 +30,11 @@ This repository holds what the engine *is*, what must never be assumed about the
 
 **And now one motion runs end to end.** `python3 -m projects.pet --motion greeting` reads an intent off disk, admits it, computes the trajectory, passes it through the gate, sends it to the mock — **and draws the face from the same clock, on the same tick.** ⚠️ **That sentence is the whole point of the exercise, and it is asserted rather than described**: two of the Pet's five faces are the same drawing, so *one clock for the face and the body* is not a style preference, it is the only thing separating two states.
 
-⛔ **No byte of that has reached a machine.** That is measured, not asserted: a scan of this workshop's own Python — 143 files, searched for `import hid`, `hidapi`, `pygame`, `joystick`, `evdev`, `pyserial`, `import serial` and `IOHID` — returned **zero**. **The backend stops one layer short of the wire, on purpose** — see below.
+⛔ **No byte of that has reached a machine.** That is measured, not asserted: a scan of this workshop's own Python — **277 files**, vendored trees excluded, searched for `import hid`, `hidapi`, `pygame`, `joystick`, `evdev`, `pyserial`, `import serial` and `IOHID` — returned **zero**. **The backend stops one layer short of the wire, on purpose** — see below.
 
 **And the writer now exists.** `skills/embodied-kinetic-loom/` holds the one skill — **the only thing that writes a `Motion Intent`.** ⛔ **It is a document, not a program: no code in this repository calls a model, and that is what makes the trajectory underneath it testable.** Its source of words is `references/README.md`, and ⚠️ **as of 2026-09-28 that file is a mapping rather than a fixed table** — written as rows, drawn from by name, **and grown by use, which is the only way it grows.** ⛔ **Drawn from by whom is the whole question: by Claude, not by a program** — so the canonical form is a table a reader reads, and no second, machine-only copy is built, because nothing would read it.
 
-⚠️ **The core, the backend, the Pet's screen and the Pet's motion are green — twenty-two files, two hundred and sixty-seven tests, measured 2026-09-28 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
+⚠️ **The core, the backend, the Pet's screen and the Pet's motion are green — twenty-two files, two hundred and eighty-one tests, measured 2026-10-15 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
 
 ## Before you connect a machine
 
@@ -48,7 +48,7 @@ This repository holds what the engine *is*, what must never be assumed about the
 .claude-plugin/     plugin.json and marketplace.json — the two files that must carry one version
 docs/               the documents, canonical English with -ja and -zh mirrors beside them
 tools/              check_i18n.py — the mirrors; check_vocabulary.py — the vocabulary table; purity.py — the forbidden imports
-tests/              the suites — twenty-two files, two hundred and sixty-seven tests
+tests/              the suites — twenty-two files, two hundred and eighty-one tests
 schemas/            motion-intent.schema.json — the Motion Intent type
 engine/             the deterministic core. ⚠️ It calls no LLM and imports nothing that varies
 engine/backend/     the sending side — protocol, cycle, gate, axis map, transmitter, mock
@@ -66,14 +66,14 @@ install.sh          installs the skill (--local writes .claude/skills/, which is
 
 ## What is not here yet
 
-- **No serial layer.** The backend frames, gates and transmits; nothing opens a port. ⛔ **This is the one part the machine gates**, because the control box has two generations and the protocol differs between them — and it is exactly where a mock and the machine diverge most.
-- ⚠️ **The vocabulary has one row, not five.** Of the five verbs it starts from — 傾く / 倒れる / 沈む / 跳ねる / 後退 — **three name a degree of freedom this machine does not have**, and the mapping carries an explicit column saying what the difference is. ⛔ **The four missing rows are the ones that were not used**, and writing them now would be writing down what has never run.
+- **No serial layer.** The backend frames, gates and transmits; nothing opens a port. ⛔ **This is the one part the machine gates**, because machine 1's control box has two generations and the protocol differs between them — and it is exactly where a mock and the machine diverge most.
+- ⚠️ **The vocabulary has one row, not five.** Of the five verbs it starts from — 傾く / 倒れる / 沈む / 跳ねる / 後退 — **three name a degree of freedom machine 1 does not have**, and the mapping carries an explicit column saying what the difference is. ⛔ **The four missing rows are the ones that were not used**, and writing them now would be writing down what has never run.
 - ⚠️ **No record of what happened.** `--motion` prints its numbers and they scroll away. **The vessel for records is `projects/`** (see `CLAUDE.md`) — **it is empty, and it is empty because the machine gates the one observation that would fill it.**
 
 ## Next
 
 1. **The serial layer** — the one step that reaches the wire. ⛔ **Gated on the machine**: confirm which generation of control box is in hand before trusting any protocol document, including this repository's.
-2. **A second motion** — the vocabulary starts from five verbs. ⚠️ **Three of them name a translation this machine does not have, so not one row has yet crossed the difference column** — and how that column behaves has never been exercised.
+2. **A second motion** — the vocabulary starts from five verbs. ⚠️ **Three of them name a translation machine 1 does not have, so not one row has yet crossed the difference column** — and how that column behaves has never been exercised.
 
 ⚠️ **Step 1 is the only one the machine gates; step 2 is waiting on work.** **And finishing either says nothing about whether anything is *there*.**
 

@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.1 | canonical: docs/first-contact.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.0.2 | canonical: docs/first-contact.md | translated: 2026-10-15 -->
 
 **Language:** [English](first-contact.md) | [日本語](first-contact-ja.md) | [中文](first-contact-zh.md)
 
@@ -33,7 +33,7 @@
 
 The vendor's tool page says: *"You can change your control box mode: 10 bit or 12 bit."* A secondary source gives **10-bit = 0–1023** and **12-bit = 0–4095**.
 
-**Every count in this repository is in 10-bit counts** — the neutral **512**, and the default envelope **190–833** (`engine/trajectory/limits.py`, `Envelope`). ⇒ **A box in 12-bit mode makes those numbers mean something else, silently, with nothing to ring on it.** ⚠️ **What the current STM32 generation actually does in 12-bit mode is not known** — one guess on the record is that it is not supported at all.
+**Every count in this repository is in 10-bit counts** — the neutral **512**, and the envelope **190–833** (`engine/backend/protocol.py`, `DOF_REALITY_ENVELOPE` — ⛔ **not a default; `Envelope` holds no numbers at all since 2026-10-15**), which is **machine 1's**. ⇒ **A box in 12-bit mode makes those numbers mean something else, silently, with nothing to ring on it.** ⚠️ **What the current STM32 generation actually does in 12-bit mode is not known** — one guess on the record is that it is not supported at all.
 
 ⛔ **And "1 count = N degrees" is written down nowhere, and cannot be.** Counts are raw sensor readings. The range comes from the linkage and from `Clip Input` / `Max Limits`, both of which the vendor expects the owner to change. **Measure the limits per axis, on this machine.**
 
@@ -127,7 +127,7 @@ The vendor's tool page says: *"You can change your control box mode: 10 bit or 1
 | what | where |
 |---|---|
 | **Everything that happened, in order** — what `comports()` showed and whether it raised, **which chip**, what you did, **and whether anything moved.** | **`projects/`** — the record vessel. ⚠️ **Its shape is deliberately undecided** (see `CLAUDE.md`). ⛔ **A log cannot carry the last part: a log can hold what left the host, never whether anything moved.** |
-| **The findings — the ones that change what a document now says** — the port check, the nine machine-side items, the seven host-side items. **Both what was found and what was not.** | ⚠️ **Back into the documents that currently say "unknown"** — `CLAUDE.md` § Safety, this page, and the `Envelope` default in `engine/trajectory/limits.py`. **A finding that is not folded back leaves the document lying.** |
+| **The findings — the ones that change what a document now says** — the port check, the nine machine-side items, the seven host-side items. **Both what was found and what was not.** | ⚠️ **Back into the documents that currently say "unknown"** — `CLAUDE.md` § Safety, this page, and the envelope `190–833`, now `DOF_REALITY_ENVELOPE` in `engine/backend/protocol.py`. **A finding that is not folded back leaves the document lying.** |
 
 ⚠️ **These overlap, and that is not a mistake — one result can belong to both.** **The record keeps the day; the correction keeps the documents honest.** ⛔ **What must not happen is writing one and calling it the other.**
 

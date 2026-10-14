@@ -15,7 +15,7 @@
 
 ## 段
 
-    Pet Expression（顔＋語）  →  Motion Intent（型）  →  軌道  →  門  →  フレーム
+    Pet Expression（顔＋語）  →  Motion Intent（型）  →  軌道  →  門  →  バイト列
                                                         ↘ 同じ時計が顔も駆動する
 
 ⛔ **`Pet Expression` から `Motion Intent` への段は、このファイルの中に無い。**
@@ -29,7 +29,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
@@ -37,8 +37,9 @@ from engine.backend.axis_map import AxisMap
 from engine.backend.cycle import Clock, Schedule, Tick, run
 from engine.backend.gate import Gate
 from engine.backend.mock import MockBox, Step
-from engine.backend.protocol import Frame
+from engine.backend.protocol import DOF_REALITY_ENVELOPE, DofRealityWire
 from engine.backend.transmit import FrameSet, Transmitter
+from engine.backend.wire import Command, Wire
 from engine.intent import Intent, load
 from engine.trajectory import Admission, ChannelLimits, Envelope, Rejection, admit
 
@@ -84,29 +85,35 @@ class Expression:
 
 @dataclass(frozen=True)
 class Rig:
-    """⛔ **実機の上でしか測れない数。** ⚠️ **既定値は、`envelope` の1つだけである。**
+    """⛔ **実機の上でしか測れない数。** ⚠️ **既定値は、1つも無い。**
 
     | 欄 | 単位 | 誰が測るか |
     |---|---|---|
     | `axis_map` | —— | 配線。⛔ **正準は無い**（[02_調査/01] §3.3） |
-    | `starts_by_dof` | カウント | フィードバック、または利用者。⛔ **知らずに最初の1フレームを出すのが、いちばん危ない段差である** |
+    | `starts_by_dof` | カウント | フィードバック、または利用者。⛔ **知らずに最初の1組を出すのが、いちばん危ない段差である** |
     | `limits_by_dof` | **自由度の単位**／秒 | 配線と機構。**`admit` が読む** |
     | `limits_by_motor` | **カウント**／秒 | 同じ配線を、カウントで測ったもの。**門が読む** |
-    | `envelope` | カウント | ⚠️ **これだけは既定値が実測である**（190〜833、`Clip Input`） |
+    | `envelope` | カウント | ⛔ **既定値は削除された**（2026-10-15）。**機体1の枠は `DOF_REALITY_ENVELOPE` であり、それも「実測」ではなく「この1台の実測」である** |
+    | `wire` | —— | ⛔ **機体そのもの。** この機体の数え方と、バイト列 |
     | `period` | 秒 | ⛔ **既定値は無い**（[02_調査/08] §8 の6番） |
 
     ⛔ **`limits_by_dof` と `limits_by_motor` は、同じ型だが同じ数ではない。**
     **`axis_map` の `scale` が 1 でなければ、片方は `scale` のぶんだけずれる。**
     ⚠️ **2つの欄が別々に在る理由は、それである**——**`ChannelLimits` という名前は、
     単位を言っていない。** **同じ数を両方へ渡すと、静かにずれる。**
+
+    ⛔ **`envelope` と `wire` が必須である理由は同じである。**
+    **この2つは「どの機体か」を言う欄であり、既定を持てば静かに1台目を指す。**
+    ⚠️ **そして `demo_rig()` は、その1台目を名指しで書いている。**
     """
 
     axis_map: AxisMap
     starts_by_dof: Mapping[str, float]
     limits_by_dof: Mapping[str, ChannelLimits]
     limits_by_motor: tuple[ChannelLimits, ...]
+    envelope: Envelope
+    wire: Wire
     period: float
-    envelope: Envelope = field(default_factory=Envelope)
 
     def motors(self) -> int:
         """⚠️ **モーターの数。** 対応が届いている範囲である。"""
@@ -178,9 +185,13 @@ class Take:
         return self.admission if isinstance(self.admission, Rejection) else None
 
     @property
-    def sent(self) -> tuple[Frame, ...]:
-        """⚠️ **実際に送ったもの。** 門が保った軸も、ここには入っている。"""
-        return tuple(f for fs in self.sets for f in fs.verdict.frames)
+    def sent(self) -> tuple[Command, ...]:
+        """⚠️ **実際に送ったもの。** 門が保った軸も、ここには入っている。
+
+        ⚠️ **軸と値であって、バイト列ではない。** **この機体の言葉にするのは
+        電線（`Wire.encode`）の仕事である**——**ゆえに機体が変わっても、この記録の形は変わらない。**
+        """
+        return tuple(c for fs in self.sets for c in fs.verdict.commands)
 
     @property
     def refusals(self) -> int:
@@ -243,11 +254,13 @@ def perform(expression: Expression, rig: Rig, *, clock: Clock,
     starts_by_motor = rig.starts_by_motor()
     gate = Gate(starts_by_motor=starts_by_motor,
                 limits_by_motor=rig.limits_by_motor,
-                envelope=rig.envelope)
+                envelope=rig.envelope,
+                wire=rig.wire)
 
     trajectories = admission.trajectories
     transmitters = tuple(
-        Transmitter(trajectory=t, axis_map=rig.axis_map, gate=gate) for t in trajectories
+        Transmitter(trajectory=t, axis_map=rig.axis_map, gate=gate, wire=rig.wire)
+        for t in trajectories
     )
     durations = tuple(t.duration for t in trajectories)
     total = sum(durations)
@@ -293,7 +306,9 @@ def perform(expression: Expression, rig: Rig, *, clock: Clock,
         fs = transmitters[group].frames_at(start + group_starts[group], now)
         sets.append(fs)
         if box is not None:
-            box.feed(b"".join(f.raw for f in fs.verdict.frames), now)
+            # ⛔ **門を通った組のバイト列を流す。** **提案ではない**——
+            # **弾かれた刻みに機体へ行くのは、保った組か、寄せた値である。**
+            box.feed(fs.payload, now)
 
     # ⚠️ **端を跨ぐ刻みを1つ残す。** `+2` は、最後の目標が必ず1度送られるための余裕である。
     ticks = run(schedule, clock, body, math.ceil(total / rig.period) + 2)
@@ -314,7 +329,8 @@ def demo_rig() -> Rig:
     | `starts_by_dof` | `pitch` = **512.0** カウント | ⛔ **測定ではない。** ホストが送れる帯 190〜833 の真ん中に近い、というだけである。**「512 が中立」と明記した一次情報は見つかっていない**（[01] §3） |
     | `limits_by_dof` | **すべて `None`** | ⛔ **「制限しない」である。** 下を見よ |
     | `limits_by_motor` | **すべて `None`** | ⛔ **同上** |
-    | `envelope` | 190〜833（既定） | ✅ **これだけは実測である**（`Clip Input`、[02_調査/01] §2.2） |
+    | `envelope` | **`DOF_REALITY_ENVELOPE`**（190〜833） | ✅ **これだけは実測である**（`Clip Input`、[02_調査/01] §2.2）。⛔ **ただし「実測」なのは*この1台*についてだけである**——**ゆえに既定値ではなく、ここで名前を書いて渡している**（2026-10-15） |
+    | `wire` | **`DofRealityWire()`** | ⛔ **機体そのものである。** このリポジトリに在る唯一の電線——**2台目は、まだ無い** |
     | `period` | **20 ms** | ⛔ **測定ではない。** ⚠️ **実機の周期は、ループの実測から決まる**（[02_調査/08]） |
 
     ⛔ **`None` の意味を、隠さない。** **`ChannelLimits()` は「制限しない」であり、
@@ -331,6 +347,11 @@ def demo_rig() -> Rig:
 
     ⛔ **そして `scale` が 1.0 である以上、`limits_by_dof` と `limits_by_motor` の単位は
     たまたま一致する。** **実機では一致しない。**
+
+    ⚠️ **`envelope` と `wire` は、この関数の中で名指しで書かれている。**
+    **この2行が、この演技がどの機体のものかを言う唯一の場所である**——
+    **既定で埋まっていた頃は、この演技が1台目のものであることを、
+    どこも言っていなかった。**
     """
     from engine.backend.axis_map import ChannelCalibration  # ⚠️ 対応の型は、ここでしか使わない
 
@@ -341,5 +362,7 @@ def demo_rig() -> Rig:
         starts_by_dof={"pitch": 512.0},
         limits_by_dof={"pitch": ChannelLimits()},
         limits_by_motor=(ChannelLimits(),),
+        envelope=DOF_REALITY_ENVELOPE,
+        wire=DofRealityWire(),
         period=0.02,
     )

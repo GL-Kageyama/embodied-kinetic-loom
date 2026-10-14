@@ -5,6 +5,146 @@
 
 ---
 
+## 0.15.0 — 2026-10-15 継ぎ目を掘る——**そして、既定値はそれが誰の数かを言えない**
+
+### 著者の指示（逐語）
+
+> このリポジトリを
+>
+> スタックチャン用の経路も、開けてほしい
+>
+> `/Users/user/Desktop/スタックチャン`
+> `/Users/user/Desktop/Done/AIゲーセンターハッカソン_20261004`
+> この配下に、動かした記録がある
+>
+> `/Users/user/Desktop/スタックチャン`
+> 　→特にこの記録は、自前のスタックちゃんの記録である
+>
+> まずは計画を立てて
+
+**裁定8つ（著者）:** ①経路は機体非依存に書く ②自分で書いたファーム ③ポートを含める（**この工房で初**）④語彙に7列目「機械」を足す ⑤**経路だけ。作品はまだ作らない** ⑥ファームはこのリポジトリの中 ⑦記録の器は**形だけ**を決める ⑧機体2の「最初の1時間」は**新しい文書**
+
+⚠️ **本版は6段のはしごの1段目である。** **機体はまだ1台、ポートはまだ開かない、利用者に見えるものは1つも変わらない。**
+
+### ⛔ 動かした理由——機体依存が、4箇所に静かに配られていた
+
+**このリポジトリは、機体1（DOF Reality の制御箱）の数を `protocol.py` の中だけに持っていなかった。** **`Envelope` の既定 190–833 は、定義1つと配布3つであった:**
+
+| 場所 | 何をしていたか |
+|---|---|
+| `engine/trajectory/limits.py` | **唯一の出所**（`target_min = 190.0` / `target_max = 833.0`） |
+| `engine/backend/gate.py` | `field(default_factory=Envelope)`——⛔ **門が静かに機体1の枠になる** |
+| `projects/pet/motion.py` | `Rig.envelope` の既定——⛔ **同じ** |
+| `engine/trajectory/admit.py` | `if envelope is None: envelope = Envelope()`——⛔ **計画時に、渡さなければ機体1の枠で検査する** |
+
+⇒ **2台目を足す前に、この4箇所を畳んだ。** **`Envelope` は数を1つも持たず、`Envelope()` はもう組めない。** 機体1の測定値は `engine/backend/protocol.py` の **`DOF_REALITY_ENVELOPE`** に1回だけ現れ、`Gate`・`admit`・`Rig` へ**名前で渡される**。
+
+⚠️ **付随して畳んだ主張が3本ある**——`tests/test_limits.py` の2本（「既定が 190/833 である」）と `tests/test_pet_motion.py` の1本（`rig.envelope == Envelope()`）。**これは「既定が実測である」という主張であり、機体が2台になれば偽である。**
+
+### ✅ 継ぎ目——`engine/backend/wire.py`（79行）
+
+**通貨が `Frame` から `Command(axis: int, value: float)` になった。** **生のバイト列は、この型の上に載っていない。**
+
+| メソッド | 何をするか | ⛔ いつ |
+|---|---|---|
+| `axis_count()` | この機体が持つ軸の数 | 構築時——**電線が運べない軸に、門は指令を出せない** |
+| `quantize(value)` | この機体の数え方に丸める。表せなければ `ProtocolError` | ⛔ **門の前** |
+| `encode(commands)` | 丸め済みの組をバイト列にする | ⛔ **門の後** |
+
+⛔ **順序が本版の要点である。** 今日 `Transmitter` は `encode_target` を**門の前**に呼び、2バイトに収まらなければ落とす。**後ろに回すと、落ちたときには門が時計と値を進めてしまっている** ⇒ **表現可能性の検査は `quantize` に残し、門の前に走らせる。**
+
+⛔ **`envelope()` は `Wire` に載せなかった。** **枠は、測定値から導かれる方針であって、電線そのものではない**——**運用者が、電線に触らずに枠を狭められなければならない。**
+
+⛔ **`decode` は載せなかった。** **機体1の読み側の形は2つの出典で食い違っており、`protocol.py` は意図的に `decode_feedback` を書いていない。** **実装できないメソッドを必須にすることは、嘘を1つ置くことである。**
+
+### ⛔ そして、2台目を想像したことで、1台目の欠陥が出た（§2d）
+
+`gate.py` の `submit` は**提案された軸だけ**を `out` に書いていた。**同じ関数の docstring は「空を返す軸は1つも無い」と主張していた。**
+
+⚠️ **機体1では表に出ない**——`Transmitter` が毎回すべての軸を提案するからである。⇒ **1行に2軸を運ぶ機体では、軸が組から抜け、`encode` はそこに何を書けばよいか分からない**（既定を書けば段差、書かなければ別の値＝段差）。
+
+⇒ **ループの後に、`0..axis_count-1` のうち `out` に無い軸を `fall_back` する。** **これで docstring が初めて真になる。** ⚠️ **埋めることは弾くことではない**——`held` は偽のままなので、**記録の上で「断った」と「何も頼まれなかった」は区別できる。**
+
+### ⛔ `Violation("unknown-command")` を消した
+
+**通貨が `Command`（軸はただの `int`）になると、あの枝は到達しない。** **到達しない枝は、docstring が主張してよい範囲を静かに広げる。** ⇒ **消し、消したことを `tests/test_gate.py` で確かめた**（門が断れる語はちょうど4つ）。⚠️ **`tools/check_vocabulary.py` も `tests/test_strings.py` も `Violation.kind` を読んでいないことを先に確かめてある。**
+
+### ⛔ 共有された場所は、数の持ち主を名乗れない
+
+`locales/{en,ja,zh}.json` の `pet_report.caveat` が、利用者の目に**機体1の実測値**を出していた（*190–833, measured*）。**機体が2台になれば偽である。**
+
+⇒ **数を消した。** **`rig` から穴を埋める道は採らなかった**——`Take` に欄が1つ増え、3言語に穴が1つ増え、**枠を外した場合の文が別に要る。** **数の代価のほうが安い。**
+
+⇒ **`tests/test_strings.py` に回帰試験が1本入った**（`pet_report.caveat` に2桁以上の数が無いこと）。⚠️ **1桁は数詞である**——「1つも渡していない」の `1` は数ではなく語であり、**これを禁じると日本語の断りが書けなくなる**（最初の版は `\d+` で書き、日本語の行に鳴った）。
+
+### ⚠️ 数え直した数
+
+- **工房の Python: 143 → 277ファイル**（`site-packages/` と `node_modules/` を除く。除かなければ 5,531 で、**走査語は vendor の木の中でも当たる**——`pyserial` と `pygame` がそこに居る）。**採用した走査語8つの当たりは、いずれの切り方でも 0 件である。**
+- **試験: 22ファイル 267 → 281本**（`test_gate` 17→25・`test_transmit` 10→13・`test_limits` 11→13・`test_strings` 21→22）。
+
+### ⛔ 機体1の名前を、文書に書いた（掃き出し）
+
+**機体が1台であることを前提にした文は、このリポジトリに数百行ある。** **3つに分けて扱った:**
+
+1. **偽になるもの——直した。** `SKILL.md` の「3自由度」（⛔ **`Motion Intent` を書く唯一の書き手に渡る文である。いちばん効く**）・`CLAUDE.md` の「one of the three axes」・`references/README.md` の写像・`schemas/motion-intent.schema.json` の `dof` の説明・`mock.py` の `TORQUE_DECAY_SECONDS`／`locked`／`motors`。
+2. **曖昧になるが偽ではないもの——1語足して機体を名指した。** 「the machine」→「machine 1」。⚠️ **「two generations of control box, two protocols」は数え直していない**——**あれは機体1の2世代の話であって、機体の数ではない。**
+3. ⛔ **直さないもの——`HISTORY.md`。** **日付入りの経緯であり、そこに書かれた「3軸」「190〜833」は、その日は真であった。**
+
+⚠️ **`schemas/motion-intent.schema.json` の `dof` の enum は変えていない。** `pitch` / `roll` / `yaw` は**機体2でもそのまま使える**——機体2は yaw と pitch を持ち、roll を持たないだけである。**変えたのは説明文だけである。**
+
+### ⛔ 設計を決めている発見——経路の実証は、別の固体で行われていた
+
+| | 10/04 に動いた機体 | 手元の機体 |
+|---|---|---|
+| MAC | `68:ee:8f:d8:55:60` | `80:45:6B:54:6D:B0` |
+| ファーム | shi3z "Stack-chan Web Server" | M5Stack 純正 v1.5.1（ESP-IDF v5.5.4） |
+| ホスト→機体の経路 | **在る**（`/dev/cu.usbmodem1101`、テキストシェル `head <pan> <tilt>`） | ⛔ **無い** |
+
+⇒ **手元の機体には、ホストからモーターへ至る道が1本も無い。** **「自分で書いたファーム」を焼くことが、手元の機体に経路を与える唯一の方法である。** ⚠️ **バックアップは `Desktop/スタックチャン/backup/stackchan-stock.bin`（16,777,216 バイト、SHA256 `012fe9d0b3c6075f78dd5426d5da7ed451c96c77ff685b1540c33a1f7594b466`、secure boot・暗号化とも無効）。**
+
+⛔ **そして10/04 の記録が1つの衝突を書いている**（`サンプルゲーム/devices/stackchan.py`、逐語）:
+
+> サーボが動き切る前に次の指令を送ると、サーボがストールして電源レールが落ち、両軸とも無応答になる。移動を伴う指令は必ず 1 秒以上あけること。（`MOVE_SETTLE = 1.0`）
+
+**このエンジンは、15〜20 ms ごとに目標を送り続ける機械として設計されている。** ⇒ **この経路の周期・速度上限・可動域は、すべて未測定であり、既定値を持たない。**
+
+### 触ったファイル
+
+**新規1本:** `engine/backend/wire.py`
+
+**コード5本:** `engine/backend/`（`gate.py`・`transmit.py`・`protocol.py`・`mock.py`・`__init__.py`）・`engine/trajectory/`（`limits.py`・`admit.py`）・`projects/pet/motion.py`
+
+**試験7本:** `test_gate.py`・`test_transmit.py`・`test_limits.py`・`test_strings.py`・`test_admit.py`・`test_mock.py`・`test_pet_motion.py`
+
+**文書:** `CLAUDE`×3・`README`×3・`engine/README`×3・`references/README`×3・`docs/first-contact`×3・`projects/pet/README`×3・`tests/README`×3・`SKILL`×3・`schemas/motion-intent.schema.json`・`locales/`×3
+
+### 検査
+
+| 検査 | 実測 |
+|---|---|
+| `python3 -m pytest tests/` | **281 passed**（**22ファイル**） |
+| `claude plugin validate --strict .` | `✔ Validation passed` |
+| `python3 tools/check_i18n.py` | **違反0件**（**正典10本・在ったファイル30本**） |
+| `python3 tools/check_vocabulary.py` | **違反0件** |
+| `python3 tools/check_vocabulary.py --self-test` | **14例中14例が期待どおり** |
+
+### 版と計数
+
+- `plugin.json` = `marketplace.json` = `HISTORY.md` 先頭 = **`0.14.1` → `0.15.0`**
+- `i18n-version`: `README`×3 = 1.8.0 → **1.9.0**／`CLAUDE`×3 = 1.6.0 → **1.7.0**／`engine/README`×3 = 1.1.0 → **1.2.0**／`references/README`×3 = 2.1.0 → **2.2.0**／`docs/first-contact`×3 = 1.0.1 → **1.0.2**／`projects/pet/README`×3 = 1.0.0 → **1.1.0**／`tests/README`×3 = 1.5.0 → **1.6.0**／`SKILL`×3 = 1.0.0 → **1.1.0**
+- **正典 10本・在ったファイル 30本（不変）**
+- **テスト: 22ファイル281本**（**267 → 281、+14**）
+- ⚠️ **`engine/backend/wire.py` は試験を1本も持たない**——**機体非依存の `Protocol` であり、実装は `DofRealityWire` である。** **そこは `tests/test_gate.py` と `tests/test_transmit.py` が見ている。**
+
+### ⛔ 決めなかったこと——そして、この版でいちばん危ないこと
+
+- ⛔ **機体2は、まだ1行も無い。** `StackChanWire` も `mock_stackchan.py` も `serial.py` も無い。**電線はまだ1本であり、「電線は差し替えられる」は設計の主張であって、実測ではない。**
+- ⛔ **語彙の7列目は、まだ無い。** 本版は `references/` を1行も触っていない（触ったのは**機体1を名指す1段落だけ**である）。
+- ⛔ **記録の器は、空のままである。**
+- ⚠️ **申し送り:** `claude plugin validate --strict .` は**本版で初めて `.claude-plugin/` を触る版になる**——⚠️ **`plugin.json` の `description` は機体1の制御箱の話をしている**（「the vendor's own control box does not check the values it receives」）。**機体2について偽ではないが、機体1の話である。** **機体2の電線が入る段（0.19.0）で、同じ判断をする。**
+
+---
+
 ## 0.14.1 — 2026-09-28 宛先は `docs/` ではなかった——**そして、記録と訂正は重なる**
 
 ### 著者の指示（逐語）

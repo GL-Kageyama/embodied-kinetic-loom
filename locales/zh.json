@@ -26,6 +26,6 @@
     "counts": "  发送 {frames} 帧、刻点 {ticks}、门守住 {refusals} 次、放弃的刻点 {skipped}",
     "lateness": "  最迟的刻点 +{worst_ms:.3f} ms",
     "position": "  箱的位置 {arrived}",
-    "caveat": "  ⛔ 一个上限都没有传（全部为 None）——除框架（190〜833，实测）以外没有任何检查响过"
+    "caveat": "  ⛔ 一个上限都没有传（全部为 None）——响过的只有框架，是哪一个由 rig 指名"
   }
 }

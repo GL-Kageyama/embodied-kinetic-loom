@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.5.0 | canonical: tests/README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 1.6.0 | canonical: tests/README.md | translated: 2026-10-15 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Twenty-two files, two hundred and sixty-seven tests, all green — measured 2026-09-28.**
+**Twenty-two files, two hundred and eighty-one tests, all green — measured 2026-10-15.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -172,6 +172,24 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 **The same size, in the same second.** Two of the breaks changed a file without changing its length — `cli or env` becomes `env or cli`, and a restored file is byte-identical to the file it replaces. **Python decides a `.pyc` is still valid from the source's mtime in whole seconds and its size.** Restore a same-length file within the same second and the stale bytecode runs.
 
 **So the suite failed after the file had been put back, and `diff` said the file was right.** ⚠️ **"It still fails after I put it back" is not evidence that the check is missing.** Clear the bytecode caches and run it again — **and disbelieve the number in both directions.**
+
+## The seam, and the defect it uncovered (2026-10-15)
+
+**`engine/backend/wire.py` arrived, and with it the machine's name left the gate and the transmitter.** Fourteen tests were added; the count moved from 267 to 281. What they hold:
+
+| the check | where | what it is for |
+|---|---|---|
+| the gate cannot be built without an `envelope` or a `wire` | `test_gate.py` | ⛔ **a default cannot say whose number it is.** A gate that fills either in silently becomes machine 1's gate, and does it without raising |
+| the gate refuses more axes than its wire can carry | `test_gate.py` | ⚠️ **the other direction is allowed** — machine 1's frames are per-axis, so commanding one axis alone is legitimately expressible |
+| the gate can refuse in exactly four ways | `test_gate.py` | ⛔ `unknown-command` was **removed**: with `Command` (axis is a plain `int`) that branch is unreachable, and an unreachable branch silently widens what a docstring may claim |
+| the payload is the bytes the wire would write — **even on a refused tick** | `test_transmit.py` | ⛔ **a refusal is not a silence** (`gate.py`'s own rule) |
+| `transmit.py` does not name machine 1 | `test_transmit.py` | over **AST identifiers, not text** — the docstring truthfully says it once called `encode_target`, and a grep would ring on that correct sentence |
+| the envelope's numbers are built in exactly one file | `test_limits.py` | scans `engine/**` for an `Envelope(...)` call given a numeric literal |
+| no string table names a machine's count | `test_strings.py` | ⛔ **a shared table cannot say whose number it is** — `pet_report.caveat` used to read *190–833, measured* |
+
+⛔ **And one defect was found by asking what a second machine would need, not by reading the code.** The gate's loop wrote only the axes that were *proposed*; its own docstring claimed no axis goes silent. ⚠️ **Machine 1 never showed it, because `Transmitter` proposes every axis on every tick.** ⇒ **A machine that carries two axes in one line would have had an axis drop out of the set, with `encode` holding nothing to write for it.** `test_an_axis_missing_from_the_proposal_is_still_filled_in` is the regression, and ⚠️ **filling is not refusing** — `held` stays false, so the record can still tell *refused* from *nothing was asked*.
+
+⚠️ **What none of this tests is machine 2.** There is still one wire in this repository. **`DofRealityWire` is the only implementation, so *the wire is swappable* is a claim about the design and not yet a measurement** — `test_transmit.py`'s stand-in wire is labelled as a stand-in, not as an implementation.
 
 ## The rule that holds this directory — applied to us
 

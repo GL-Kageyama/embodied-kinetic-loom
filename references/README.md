@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.1.0 | canonical: references/README.md | translated: 2026-09-28 -->
+<!-- i18n-version: 2.2.0 | canonical: references/README.md | translated: 2026-10-15 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -37,6 +37,8 @@
 
 ## The one entry that was used
 
+⛔ **The row below was written on machine 1** — the DOF Reality control box. **The three names the schema allows are its three axes.** ⚠️ **Which machine a row was written on is not a column in this table** — so a word that has only ever been turned into numbers on *a second* machine has nowhere to go yet. **The omission is written out here rather than left blank**: a table that does not say whose numbers these are gets read as saying everyone's.
+
 | the words | degree of freedom | the amount | the time | ⛔ the difference this machine cannot cover | where it was used |
 |---|---|---|---|---|---|
 | `small forward tilt` → `return` | `pitch` | `+40` counts | `600` ms each way | **none** — this word names a freedom the machine has | `projects/pet/motions/greeting.json` |
@@ -44,13 +46,13 @@
 ### What the row says, column by column
 
 - **The words are the concept document's §5, verbatim.** `greeting` is paired there with *small forward tilt → return*, and the Pet's five faces were already copied the same way — one character unchanged.
-- **The degree of freedom is the machine's, not the word's.** `tilt` is a rotation and `pitch` is one of the three the machine has; **this row is the case where the two agree, which is why the difference column says `none`.**
+- **The degree of freedom is the machine's, not the word's.** `tilt` is a rotation and `pitch` is one of the three machine 1 has; **this row is the case where the two agree, which is why the difference column says `none`.**
 - ⛔ **The amount is not a measurement.** `+40` counts is `552 − 512`, and both of those are choices — `demo_rig()` lists every number it supplies and what each one is not. **The words came from the concept document. The numbers did not come from anywhere.**
-- ⛔ **The warning column is the decision of 2026-09-28 (D-12).** Of the five verbs the vocabulary starts from — 傾く / 倒れる / 沈む / 跳ねる / 後退 — **three name a translation this machine does not have. The verbs stay in the vocabulary, and this column carries the difference.**
+- ⛔ **The warning column is the decision of 2026-09-28 (D-12).** Of the five verbs the vocabulary starts from — 傾く / 倒れる / 沈む / 跳ねる / 後退 — **three name a translation machine 1 does not have. The verbs stay in the vocabulary, and this column carries the difference.**
 
 ## What is not here
 
 - ⛔ **Four rows.** The vocabulary starts from five verbs and this table has one. **The missing four are the ones that were not used** — and writing them now would be writing down what has never run.
-- ⛔ **Three of those four would carry a difference.** 沈む / 跳ねる / 後退 name a translation, and the machine has no such freedom. **The column exists for them; not one of them has crossed it yet.**
+- ⛔ **Three of those four would carry a difference.** 沈む / 跳ねる / 後退 name a translation, and machine 1 has no such freedom. **The column exists for them; not one of them has crossed it yet.**
 - ⛔ **The adverbs.** 前に / 少し / ゆっくり are the other half of the mapping — and the design notes record that no dictionary or study they found has reached the meaning of adverbs.
 - ⛔ **Any claim that a mapping is correct.** **There is no measurement behind this table.** It records what one word was turned into, once.

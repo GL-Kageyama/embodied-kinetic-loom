@@ -27,6 +27,7 @@ from conftest import FakeClock
 from engine.backend.axis_map import AxisMap, ChannelCalibration
 from engine.backend.cycle import Schedule, run
 from engine.backend.gate import Gate
+from engine.backend.protocol import DOF_REALITY_ENVELOPE, DofRealityWire
 from engine.backend.mock import MockBox
 from engine.backend.transmit import Transmitter
 from engine.trajectory.limits import ChannelLimits
@@ -43,9 +44,11 @@ def _rig(limits=None):
     amap = AxisMap(channels={
         "pitch": ChannelCalibration(motor=0, sign=1, offset=0.0, scale=1.0),
     })
+    wire = DofRealityWire()
     gate = Gate(starts_by_motor=(500.0,),
-                limits_by_motor=(limits or ChannelLimits(),))
-    return Transmitter(trajectory=traj, axis_map=amap, gate=gate)
+                limits_by_motor=(limits or ChannelLimits(),),
+                envelope=DOF_REALITY_ENVELOPE, wire=wire)
+    return Transmitter(trajectory=traj, axis_map=amap, gate=gate, wire=wire)
 
 
 def _clock():
@@ -71,8 +74,7 @@ def test_the_loop_drives_the_whole_trajectory_into_the_mock():
     def body(tick):
         frames = tx.frames_at(0.0, tick.started)
         sent.append(frames)
-        for frame in frames.verdict.frames:
-            box.feed(frame.raw, tick.started)
+        box.feed(frames.payload, tick.started)
 
     ticks = run(Schedule(PERIOD), clock, body, 25)  # 25 × 20 ms = 0.5 秒
 
@@ -89,8 +91,7 @@ def test_the_value_never_goes_backwards_on_a_monotone_trajectory():
 
     def body(tick):
         frames = tx.frames_at(0.0, tick.started)
-        for frame in frames.verdict.frames:
-            box.feed(frame.raw, tick.started)
+        box.feed(frames.payload, tick.started)
 
     run(Schedule(PERIOD), clock, body, 25)
     after = [step.after for step in box.steps]
@@ -110,8 +111,7 @@ def test_something_is_sent_on_every_tick():
 
     def body(tick):
         frames = tx.frames_at(0.0, tick.started)
-        for frame in frames.verdict.frames:
-            box.feed(frame.raw, tick.started)
+        box.feed(frames.payload, tick.started)
 
     run(Schedule(PERIOD), clock, body, 25)
     assert len(box.received) == 25, "⛔ **沈黙した刻みが在る**"
@@ -136,8 +136,7 @@ def test_a_late_body_skips_ticks_instead_of_bursting_them():
         if tick.n == 1:
             clock.advance(0.05)  # ⛔ **2.5 周期かかった**
         frames = tx.frames_at(0.0, tick.started)
-        for frame in frames.verdict.frames:
-            box.feed(frame.raw, tick.started)
+        box.feed(frames.payload, tick.started)
 
     ticks = run(Schedule(PERIOD), clock, body, 25)
     skipped = sum(t.missed_before for t in ticks)
@@ -176,8 +175,7 @@ def test_a_refused_axis_creeps_toward_the_target_instead_of_freezing():
         if tick.n == 1:
             clock.advance(0.05)  # ⛔ **刻みが1つ遅れる**
         frames = tx.frames_at(0.0, tick.started)
-        for frame in frames.verdict.frames:
-            box.feed(frame.raw, tick.started)
+        box.feed(frames.payload, tick.started)
 
     ticks = run(Schedule(PERIOD), clock, body, 25)
 
@@ -211,9 +209,8 @@ def test_the_gate_never_lets_an_axis_move_faster_than_its_limit():
         if tick.n == 1:
             clock.advance(0.05)
         fs = tx.frames_at(0.0, tick.started)
-        seen.append((tick.started, fs.verdict.frames[0].value))
-        for frame in fs.verdict.frames:
-            box.feed(frame.raw, tick.started)
+        seen.append((tick.started, fs.verdict.commands[0].value))
+        box.feed(fs.payload, tick.started)
 
     run(Schedule(PERIOD), clock, body, 25)
 

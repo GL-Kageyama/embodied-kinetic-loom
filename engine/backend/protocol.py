@@ -1,12 +1,20 @@
 # -*- coding: utf-8 -*-
 """フレーム——**5バイト、チェックサム無し。**
 
+⛔ **このモジュールは、機体1（DOF Reality の制御箱）のものである。**
+⚠️ **機体ごとに違う部分は `wire.py` の `Wire` が持つ**——この層は、その**1つ目の実装**である
+（`DofRealityWire`、このファイルの末尾）。
+**ゆえにここには、この機体の数え方がそのまま書いてある**——
+5バイト、`A`/`B`/`C` の3モーター、0〜1024。**2台目の機体は、このどれも共有しない。**
+
 [02_調査/01] §1.1 の実測を、そのまま写す:
 **総長5バイト。`[`(0x5B) で始まり `]`(0x5D) で終わる。位置は2バイト big-endian。**
 `[A xx]` `[B xx]` `[C xx]` が Motor 1/2/3 の目標位置（`SMC3.ino` の `ParseCommand()`）。
 
 ⚠️ **この層が検査するのは「2バイトに入るか」だけである。**
-**ホストが既定で送れる 190〜833 は、ここではなく門（`gate.py`）の話である**——
+⛔ **ホストが既定で送れる 190〜833 が検査されるのは、ここではなく門（`gate.py`）である。**
+⚠️ **ただし、その数の出所はここである**——`DOF_REALITY_ENVELOPE` は**この機体の測定値**であり、
+**門へ名前で渡される。** **門が既定としてそれを持つことは無い**——
 `schemas/motion-intent.schema.json` が値域を型に書かないのと同じ理由で、
 **同じ数を2箇所に持つと、2つが食い違う。**
 
@@ -40,10 +48,16 @@
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
+from typing import Sequence
+
+from ..trajectory.limits import Envelope
+from .wire import Command
 
 __all__ = [
     "START", "END", "FRAME_LEN", "MAX_TARGET", "MOTOR_LETTERS", "READ_DIVISOR",
+    "DOF_REALITY_ENVELOPE", "DofRealityWire",
     "ProtocolError", "Frame", "FeedbackDiv4",
     "encode_target", "encode_text", "decode_frames", "feedback_div4",
 ]
@@ -56,6 +70,18 @@ MOTOR_LETTERS = ("A", "B", "C")  # Motor 1 / 2 / 3
 
 #: ⛔ **読むときだけ 4 で割られている**（§1.3）。**送る側は割らない。**
 READ_DIVISOR = 4
+
+#: ⛔ **機体1の枠。** `Clip Input` の実測値である（[02_調査/01] §2.2）。
+#:
+#: ⚠️ **単位は 10bit のカウントである**——**制御箱には 10bit と 12bit のモードがあり、
+#: 12bit ならこの2つの数は別の意味になる**（`docs/first-contact.md` の (d)）。
+#: **512 が中立であることも同じ前提の上にある。**
+#:
+#: ⛔ **これは既定値ではない。名前を持つ定数である。**
+#: **門も `admit` もこれを自分では持たず、呼ぶ側が名前で渡す**——
+#: **「とりあえずの枠」が静かに機体1の枠になることを、この形が禁じる**
+#: （`engine/trajectory/limits.py` の `Envelope` を見よ）。
+DOF_REALITY_ENVELOPE = Envelope(target_min=190.0, target_max=833.0)
 
 
 class ProtocolError(ValueError):
@@ -198,3 +224,61 @@ def decode_frames(buffer: bytes) -> tuple[tuple[Frame, ...], bytes]:
         frames.append(Frame(command=chr(candidate[1]), value=value, raw=bytes(candidate)))
         i += FRAME_LEN
     return tuple(frames), bytes(buffer[i:])
+
+
+def _whole(value: float) -> int:
+    """⚠️ **この機体の目標は整数である。** **表せない値は、ここで落とす。**
+
+    ⛔ **`nan` と `inf` を通さない。** `round()` は前者で例外を投げ、後者では
+    `OverflowError` になる——**どちらも「表せない」の別の綴りである。**
+    **別の綴りで落ちると、呼ぶ側はそれを「表せない」と読めない。**
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ProtocolError(f"目標は数でなければならない: {value!r}")
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ProtocolError(f"目標が有限でない: {value!r}——**この機体には表せない**")
+    return int(round(value))
+
+
+@dataclass(frozen=True)
+class DofRealityWire:
+    """⛔ **機体1の電線である**——5バイトの `[A xx]`、3モーター、0〜1024。
+
+    ⚠️ **欄を1つも持たない。** この機体の数え方が**このモジュールの中に在る**ので、
+    **外から渡す数が無い**——**それが、この電線が1台目である証拠である。**
+    2台目の電線は、**ゼロ点・倍率・符号・可動域をすべて外から受け取ることになる**
+    （`engine/backend/wire.py` の `Wire` を見よ）。
+
+    ⚠️ **`envelope` は、この型の欄ではない。** 測定値ではあるが、
+    **門へ名前で渡される定数である**（`DOF_REALITY_ENVELOPE`）——
+    **電線が枠を持つと、枠を狭めたい日に電線を差し替えることになる。**
+    """
+
+    def axis_count(self) -> int:
+        return len(MOTOR_LETTERS)
+
+    def quantize(self, value: float) -> float:
+        """**0〜1024 の整数に丸める。** ⛔ **外は落とす。**
+
+        ⚠️ **落とすのがここである理由:** これは門の**手前**で走る——
+        **門の後ろで落ちると、落ちた組のぶんだけ門が時計と値を進めている**
+        （`engine/backend/gate.py` の `submit` を見よ）。
+        """
+        rounded = _whole(value)
+        if not 0 <= rounded <= MAX_TARGET:
+            raise ProtocolError(
+                f"目標が2バイトの位置に収まらない: {value}（0〜{MAX_TARGET}）"
+                "——⛔ **相手は受け取った値を検査しない。落とすのはホストの仕事である**"
+            )
+        return float(rounded)
+
+    def encode(self, commands: Sequence[Command]) -> bytes:
+        """**1軸につき1フレーム。** ⚠️ **この機体では、その等式が成り立つ。**
+
+        ⛔ **2台目の機体では成り立たない**（1行が2軸を運ぶ）——
+        **ゆえに `Command` はバイト列を持たず、変換はここに在る**（`wire.py` を見よ）。
+
+        ⚠️ **軸ごとに独立しているので、組の一部だけを書くこともできる。**
+        **門が埋めなかった軸は、ここに現れない**——**この機体では、それでよい。**
+        """
+        return b"".join(encode_target(c.axis, _whole(c.value)).raw for c in commands)
