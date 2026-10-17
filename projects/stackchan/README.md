@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.4.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.5.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -159,7 +159,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ## What is checked
 
-**`tests/test_stackchan_behaviors.py` holds thirty-four claims, `tests/test_stackchan_daemon.py` holds twenty-four, and `tests/test_stackchan_hook_client.py` holds nineteen**, and they run with the rest of the suite:
+**`tests/test_stackchan_behaviors.py` holds thirty-four claims, `tests/test_stackchan_daemon.py` holds twenty-four, and `tests/test_stackchan_hook_client.py` holds twenty-one**, and they run with the rest of the suite:
 
 - the list is 33 and none is repeated; every event has exactly one of three kinds, and the kinds partition it;
 - every event carries a reason code — **there is no blank**;
@@ -195,7 +195,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - a clean exit removes the socket;
 - the next wake is the expression first, then the idle clock, and `blocked` and `resting` have no deadline.
 
-**The client adds nineteen more:**
+**The client adds twenty-one more:**
 
 - a full hook payload yields a line with exactly `session` and `event` — **the prompt, the cwd and the tool input are not in it**;
 - a payload without the two fields is dropped, and an unknown event is dropped before it reaches the socket;
@@ -203,7 +203,9 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - **the socket path is spelled once**, and both entry points use it;
 - a real payload reaches the room, and its prompt is absent from the daemon's log;
 - no daemon, malformed input and an over-long input are each silent, with exit 0;
-- **the client does not wait for a reply** — a listener that never answers does not delay it.
+- **the client does not wait for a reply** — a listener that never answers does not delay it;
+- **one daemon carries the phase across two separate processes**: a `SessionStart` in one and a `Stop` in the next read `greeting` then `closing`, though neither process held any state;
+- **two windows through two clients keep one gaze**, and a background `Stop` is reported as `distant` without changing the phase.
 
 ⚠️ **Not one of these claims is about the machine.** A green run says the layer computes what it was told to compute — **the same sentence `CLAUDE.md` requires for the five checks.**
 

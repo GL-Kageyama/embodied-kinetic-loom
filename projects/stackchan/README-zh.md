@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.4.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.5.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -159,7 +159,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ## 检查了什么
 
-**`tests/test_stackchan_behaviors.py` 有三十四条主张，`tests/test_stackchan_daemon.py` 有二十四条，`tests/test_stackchan_hook_client.py` 有十九条**，它们与其余检查一起运行:
+**`tests/test_stackchan_behaviors.py` 有三十四条主张，`tests/test_stackchan_daemon.py` 有二十四条，`tests/test_stackchan_hook_client.py` 有二十一条**，它们与其余检查一起运行:
 
 - 列表是三十三个，没有重复；每个事件恰好属于三种类型之一，三种类型分割整个列表。
 - 每个事件都带理由代码——**没有空白。**
@@ -195,7 +195,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - 干净的退出会删除套接字。
 - 下一次醒来先是表情，然后是 idle 时钟；`blocked` 和 `resting` 没有期限。
 
-**客户端再加十九条:**
+**客户端再加二十一条:**
 
 - 一份完整的钩子输入只产出一行 `session` 与 `event`——**提示词、cwd 和工具输入都不在其中。**
 - 缺少两个栏位的输入被丢弃，未知事件在到达套接字之前被丢弃。
@@ -204,6 +204,8 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - 真实的输入到达房间，而其中的提示词不在守护进程的日志里。
 - 没有守护进程、读不出的输入、过长的输入，都是沉默地以 0 退出。
 - **客户端不等待回信**——永不作答的对方也不会让它迟延。
+- **一个守护进程在两个不同进程之间保住阶段**: 第一个进程的 `SessionStart` 与第二个的 `Stop` 读作 `greeting` 与 `closing`，**而两个进程都没有持有任何状态。**
+- **两个窗口经过两个客户端，注视仍然只有一个**，背景的 `Stop` 被报告为 `distant`，阶段不变。
 
 ⚠️ **这些主张中没有一条是关于机体的。** 一次绿色的运行说的是，**这一层按它被告知的方式计算了**——与 `CLAUDE.md` 对五项检查要求的同一句话。
 

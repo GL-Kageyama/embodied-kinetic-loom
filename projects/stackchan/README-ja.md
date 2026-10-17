@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.4.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.5.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -195,7 +195,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - きれいな終了はソケットを消す。
 - 次の目覚めは表情が先、その次が idle の時計であり、`blocked` と `resting` には期限が無い。
 
-**クライアントが、さらに19を加える:**
+**クライアントが、さらに21を加える:**
 
 - フックの入力1つから、`session` と `event` だけの行が出る——**プロンプトも cwd も道具の入力も、その中に無い。**
 - 2つの欄が無い入力は捨てられ、知らない事象はソケットへ届く前に捨てられる。
@@ -204,6 +204,8 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - 本物の入力が部屋へ届き、そのプロンプトはデーモンのログに無い。
 - デーモンが居ないとき、読めない入力、長すぎる入力は、どれも黙って 0 で終わる。
 - **クライアントは返事を待たない**——決して答えない相手でも、遅らせない。
+- **1つのデーモンが、2つの別プロセスの間で段階を保つ**: 1つ目の `SessionStart` と2つ目の `Stop` が `greeting` と `closing` を読み、**どちらのプロセスも状態を持っていない。**
+- **2つの窓が2つのクライアントを通っても、注視は1つ**であり、背後の `Stop` は段階を変えずに `distant` として報告される。
 
 ⚠️ **これらの主張のうち、機体についてのものは1つも無い。** 緑の走りが言うのは、**この層が、言われたとおりに計算したということである**——`CLAUDE.md` が5つの検査に求めているのと同じ文である。
 

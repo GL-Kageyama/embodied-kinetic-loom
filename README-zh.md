@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.14.0 | canonical: README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.15.0 | canonical: README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -36,7 +36,7 @@
 
 ✅ **而 2026-10-18，为了机器 2，电线之上多了一层。** `projects/stackchan/` 把 Claude Code 的钩子事件变成六个阶段、Pet 的五张脸、六种光和五个候选身势——⛔ **并且什么也不发送，因为那台机器的数字一个都没有被测量。** **当两个以上的窗口同时运行时，脖子也只用在一个窗口上。** 它是 Stack-chan 路线中，在烧写固件之前就能检查的部分。 ⚠️ **将要保住其状态的守护进程现在有了**——`projects/stackchan/daemon/`，一个纯核心和一个套接字边缘——**而钩子会运行的客户端也有了**——`projects/stackchan/hook/`，一个事件一个进程，沉默地以 0 退出。**两者都没有被安装**：没有 launchd 任务，也没有任何东西从 `settings.json` 调用客户端。
 
-⚠️ **核心、后端、Pet 的画面与运动、Stack-chan 的行为层及其守护进程是绿的**——**25 个文件、358 项测试，实测 2026-10-18**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
+⚠️ **核心、后端、Pet 的画面与运动、Stack-chan 的行为层及其守护进程是绿的**——**25 个文件、360 项测试，实测 2026-10-18**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
 
 ## 在把机体接上之前
 
@@ -50,7 +50,7 @@
 .claude-plugin/     plugin.json 与 marketplace.json——必须承载同一个版本的两个文件
 docs/               文档。英语为正典，-ja 与 -zh 镜像并列其旁
 tools/              check_i18n.py——镜像。check_vocabulary.py——语汇的表。purity.py——禁止输入清单
-tests/              测试——25 个文件、358 项测试
+tests/              测试——25 个文件、360 项测试
 schemas/            motion-intent.schema.json——Motion Intent 的类型
 engine/             决定论的核心。⚠️ 不调用 LLM，也不 import 任何会浮动之物
 engine/backend/     送出的一侧——协议、周期、门、轴对应、发送器、Mock

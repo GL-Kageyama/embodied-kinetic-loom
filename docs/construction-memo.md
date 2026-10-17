@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.4.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.5.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
 
 **Language:** [English](construction-memo.md) | [日本語](construction-memo-ja.md) | [中文](construction-memo-zh.md)
 
@@ -45,7 +45,7 @@
 
 ⚠️ **And the ladder is now longer than the plan says.** 0.17.0 decided a requirement and not a shape, so **the rung that decides the record's shape has no place on this ladder yet** — **it comes after 0.20.0, and it is not in the plan.** ⛔ **A summary that showed six clean rungs would be lying by omission.**
 
-⚠️ **2026-10-18: a layer that is not on this ladder.** `projects/stackchan/` maps Claude Code's hook events onto six phases, the Pet's five faces, six lights and five candidate gestures — ⛔ **with no numbers for machine 2, so nothing is sent (`sent` is `False`), and one neck stays on one window when two or more run at once.** It arrived before 0.19.0 **and it is not a rung**: the ladder's order is unchanged, and **the row above changed instead — the repository now holds something for machine 2, and it is not a wire.** ⚠️ **It is not wired to a hook, but both ends of the bridge now exist:** `projects/stackchan/daemon/` is the process that holds the state — a pure core (`room.py`) and a socket edge (`__main__.py`), twenty-four tests — and `projects/stackchan/hook/` is the client a hook would run, one process per event, silent and exit 0, nineteen tests. **Nothing registers the client and nothing starts the daemon**, so a hook still cannot reach the room. **That installation is the next thing 0.19.0 does not contain.**
+⚠️ **2026-10-18: a layer that is not on this ladder.** `projects/stackchan/` maps Claude Code's hook events onto six phases, the Pet's five faces, six lights and five candidate gestures — ⛔ **with no numbers for machine 2, so nothing is sent (`sent` is `False`), and one neck stays on one window when two or more run at once.** It arrived before 0.19.0 **and it is not a rung**: the ladder's order is unchanged, and **the row above changed instead — the repository now holds something for machine 2, and it is not a wire.** ⚠️ **It is not wired to a hook, but both ends of the bridge now exist:** `projects/stackchan/daemon/` is the process that holds the state — a pure core (`room.py`) and a socket edge (`__main__.py`), twenty-four tests — and `projects/stackchan/hook/` is the client a hook would run, one process per event, silent and exit 0, twenty-one tests. **Nothing registers the client and nothing starts the daemon**, so a hook still cannot reach the room. **That installation is the next thing 0.19.0 does not contain.**
 
 ## The traps
 

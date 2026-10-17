@@ -118,6 +118,55 @@ def test_a_hook_payload_reaches_the_room(sock):
     assert "must never be logged" not in daemon.out
 
 
+def test_the_room_keeps_the_phase_between_processes(sock):
+    """⛔ **これが、この橋の存在理由である。**
+
+    `Companion` は事象のあいだ状態を持つが、フックは1事象につき1プロセスである。
+    ⇒ **2つの別プロセスが、同じ段階の続きを見る**——1つ目が `greeting` を開き、
+    2つ目が `closing` へ進める。**プロセスは状態を1つも持ち越していない。**
+    """
+    with Daemon(sock) as daemon:
+        first = run_client(sock, json.dumps(
+            {"session_id": "left", "hook_event_name": "SessionStart"}
+        ))
+        second = run_client(sock, json.dumps(
+            {"session_id": "left", "hook_event_name": "Stop"}
+        ))
+
+    assert first.returncode == 0 and second.returncode == 0
+    assert first.stdout == "" and second.stdout == ""
+
+    rows = daemon.rows()
+    assert [r["event"] for r in rows] == ["SessionStart", "Stop"]
+    assert rows[0]["phase"] == "greeting"
+    assert rows[1]["phase"] == "closing"
+    assert all(r["sent"] is False for r in rows)
+
+
+def test_two_windows_through_two_clients_and_one_gaze(sock):
+    """⚠️ **窓が2つでも、クライアントは同じものである。** 違うのは名前だけであり、
+    部屋は1つのまま注目を1つに保つ。
+    """
+    with Daemon(sock) as daemon:
+        run_client(sock, json.dumps(
+            {"session_id": "left", "hook_event_name": "SessionStart"}
+        ))
+        run_client(sock, json.dumps(
+            {"session_id": "right", "hook_event_name": "UserPromptSubmit"}
+        ))
+        # ⛔ 背後の窓の `Stop` は注目を奪わない。**部屋は起きたままで、何も変えない。**
+        run_client(sock, json.dumps(
+            {"session_id": "left", "hook_event_name": "Stop"}
+        ))
+
+    rows = daemon.rows()
+    assert [r["session"] for r in rows] == ["left", "right", "left"]
+    assert rows[1]["phase"] == "working"
+    assert rows[2]["reason"] == "distant"
+    assert rows[2]["phase"] == "working"
+    assert all(r["sent"] is False for r in rows)
+
+
 def test_no_daemon_is_silent_and_clean(sock):
     """⚠️ **デーモンが居ないことは、フックの失敗ではない。**"""
     assert not sock.exists()
