@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: projects/stackchan-firmware/records/2026-10-18-first-arrival.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.1.0 | canonical: projects/stackchan-firmware/records/2026-10-18-first-arrival.md | translated: 2026-10-18 -->
 
 **Language:** [English](2026-10-18-first-arrival.md) | [日本語](2026-10-18-first-arrival-ja.md) | [中文](2026-10-18-first-arrival-zh.md)
 
@@ -70,6 +70,31 @@ bench: yaw -> raw 478
 
 ⛔ **This file does not choose between them.** The motion had already happened when the console was reopened; the reboot does not retract the observation, and it does not explain it either.
 
+## A second command, later the same day
+
+**The author was watching the unit.** In their words: 「ジジっと、2回少し動いた」 — *it moved a little, twice, with a jiji sound.*
+
+One line was typed:
+
+```
+bench move 0
+```
+
+⛔ **The program's lines from this command are not in this file.** The capture kept the last thirty lines of a stream that the heartbeat fills every three seconds, so what survived was thirty `alive` lines and nothing else. **This file does not reconstruct them.** What it has is one number taken afterwards, and one pair of eyes.
+
+**The number**, read by `bench pos` through the next boot: yaw raw **468**, 2.5° from the zero of 460; pitch raw **894**, 85.6°, unchanged.
+
+| | first command | second command |
+|---|---|---|
+| typed | `bench move 5` | `bench move 0` |
+| last recorded before it | 604 (45.0°) | 484 (7.5°) — the previous read-back |
+| read back after it | 484 (7.5°) | 468 (2.5°) |
+| what the author saw | the head turned toward front | the head moved a little, twice |
+
+⚠️ **What 468 says, and what it does not.** The target was the zero itself, 460, and `MoveAxis` steps to it exactly, three counts a second, so the last goal written was 460. **The shaft was found eight counts away from it** — 2.5°, of the same order as the six-count sag the first read-back showed, and this time after a move nobody interrupted. ⚠️ **How far this command travelled is not known**: the head was limp between the two commands and no read was taken, so 484 is the last *recorded* value and not necessarily the one this command started from. That the shaft ended nearer the zero than 484 is a measurement; **that the head moved is the author's eye again.**
+
+⚠️ **The lost lines were the bench tool's fault, not the firmware's.** The tool ended a read after two seconds of silence and this firmware prints `alive` every three — so it never saw silence, never stopped early, and held the port until its own deadline. **The tool lives outside this repository, and no check covers it.**
+
 ## What this record does not establish
 
 - **It does not establish that the engine works.** No `Motion Intent` was read, no trajectory was computed, no gate was passed. **The engine has still never run on any machine.**
@@ -90,3 +115,4 @@ bench: yaw -> raw 478
 | read back after the motion | yaw 484 (7.5°) | the next boot's own read, torque already released |
 | pitch | unchanged at 894 | held, never commanded to move |
 | duration | 42 steps at one per second; interrupted after about 40 s | the console's own lines |
+| second command, read back after it | yaw 468 (2.5°), pitch 894 unchanged | `bench pos` through the next boot; that command's own lines were lost |
