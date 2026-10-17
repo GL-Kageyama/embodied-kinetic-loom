@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.8.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.9.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -244,7 +244,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 ## ここに無いもの
 
 - **機体2の数が無い。** 5つの身振りは候補語であり、語彙の行ではない。行は、その語がその機体で数になった日に書かれる。`projects/pet/motions/greeting.json` は機体1のカウントであり、借りれば**起きない運動**を主張することになる。
-- **伝送路も、基板上のファームも無い。** 枠は決まり、検査されており、デーモンは渡すはずの行を書く——⛔ **ログの1行は伝送路ではない。** **基板への道は選ばれておらず**、`projects/stackchan-firmware/` はソースのみである——一度も建てられず、焼かれていない。`docs/first-contact-stackchan.md` を見よ。
+- **伝送路も、基板上へ届く枠も無い。** 枠は決まり、検査されており、デーモンは渡すはずの行を書く——⛔ **ログの1行は伝送路ではない。** **基板への道は選ばれていない。** ✅ **2026-10-18 から、基板の上にファームが在る**——`projects/stackchan-firmware/` はビルドされ、書かれ、頭を回すのを見られた——⛔ **だがそれはコンソールに打ち込んだベンチのコマンドで動いたのであり、受け取る枠は今もすべて拒まれる。** `docs/first-contact-stackchan.md` と `projects/stackchan-firmware/records/2026-10-18-first-arrival.md` を見よ。
 - **LED のドライバも、画面のレンダラも無い。** 光は意味であり、それを画素に変えるものが無い。
 - **音が無い。** `--sound on` は存在しない経路を名指ししており、この個体でスピーカーは一度も検証されていない。
 - **頭の接触入力が無い。** センサーはこの個体で働く（AI.AGENT で観察、2026-10-18）。だがそれは機体の入力であり、ファームが読まなければならない。**フックは頭ではない。**

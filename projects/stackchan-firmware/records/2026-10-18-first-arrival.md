@@ -1,0 +1,92 @@
+<!-- i18n-version: 1.0.0 | canonical: projects/stackchan-firmware/records/2026-10-18-first-arrival.md | translated: 2026-10-18 -->
+
+**Language:** [English](2026-10-18-first-arrival.md) | [日本語](2026-10-18-first-arrival-ja.md) | [中文](2026-10-18-first-arrival-zh.md)
+
+# The first arrival — 2026-10-18
+
+⛔ **The observation is the spine of this file. The program's numbers are quoted inside it as evidence, not around it.** A log that holds only what the program emitted cannot contain the thing this record is for — whether anything moved — and it reads as proof when it is not.
+
+**What was counted.** One command, typed once, into one machine, on one day. **What was not counted:** anything about whether the result is alive, and anything about this engine's trajectories — none ran here.
+
+## What was seen
+
+**The author was watching the unit.** In their words: the head had been turned to the right, and it **turned to face front**. It did not glide. It moved a little, stopped, moved a little, stopped — audible as a small repeated *jiji* — and the stops were visible as stops.
+
+⚠️ **No instrument recorded this. It is an eye on a desk, and it is the only thing in this file that can say the machine moved at all.**
+
+## What was typed
+
+One line, into the app's console, over the same USB cable that carried the build:
+
+```
+bench move 5
+```
+
+⛔ **This is a bench command, not the engine.** It does not read a `Motion Intent`, and it does not interpolate, ease, smooth or limit. **It writes a new goal position every second and lets the servo step to it** — by design, because the point of this first arrival was to learn whether *anything* arrives, not to move well.
+
+## What the program said
+
+```
+bench: yaw=ok pitch=ok
+bench: yaw raw 604, angle 45.0 deg (zero 460)
+bench: pitch raw 894, angle 85.6 deg (zero 620)
+bench: yaw 604 -> 476 (raw), one step per second
+bench: yaw -> raw 601
+bench: yaw -> raw 598
+bench: yaw -> raw 595
+   … one line per second, three counts each …
+bench: yaw -> raw 478
+```
+
+**What the numbers say:** the yaw servo (ID 1) was **read** at 604 before the move — that read is the one the bench printed — and the target was 476 raw. The once-per-second lines are the **commands written**, not read-backs: the last one written was 478, two counts short of the target. **The one read-back after the motion** came from the next boot, which reported yaw 484. **The scale is the vendor's** — one count is 0.3125° — so the head was asked to travel 128 counts, 40°, and was found 120 counts from where it started.
+
+**What the numbers cannot say:** whether the head moved. ⛔ **A servo that is told a new position is not a witness; only the read-back after the fact is, and it says the shaft ended somewhere else.** That 484 is a measurement; *that the head turned* is the author's eye. The two agree to within six counts — about 1.9°, which is the sag of an unpowered head after torque was released, and is not itself measured.
+
+⚠️ **The move was interrupted, not finished.** The last two counts of the target were never written: the read-back opened the serial port, the chip restarted, and the boot released torque at whatever position the shaft was in. **The console window I had opened was shorter than the move** — 40 seconds for a 43-second command. That is my error, recorded here because a later reader will see 478 and 476 and wonder.
+
+## Why it moved in stops
+
+⚠️ **The stops are the command, not a fault.** `bench move` computes a target, then rewrites the goal a few counts closer once per second (`kStepIntervalMs` 1000, `kStepCounts` 3). Between writes the servo is stationary — so the machine spends most of each second not moving. **Measured only as the console's own once-per-second line; the smoothness was not measured at all.**
+
+⇒ **The visible result is what this repository exists to remove.** The trajectory family, easing and smoothing turn a list of stops into a path. **On 2026-10-18 none of them ran on this machine.** What ran was the bench.
+
+## Two defects that stopped everything before this
+
+⚠️ **Nothing had moved before this day, and neither reason was the hardware.**
+
+| what was wrong | how it showed | what it was |
+|---|---|---|
+| the ping checksum summed **four** bytes instead of three | `ping yaw=0/3 pitch=0/3` while `read` on the same id answered | a ping carries no parameters, so the checksum covers ID + LEN + INST and stops; the fourth byte was the unwritten checksum itself |
+| the two-byte fields were written and read **low byte first** | a present position of 604 arrived as `0x02, 0x5C` and parsed as **23554** | the vendor's SCSCL driver is built with `End = 1`, whose `Host2SCS`/`SCS2Host` put the **high byte first** |
+
+⛔ **The second one was not only a reading error.** The same byte order was used when writing a goal: a commanded 604 would have reached the servo as 23554 — a position it cannot reach, and one it would have driven toward. **It was fixed before any goal was written.** That is the whole of why the first move happened when it did.
+
+## What happened afterwards
+
+⚠️ **The app restarted during the read-back, before the console could hold the whole move.** The cause is not established, and the two candidates are not equally likely:
+
+- **the read-back opened the serial port**, and on this chip the host's control lines can pulse the reset pin — this is the ordinary explanation, and it happened at the read, not during the motion;
+- **a supply dip**, because both servos held torque for about forty seconds on battery — ⚠️ **this one would have happened mid-move, and the console shows the move continuing to its last written step, so it fits worse.**
+
+⛔ **This file does not choose between them.** The motion had already happened when the console was reopened; the reboot does not retract the observation, and it does not explain it either.
+
+## What this record does not establish
+
+- **It does not establish that the engine works.** No `Motion Intent` was read, no trajectory was computed, no gate was passed. **The engine has still never run on any machine.**
+- **It does not establish that the machine is safe.** One slow 40° yaw move, with both goals set to the present positions before torque came on and torque released at the end, is one move — not a test of failure modes.
+- **It does not establish that the Pet is there.** ⛔ **That is the goal, and it cannot be verified in this workshop.** What arrived was a value, not a presence.
+- **It does not name an angle for any gesture.** The refusal in `command_frame.cpp` is unchanged: `perk` is still not a number.
+
+## The numbers, in one place
+
+| what | value | where it comes from |
+|---|---|---|
+| machine | M5Stack Stack-chan, ESP32-S3 | MAC `80:45:6B:54:6D:B0`, read by `esptool` |
+| image | `build/stackchan-vessel.bin`, 272,976 bytes | written at `0x510000`, hash verified after writing |
+| zeros in use | yaw 460, pitch 620 | this unit's NVS, namespace `servo` |
+| before | yaw 604 (45.0°), pitch 894 (85.6°) | read from the servos |
+| commanded | yaw 476 raw | `bench move 5`, clamped to ±20° |
+| last command written | yaw 478 (5.6°) | two counts short of the target |
+| read back after the motion | yaw 484 (7.5°) | the next boot's own read, torque already released |
+| pitch | unchanged at 894 | held, never commanded to move |
+| duration | 42 steps at one per second; interrupted after about 40 s | the console's own lines |

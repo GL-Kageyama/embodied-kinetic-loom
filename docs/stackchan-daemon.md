@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.9.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.10.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -135,7 +135,7 @@
 
 **Not decided here:**
 
-- ✅ **The framing is decided (0.19.0) and this page still does not own it** — one ASCII JSON line, `face` / `light` / `gesture`, in `schemas/stackchan-command.schema.json`, encoded by `engine/backend/protocol_stackchan.py`. ✅ **Since 0.19.1 the daemon calls that codec and writes the line it would send**, with `sent: false`. ⛔ **The transport is not decided**: how that line reaches the board, and who opens it. **The daemon opens none**, and `projects/stackchan-firmware/` — source only, never built, never flashed — refuses every gesture;
+- ✅ **The framing is decided (0.19.0) and this page still does not own it** — one ASCII JSON line, `face` / `light` / `gesture`, in `schemas/stackchan-command.schema.json`, encoded by `engine/backend/protocol_stackchan.py`. ✅ **Since 0.19.1 the daemon calls that codec and writes the line it would send**, with `sent: false`. ⛔ **The transport is not decided**: how that line reaches the board, and who opens it. **The daemon opens none**, and `projects/stackchan-firmware/` — ✅ **built and written as of 2026-10-18, so no longer source only** — still refuses every gesture;
 - what the firmware does at idle and after a stop;
 - whether a second body — a second daemon per unit — needs anything different.
 

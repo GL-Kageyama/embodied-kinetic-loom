@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.8.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.9.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -244,7 +244,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 ## What is not here
 
 - **No counts for machine 2.** The five gestures are candidate words, not rows in the vocabulary; a row is written the day a word becomes numbers on that machine. `projects/pet/motions/greeting.json` is machine 1's counts, and borrowing it would make this layer claim motion that will not happen.
-- **No transport, and no firmware on the board.** The frame is decided and tested, and the daemon logs the line it would send — ⛔ **a line in a log is not a transport.** **The path to the board is not chosen**, and `projects/stackchan-firmware/` is source only — never built, never flashed. See `docs/first-contact-stackchan.md`.
+- **No transport, and no frame on the board.** The frame is decided and tested, and the daemon logs the line it would send — ⛔ **a line in a log is not a transport.** **The path to the board is not chosen.** ✅ **Since 2026-10-18 there is firmware on the board** — `projects/stackchan-firmware/` was built, written, and seen to turn the head — ⛔ **but it moved under a bench command typed into its console, and every frame it receives is still refused.** See `docs/first-contact-stackchan.md` and `projects/stackchan-firmware/records/2026-10-18-first-arrival.md`.
 - **No LED driver and no display renderer.** The light is a meaning; nothing turns it into pixels.
 - **No sound.** `--sound on` names a channel that does not exist, and the speaker has never been verified on this unit.
 - **No head-touch input.** The sensor works on this unit (observed in AI.AGENT, 2026-10-18), but it is machine input, and a firmware would have to read it. **A hook is not a head.**

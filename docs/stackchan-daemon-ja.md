@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.9.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.10.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -135,7 +135,7 @@
 
 **ここで決まっていないこと:**
 
-- ✅ **枠は決まった（0.19.0）。そしてこの頁は、いまもそれを所有しない**——ASCII の JSON 1行、`face` / `light` / `gesture`、`schemas/stackchan-command.schema.json` にあり、`engine/backend/protocol_stackchan.py` が符号化する。✅ **0.19.1 からデーモンはその符号器を呼び、渡すはずの行を `sent: false` 付きで書く。** ⛔ **決まっていないのは伝送路である**: その行がどう基板へ届くのか、誰が開くのか。**デーモンは1本も開かず**、`projects/stackchan-firmware/` は——ソースのみ、一度も建てられず、焼かれていない——すべての身振りを拒む;
+- ✅ **枠は決まった（0.19.0）。そしてこの頁は、いまもそれを所有しない**——ASCII の JSON 1行、`face` / `light` / `gesture`、`schemas/stackchan-command.schema.json` にあり、`engine/backend/protocol_stackchan.py` が符号化する。✅ **0.19.1 からデーモンはその符号器を呼び、渡すはずの行を `sent: false` 付きで書く。** ⛔ **決まっていないのは伝送路である**: その行がどう基板へ届くのか、誰が開くのか。**デーモンは1本も開かず**、`projects/stackchan-firmware/` は——✅ **2026-10-18 にビルドされ、書かれた。もうソースのみではない**——それでもすべての身振りを拒む;
 - 待機時と停止後にファームウェアが何をするか;
 - 2つ目の体——機体ごとの2つ目のデーモン——が何か違うものを要するか。
 

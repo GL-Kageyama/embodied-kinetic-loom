@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.2.0 | canonical: docs/first-contact-stackchan.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.4.0 | canonical: docs/first-contact-stackchan.md | translated: 2026-10-18 -->
 
 **Language:** [English](first-contact-stackchan.md) | [日本語](first-contact-stackchan-ja.md) | [中文](first-contact-stackchan-zh.md)
 
@@ -92,7 +92,7 @@ Then the current snapshot was written back, verified against its digest, and obs
 
 ⇒ **A full-image restore does return the zeros to 455 / 603, exactly as this page predicted — and writing the snapshot back returns them to 460 / 620.** ⚠️ **What the zeros being read proves is an NVS read, and the log itself says so** — the servo was not commanded. ⛔ **And nobody looked at the screen**: the observation is the device's own log stream, not an eye on the launcher. ⛔ **A boot log is not motion** — it holds what the device printed, and this page's own warning about green logs still stands.
 
-⇒ **The write-and-boot half of the gate is now closed.** ⛔ **The rest of the route is not: no transport is chosen, no custom firmware is built, and no gesture has arrived.**
+⇒ **The write-and-boot half of the gate is now closed.** ✅ **And on 2026-10-18 the write was repeated with an image this repository produced: `projects/stackchan-firmware/` was built, written at `0x510000`, verified by hash, and the head turned when a command was typed into its console.** ⛔ **What is still not closed is the route itself: no transport carries a gesture to this unit, no `Motion Intent` has reached it, and no gesture has arrived.** **Every move so far was a bench command** — `projects/stackchan-firmware/records/2026-10-18-first-arrival.md` is the record, and its spine is the observation, not the log.
 
 ⚠️ **And the choice this page demanded before anything was pressed was made — and it was the third of the three.** A full-image restore returns the zeros to 455 / 603; a partition-only restore returns something else again; **what was done was to write back the 16 MiB snapshot taken the same day, entire.** ⇒ **The unit ended in the state it began in, NVS included — and the log of the final boot reads 460 / 620 again.** ⛔ **It is recorded here because it was decided here — before the write, not after.**
 
@@ -111,8 +111,8 @@ Then the current snapshot was written back, verified against its digest, and obs
 ⚠️ **These are the questions machine 1's page still lists as unknown. Here they have answers — some about the 10/04 unit, some about the unit in hand.**
 
 - **How many axes.** **Two** — yaw (servo ID 1) and pitch (ID 2). ⛔ **There is no roll.** The `Motion Intent`'s three names do not change; **this machine simply does not have one of them**, and the vocabulary's difference column is where that gets written down.
-- **The unit of the numbers.** **Degrees in, servo counts out.** ⛔ **And the conversion between the two is in no record.** What is recorded is a **zero**, not a scale.
-- **What the numbers do.** On the 10/04 unit: `head 45 90` → yaw 322, `head 90 90` → 454, `head 135 90` → 597, `head center` → 454; `head 90 45` → pitch 637, `head 90 90` → 762. ✅ **Three points on one axis, and the spacing is even** — ⚠️ **on that unit.** ⛔ **Do not carry it to yours:** the unit in hand's zeros were rewritten to 460 / 620 by the wizard, and **a zero is not a scale.**
+- **The unit of the numbers.** **Degrees in, servo counts out.** ✅ **Since 2026-10-18 the conversion is in a record** — but the record is the **vendor's source** (`m5stack/StackChan`, MIT), not a measurement of this unit: `mapped = zero + angle × 16 / 5 / 10`, with `angle` carried in 0.1° steps ⇒ **one servo count is 0.3125°**, and the inverse is `(raw − zero) × 5 × 10 / 16`. ⚠️ **A scale read from the vendor's code is not a scale measured on your unit** — until this day the page held only the **zero**.
+- **What the numbers do.** On the 10/04 unit: `head 45 90` → yaw 322, `head 90 90` → 454, `head 135 90` → 597, `head center` → 454; `head 90 45` → pitch 637, `head 90 90` → 762. ⚠️ **And held against the vendor's scale, these three points do not quite agree with it** — 322 / 454 / 597 imply **about 3.06 counts per degree**, against the vendor's **3.2**. ⇒ **Close enough to be the same family; not close enough to be a measurement.** ⛔ **Do not carry it to yours:** the unit in hand's zeros were rewritten to 460 / 620 by the wizard, and **a zero is still not a scale.**
 - **The transport.** ESP32-S3 **native USB Serial/JTAG** — VID `0x303A` / PID `0x1001` — on **both** units. ⛔ **No CP210x and no CH9102**, so the line settings and the auto-reset behaviour are the ESP32-S3's, not a USB-UART bridge's.
 - **What the shell can be told.** `head nod|shake|center|<pan> <tilt>`, `vmen on|off`, `track on|off|mirror`, `follow`, `search`, `say` / `greet` / `tts`, `brain <url>`, `wifi` / `scan` / `target` / `gw`, `rover`, `i2cint` / `camtest`, `status` / `ping` / `clear` / `reboot`. ⚠️ **That is the 10/04 unit's shell, and it came with the other firmware.** ⛔ **The unit in hand has no shell.**
 - **The flash layout** on the 10/04 unit: nvs 20 KB, otadata 8 KB, app0 3072 KB, app1 3072 KB, ffat 10112 KB, coredump 64 KB. ⚠️ **The same layout is not the same firmware** — the unit in hand boots slot `ota_1` at `0x510000`.
@@ -160,14 +160,14 @@ Quoted from the sample game written against the 10/04 unit:
 
 | what | where |
 |---|---|
-| **Everything that happened, in order** — which MAC, which port name, what you flashed, **and whether anything moved.** | **`projects/`** — the record vessel. ⛔ **It is empty, and its shape is deliberately undecided** (see `CLAUDE.md`). |
+| **Everything that happened, in order** — which MAC, which port name, what you flashed, **and whether anything moved.** | **`projects/`** — the record vessel. ✅ **It is no longer empty: the first record is `projects/stackchan-firmware/records/2026-10-18-first-arrival.md`, and its shape was decided on the day there was something to put in it** (see `CLAUDE.md`). |
 | **The findings — the ones that change what a document now says.** | ⚠️ **Back into the documents that currently say "unknown"** — `CLAUDE.md` § Safety, machine 1's page, and this one. **A finding that is not folded back leaves the document lying.** |
 
 ⛔ **And `examples/` does not exist.** **`projects/` is the only place for work and for records.**
 
 ## What is not here
 
-- ⛔ **No serial layer, and no firmware.** `engine/backend/` frames, gates and transmits to a mock, and stops there. ⚠️ **The port-opening code is planned to arrive *after* this page, not before** — a route that touches the wire before its checklist exists is a step with no procedure over it.
+- ⛔ **No serial layer.** `engine/backend/` frames, gates and transmits to a mock, and stops there. ⚠️ **The port-opening code for machine 1 is planned to arrive *after* this page, not before** — a route that touches the wire before its checklist exists is a step with no procedure over it. ✅ **A firmware does exist as of 2026-10-18** — `projects/stackchan-firmware/`, built and written to the board — **and it is not the engine**: it reads a USB console and drives two servos, and it is the only code here that has ever moved a machine.
 - ⛔ **Nothing on this page rings on a check.** ⚠️ **The same reason and the same cost as machine 1's page**: these are confirmations performed once, by hand, at a unit, and a checker asserting that a list of strings was typed would be noise in the shape of a check. **This page can go stale, and nothing will say so.**
-- ⛔ **This page is not the record vessel.** **Nothing here has been observed by this repository.**
+- ⛔ **This page is not the record vessel, and a line here is a finding, not a record.** ✅ **The first record is `projects/stackchan-firmware/records/2026-10-18-first-arrival.md`** — and ⛔ **it exists because something moved and someone watched it**, which is the one thing this page could never be.
 - ⚠️ **And it is written from records kept outside this repository** — two directories on a Desktop, and one throwaway checkout of the vendor's source that no longer exists. **Where a line came from a record rather than from this repository's own measurement, the line says so.**

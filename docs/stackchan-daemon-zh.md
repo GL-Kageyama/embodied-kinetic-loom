@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.9.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.10.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -135,7 +135,7 @@
 
 **在这里未决定的:**
 
-- ✅ **成帧已经定了（0.19.0），而这一页仍然不拥有它**——一行 ASCII JSON，`face` / `light` / `gesture`，在 `schemas/stackchan-command.schema.json` 里，由 `engine/backend/protocol_stackchan.py` 编码。✅ **自 0.19.1 起，守护进程调用那个编码器，并带着 `sent: false` 写下它本该送出的那一行。** ⛔ **未决定的是传输路径**: 那一行如何到达板子，由谁打开。**守护进程一根也不打开**，而 `projects/stackchan-firmware/`——只有源码，一次也没有被构建、没有被烧写——拒绝每一个身势;
+- ✅ **成帧已经定了（0.19.0），而这一页仍然不拥有它**——一行 ASCII JSON，`face` / `light` / `gesture`，在 `schemas/stackchan-command.schema.json` 里，由 `engine/backend/protocol_stackchan.py` 编码。✅ **自 0.19.1 起，守护进程调用那个编码器，并带着 `sent: false` 写下它本该送出的那一行。** ⛔ **未决定的是传输路径**: 那一行如何到达板子，由谁打开。**守护进程一根也不打开**，而 `projects/stackchan-firmware/`——✅ **2026-10-18 被构建、被写入，不再只有源码**——仍然拒绝每一个身势;
 - 固件在待机时与停止后做什么;
 - 第二个身体——每台机器第二个守护进程——是否需要不同的东西。
 

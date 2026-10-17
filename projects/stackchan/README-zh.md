@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.8.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.9.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -244,7 +244,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 ## 这里没有的东西
 
 - **没有机器 2 的数。** 五个身势是候选词，不是词汇表里的行。行是在那个词于那台机体上变成数字的那天写下的。`projects/pet/motions/greeting.json` 是机器 1 的计数；借用它，这一层就会主张一个不会发生的运动。
-- **没有传输路径，板上也没有固件。** 帧已经定了、被测试了，守护进程写下它本该送出的那一行——⛔ **一行日志不是传输路径。** **通往板子的路尚未选定**，而 `projects/stackchan-firmware/` 只有源码——一次也没有被构建、没有被烧写。见 `docs/first-contact-stackchan.md`。
+- **没有传输路径，也没有帧到达板上。** 帧已经定了、被测试了，守护进程写下它本该送出的那一行——⛔ **一行日志不是传输路径。** **通往板子的路尚未选定。** ✅ **自 2026-10-18 起，板上有固件**——`projects/stackchan-firmware/` 被构建、被写入，并被看到转动了头——⛔ **但那是靠打入其控制台的一条台架命令动的，而它收到的每一个帧仍然被拒绝。** 见 `docs/first-contact-stackchan.md` 与 `projects/stackchan-firmware/records/2026-10-18-first-arrival.md`。
 - **没有 LED 驱动，也没有屏幕渲染器。** 光是意义；没有东西把它变成像素。
 - **没有声音。** `--sound on` 指出的是一条不存在的通道，而这一台的扬声器从未被验证。
 - **没有头部触摸输入。** 传感器在这一台上有效（2026-10-18 在 AI.AGENT 中观察），但那是机体的输入，固件必须去读它。**钩子不是头。**

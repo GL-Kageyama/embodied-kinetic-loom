@@ -1,0 +1,23 @@
+# Measured on the unit in hand, 2026-10-18: 16 MiB flash, QIO.
+# ⚠️ These two are not preferences. The vendor bootloader on flash was built
+#    with them, and an app that disagrees with it misreads its own flash.
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# The partition table is the vendor's, byte for byte. ⛔ It is not ours to
+# change while the vendor bootloader is the one on flash: the app reads the
+# zeros out of this table's `nvs` partition.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# The console is the port that was measured to speak: USB Serial/JTAG.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# No PSRAM, no display, no Wi-Fi, no camera: this image moves two servos and
+# twelve LEDs. ⚠️ Leaving a subsystem out is a decision, not an omission.
+CONFIG_SPIRAM=n
+CONFIG_BT_ENABLED=n
+
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=4096
+CONFIG_FREERTOS_HZ=1000
