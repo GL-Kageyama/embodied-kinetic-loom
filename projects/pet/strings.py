@@ -22,12 +22,13 @@
 """
 from __future__ import annotations
 
+import argparse
 import json
 import pathlib
 import sys
 
-__all__ = ["SUPPORTED", "DEFAULT", "ENV_VAR", "TABLE_DIR", "resolve", "load",
-           "text", "template", "refusal"]
+__all__ = ["SUPPORTED", "DEFAULT", "ENV_VAR", "TABLE_DIR", "resolve",
+           "language_of", "load", "text", "template", "refusal"]
 
 #: ⚠️ **姉妹5本と同じ3言語。** 文書のミラーが既に3言語である。
 SUPPORTED = ("en", "ja", "zh")
@@ -58,6 +59,18 @@ def resolve(cli: str | None = None, env: str | None = None) -> str:
         )
         return DEFAULT
     return lang
+
+
+def language_of(argv: list[str], env: str | None = None) -> str:
+    """**`argv` から `--lang` だけを読み、`env` とともに解決する。**
+
+    ⛔ **環境をここで読まない。** 読むのは入口である——`resolve` と同じ形だから、
+    **2つの入口が同じ規則を1か所から使える**（`projects/pet` と `projects/stackchan`）。
+    """
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--lang", default=None)
+    known, _ = pre.parse_known_args(argv)
+    return resolve(known.lang, env)
 
 
 def load(lang: str | None = None) -> dict:

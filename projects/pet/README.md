@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.1.0 | canonical: projects/pet/README.md | translated: 2026-10-15 -->
+<!-- i18n-version: 1.2.0 | canonical: projects/pet/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -62,7 +62,7 @@ python3 -m projects.pet --motion greeting  # the motion, and the face from the s
 - **one frame is one write** — and that is a safety property, not a speed one. `frame()` returns the opening and the closing of the synchronised update **in the same string**, so the pair cannot be left open by a caller that writes once. **The second `SYNC_END` that `close()` emits is a rescue for a torn write, and it is idempotent.**
 - **the frame's shape does not change with the state** — the box is 8 columns by 4 rows for every one of the five, so no line from a previous frame survives a redraw.
 - **no character is wider than one column** — the documents in this workshop are CJK, and a single full-width character in a face would move the drawing on screen while `len()` said nothing.
-- **`projects/` imports nothing that varies** — the same forbidden list `engine/` is held to, from `tools/purity.py`. ⛔ **`__main__.py` is named in the exclusion list, and the exclusion is itself asserted**: the entry point is the one place this repository may import `time`, because the loop takes its clock from its caller.
+- **`projects/` imports nothing that varies** — the same forbidden list `engine/` is held to, from `tools/purity.py`. ⛔ **The entry points are named in the exclusion list, and the exclusion is itself asserted**: every `projects/**/__main__.py` is an edge — it is where `time` and the environment are read — and the assertion is that the skipped set is exactly those files, no more and no fewer.
 - **the face and the body come from the same tick** — `Take.drawn_at` equals `ticks[0].started`. ⛔ **The face is drawn inside the first tick, never before the loop** — drawn outside it, *one clock* would be a description rather than a claim, and there would be nothing to assert.
 - **the Pet arrives back where the intent's second group says** — and **nothing jumps at the boundary between the two groups.** ⚠️ **That second half was added on 2026-09-28, after a defect it would have caught**: the group was clamped back to the last one when the performance ended, but the *offset* was not, so the ticks after the end re-sent the **first** sample of the last group rather than its last. **See `HISTORY.md` 0.5.0.**
 - ⛔ **a start position the intent was not written for moves the Pet away.** **This one records a limit of the type, not a defect.** A `target` is absolute counts, so the intent does not know where the machine is; running an intent written for 512 from 400 leaves the Pet at 512 and not where it started — **and no gate refuses anything, because every single frame is legal.** Only the meaning is wrong. **The deterministic core does not know whether the numbers mean anything.**

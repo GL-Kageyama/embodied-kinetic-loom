@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.10.0 | canonical: README.md | translated: 2026-10-15 -->
+<!-- i18n-version: 1.13.0 | canonical: README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -34,7 +34,9 @@
 
 **而写者现在存在了。** `skills/embodied-kinetic-loom/` 持有那一本——**写出 `Motion Intent` 的唯一之物。** ⛔ **它是文档，不是程序：本仓库的代码不调用模型，而正是这一点让它下面的轨迹可以被检查。** 它的词的来源是 `references/README.md`，而 ⚠️ **截至 2026-09-28，那个文件是映射，不是固定的表**——**以行写出，以名字取用，在使用中生长，而这是它生长的唯一道路。** ⛔ **由谁来取，才是这个问题的全部——是 Claude，不是程序**——**所以正典的形式是读者读的表，而不会做第二个只有机器用的副本：没有东西会读它。**
 
-⚠️ **核心、后端、Pet 的画面与 Pet 的运动是绿的**——**22 个文件、281 项测试，实测 2026-10-15**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
+✅ **而 2026-10-18，为了机器 2，电线之上多了一层。** `projects/stackchan/` 把 Claude Code 的钩子事件变成六个阶段、Pet 的五张脸、六种光和五个候选身势——⛔ **并且什么也不发送，因为那台机器的数字一个都没有被测量。** **当两个以上的窗口同时运行时，脖子也只用在一个窗口上。** 它是 Stack-chan 路线中，在烧写固件之前就能检查的部分。 ⚠️ **将要保住其状态的守护进程现在有了**——`projects/stackchan/daemon/`，一个纯核心和一个套接字边缘——**而它没有被安装**：没有 launchd 任务，也没有钩子客户端。
+
+⚠️ **核心、后端、Pet 的画面与运动、Stack-chan 的行为层及其守护进程是绿的**——**24 个文件、339 项测试，实测 2026-10-18**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
 
 ## 在把机体接上之前
 
@@ -48,7 +50,7 @@
 .claude-plugin/     plugin.json 与 marketplace.json——必须承载同一个版本的两个文件
 docs/               文档。英语为正典，-ja 与 -zh 镜像并列其旁
 tools/              check_i18n.py——镜像。check_vocabulary.py——语汇的表。purity.py——禁止输入清单
-tests/              测试——22 个文件、281 项测试
+tests/              测试——24 个文件、339 项测试
 schemas/            motion-intent.schema.json——Motion Intent 的类型
 engine/             决定论的核心。⚠️ 不调用 LLM，也不 import 任何会浮动之物
 engine/backend/     送出的一侧——协议、周期、门、轴对应、发送器、Mock
@@ -57,12 +59,15 @@ references/         运动的语汇——以行写出，以名字取用，在使
 assets/             本仓库的脸（README 的 hero）
 locales/            程序自己的话——en / ja / zh
 projects/pet/       Pet——五张脸、承载它们的帧，以及跑起来的运动
+projects/stackchan/ 电线之上的层——从事件到阶段、脸与光；没有机器 2 的数字
 install.sh          安装这个 Skill（--local 写进 .claude/skills/，那一份会被提交）
 ```
 
 **作品与记录的存放处只有 `projects/`。没有 `examples/`。** ⚠️ **单位是有意不定的**——**一次反应、一天的会话、Pet 的一生，都进入同一个容器。**
 
 ⚠️ **`projects/pet/` 是住进那里的第一件东西。** 五张脸是从概念文档逐字抄来的，**Pet 是猫不是默认，而是决定**——**那两个决定记录在那个目录的 README 里。** **核心与画面如今接上了**：`motions/greeting.json` 是一次会话写下的 `Motion Intent`，**而 `motion.py` 把它带着穿过准入、门与 Mock，同时从同一个刻点画出脸。**
+
+✅ **`projects/stackchan/` 是第二件。** 它把 Claude Code 的钩子事件映射到六个阶段、那五张脸和六种光——⛔ **并且什么也不发送，因为机器 2 的数字不在任何记录里。** **映射不需要测量；运动需要。** 它建在检查能响的那一侧，**是 Stack-chan 路线中，在烧写固件之前就能检查的部分。**
 
 ## 还没有的东西
 

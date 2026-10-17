@@ -27,5 +27,14 @@
     "lateness": "  最迟的刻点 +{worst_ms:.3f} ms",
     "position": "  箱的位置 {arrived}",
     "caveat": "  ⛔ 一个上限都没有传（全部为 None）——响过的只有框架，是哪一个由 rig 指名"
+  },
+  "stackchan_cli": {
+    "description": "Claude Code 的钩子事件与 Stack-chan 之间的层。六个阶段、四条通道，没有机器 2 的数——所以什么也不发送",
+    "help_motion": "在转换时动脖子（on）或保持不动（off）。默认: on",
+    "help_sound": "在转换时发声（on）或保持安静（off）。默认: off——扬声器尚未验证",
+    "help_event": "事件写作 NAME、NAME@秒 或 窗口:NAME@秒；可重复。例: --event SessionStart@0 --event Stop@3",
+    "help_table": "打印每一个钩子事件及其分类",
+    "help_json": "以 JSON 打印判定，不含散文",
+    "help_lang": "语言（en/ja/zh）。默认为 EMBODIED_KINETIC_LOOM_LANG 环境变量，否则为 en"
   }
 }

@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: docs/construction-memo.md | translated: 2026-10-15 -->
+<!-- i18n-version: 1.3.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
 
 **Language:** [English](construction-memo.md) | [日本語](construction-memo-ja.md) | [中文](construction-memo-zh.md)
 
@@ -21,7 +21,7 @@
 | 数 | **10bit 的计数**——中立 `512`、包络 `190–833` | ⛔ **进的是度，出的是舵机自己的计数。** ⚠️ **两者的换算，任何记录里都没有** |
 | 主机 → 机体 | 厂商的协议（串口或 HID） | ⛔ **手边这台上没有** |
 | 它的数住在代码的哪里 | `engine/backend/protocol.py`——`DofRealityWire`、`DOF_REALITY_ENVELOPE` | ⛔ **哪里都没有。模块不存在** |
-| 本仓库为它持有的东西 | 电线与 Mock | ⛔ **什么都没有** |
+| 本仓库为它持有的东西 | 电线与 Mock | 电线之上的层——从事件到脸。⛔ **没有数字，也没有运动** |
 | 它的清单 | `docs/first-contact.md` | `docs/first-contact-stackchan.md` |
 | 从本仓库送出的值到达过吗 | ⛔ **没有** | ⛔ **没有** |
 | 它动过吗 | 在这里不知道 | ✅ **动过**——厂商的 SETUP 向导把它驱回原位，作者看见了（2026-10-15） |
@@ -44,6 +44,8 @@
 ⛔ **而路线现在站在哪里，诚实的总结是: 没有打开。** ⚠️ **四级造的是插座，不是第二个插头。** `engine/backend/` 里只有 `axis_map.py`、`cycle.py`、`gate.py`、`mock.py`、`protocol.py`、`transmit.py`、`wire.py`——**机器1的电线而已。** ⛔ **本仓库现在，一毫米也动不了 Stack-chan。**
 
 ⚠️ **而梯子已经比计划长了。** 0.17.0 定下的是要求而不是形状，所以**决定记录形状的那一级，在这条梯子上还没有位置**——**它排在 0.20.0 后面，而不在计划里。** ⛔ **一份把六级排得整整齐齐的摘要，正在用省略撒谎。**
+
+⚠️ **2026-10-18: 一个不在这条梯子上的层。** `projects/stackchan/` 把 Claude Code 的钩子事件映射到六个阶段、Pet 的五张脸、六种光与五个候选身势——⛔ **没有机器2的数字，所以什么也不发送（`sent` 是 `False`）。当两个以上窗口同时运行时，脖子也只用在一个窗口上。** 它在 0.19.0 之前到来，**但它不是一级**: 梯子的顺序没有变，**变的是上面那张表的一行——本仓库现在为机器2持有东西，而它不是电线。** ⚠️ **它还没有接到钩子上，但持有状态的一端已经存在:** `projects/stackchan/daemon/` 就是那个进程——纯核心（`room.py`）与套接字边缘（`__main__.py`），二十四项测试——而钩子还够不到它，**因为 launchd 任务与钩子客户端还没有建。** **那次安装，是 0.19.0 不包含的下一件事。**
 
 ## 踩过的陷阱
 

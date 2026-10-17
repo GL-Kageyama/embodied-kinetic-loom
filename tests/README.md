@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.7.0 | canonical: tests/README.md | translated: 2026-10-15 -->
+<!-- i18n-version: 1.10.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Twenty-two files, two hundred and eighty-one tests, all green — measured 2026-10-15.**
+**Twenty-four files, three hundred and thirty-nine tests, all green — measured 2026-10-18.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -190,6 +190,36 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 ⛔ **And one defect was found by asking what a second machine would need, not by reading the code.** The gate's loop wrote only the axes that were *proposed*; its own docstring claimed no axis goes silent. ⚠️ **Machine 1 never showed it, because `Transmitter` proposes every axis on every tick.** ⇒ **A machine that carries two axes in one line would have had an axis drop out of the set, with `encode` holding nothing to write for it.** `test_an_axis_missing_from_the_proposal_is_still_filled_in` is the regression, and ⚠️ **filling is not refusing** — `held` stays false, so the record can still tell *refused* from *nothing was asked*.
 
 ⚠️ **What none of this tests is machine 2.** There is still one wire in this repository. **`DofRealityWire` is the only implementation, so *the wire is swappable* is a claim about the design and not yet a measurement** — `test_transmit.py`'s stand-in wire is labelled as a stand-in, not as an implementation.
+
+## The check that arrived before the second wire (2026-10-18)
+
+**`projects/stackchan/` arrived, and with it the layer above the wire — events to phases, faces and lights, with no numbers for machine 2.** Thirty-four tests were added; the count moved from 281 to 315 — **and twenty-four more arrived the same day with the daemon, moving it to 339.** **They are check 13, and it is of a sixth kind**: not a trajectory, not a drawing or a directory or a joint, not bookkeeping, not the boundary, not the words — **it is a check on a decision that is upstream of the `Motion Intent` and therefore has no trajectory to check.**
+
+**What it holds:**
+
+| the check | where | what it is for |
+|---|---|---|
+| the event list is 33, and each one is a transition, evidence or ignored | `test_stackchan_behaviors.py` | ⛔ **the names come from the hooks reference; a name that is not in the list raises `UnknownEvent`** rather than falling into a default |
+| six phases, five faces and six lights are all reached; every reason is from a closed set | `test_stackchan_behaviors.py` | the mapping is checked by properties, not by a second copy of the table |
+| **no gesture is ever sent** — `sent` is `False` on every line | `test_stackchan_behaviors.py` | ⛔ **the honest answer for machine 2 today.** A gesture is a candidate word, not a row in the vocabulary |
+| three failures in a row raise the light and not the face; `angry` is only `StopFailure` | `test_stackchan_behaviors.py` | the product decision that a failing test is not an occasion for anger |
+| **the gaze is single and sticky over two and three windows** — a person's act moves it, a tool call and a background `Stop` do not, a background `PermissionRequest` steals it | `test_stackchan_behaviors.py` | ⚠️ **windows share one neck**; alternating would land inside the one-second floor |
+| a gesture inside the cooldown is dropped, and the light still changes | `test_stackchan_behaviors.py` | ⚠️ **1.0 s is borrowed from the 10/04 unit**, not measured on this one |
+| sound is off by default and follows transitions only | `test_stackchan_behaviors.py` | the speaker has never been verified on this unit |
+| no machine-1 name or number is in the package | `test_stackchan_behaviors.py` | over **AST identifiers and numeric constants**, not text — and it also asserts that no `motions/` directory exists |
+| the parser builds in three languages, and the help differs | `test_stackchan_behaviors.py` | the same assertion `test_strings.py` makes for the Pet's entry point |
+
+**Twenty-four more hold the daemon — the process that keeps the phase between hook processes:**
+
+| the check | where | what it is for |
+|---|---|---|
+| the socket answers, and the row it logs is the row the client received | `test_stackchan_daemon.py` | ⚠️ **one row is written once** — `Decision.as_row` is shared by the CLI and the daemon |
+| a second instance exits 3 and the first still answers; a stale socket is unlinked | `test_stackchan_daemon.py` | the socket is the lock; there is no pidfile |
+| an unknown key, an unknown event and a malformed line are each refused with a code | `test_stackchan_daemon.py` | ⛔ **unknown is refused, not ignored** — otherwise `prompt` could ride along |
+| a prompt in the line never reaches the log | `test_stackchan_daemon.py` | privacy by construction, asserted end to end |
+| the next wake is the expression, then the idle clock; a silent client does not block the room | `test_stackchan_daemon.py` | no fixed tick; the deadline is a value |
+
+⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **And the layer is still not wired to a hook:** a hook is one process per event, while the phase, the timers and the gaze live inside one process. **That bridge is now half built** — the end that holds the state exists (`projects/stackchan/daemon/`); **the end that starts it (launchd) and the end that calls it (a hook client) do not.** This directory tests the process, not the installation.
 
 ## The rule that holds this directory — applied to us
 

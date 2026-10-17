@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.1.0 | canonical: projects/pet/README.md | translated: 2026-10-15 -->
+<!-- i18n-version: 1.2.0 | canonical: projects/pet/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -86,9 +86,9 @@ python3 -m projects.pet --motion greeting  # 運動を走らせ、顔を同じ�
 - **1列より広い文字が無い**——**この工房の文書は CJK である。**
   顔に全角が1文字混じれば、**画面上で図がずれるのに `len()` は何も言わない。**
 - **`projects/` は、変わってしまうものを import しない**——`engine/` と同じ禁止一覧を、
-  `tools/purity.py` から使う。⛔ **`__main__.py` は除外一覧に名指しされており、除外そのものが検査されている**
-  ——**入口は、このリポジトリが `time` を import してよい唯一の場所である。
-  ループは時計を呼ぶ側から受け取るからである。**
+  `tools/purity.py` から使う。⛔ **入口は除外一覧に名指しされており、除外そのものが検査されている**
+  ——**`projects/**/__main__.py` はすべて縁であり、`time` と環境が読まれるのはそこである。
+  そして主張は、除かれた集合がちょうどそれらのファイルであること——多くも少なくもなく——である。**
 - **顔と身体が、同じ刻みから出る**——`Take.drawn_at` が `ticks[0].started` と一致する。
   ⛔ **顔は最初の刻みの中で描かれ、ループの前では決して描かれない**——**外で描けば、
   *1つの時計*は主張ではなく説明になり、検査するものが何も残らない。**

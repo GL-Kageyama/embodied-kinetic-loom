@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.1.0 | canonical: projects/pet/README.md | translated: 2026-10-15 -->
+<!-- i18n-version: 1.2.0 | canonical: projects/pet/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -87,9 +87,9 @@ python3 -m projects.pet --motion greeting  # 跑运动，并从同一个时钟�
 - **没有比一列更宽的字符**——**本工房的文档是 CJK。**
   脸里混进一个全角字符，**屏幕上图会移位，而 `len()` 什么都不会说。**
 - **`projects/` 不 import 任何会变化的东西**——与 `engine/` 相同的禁止清单，
-  取自 `tools/purity.py`。⛔ **`__main__.py` 被排除清单点名，而排除本身也被检查**
-  ——**入口是这个仓库唯一可以 import `time` 的地方，
-  因为循环从调用方接收它的时钟。**
+  取自 `tools/purity.py`。⛔ **入口被排除清单点名，而排除本身也被检查**
+  ——**每一个 `projects/**/__main__.py` 都是边缘，`time` 与环境在那里被读取。
+  而主张是：被排除的集合恰好是这些文件——不多，也不少。**
 - **脸与身体出自同一个刻点**——`Take.drawn_at` 等于 `ticks[0].started`。
   ⛔ **脸是在第一个刻点之内画出的，绝不在循环之前**——**画在外面，*同一只时钟*就只是描述而不是主张，
   也就没有任何东西可以断言。**

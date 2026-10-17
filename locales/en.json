@@ -27,5 +27,14 @@
     "lateness": "  worst tick late by +{worst_ms:.3f} ms",
     "position": "  box position {arrived}",
     "caveat": "  ⛔ not one limit was passed (all None) — the only check that rang is the envelope, and the rig names which"
+  },
+  "stackchan_cli": {
+    "description": "The layer between Claude Code's hook events and Stack-chan. Six phases, four channels, and no numbers for machine 2 — so nothing is sent",
+    "help_motion": "Move the neck at transitions (on) or keep it still (off). Default: on",
+    "help_sound": "Make a sound at transitions (on) or stay silent (off). Default: off — the speaker has not been verified",
+    "help_event": "An event as NAME, NAME@SECONDS or WINDOW:NAME@SECONDS; repeatable. Example: --event SessionStart@0 --event Stop@3",
+    "help_table": "Print every hook event and how it is classified",
+    "help_json": "Print the decisions as JSON, with no prose",
+    "help_lang": "Language (en/ja/zh). Defaults to the EMBODIED_KINETIC_LOOM_LANG environment variable, or en"
   }
 }

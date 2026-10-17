@@ -48,7 +48,7 @@ _OPEN = Envelope(None, None)
 PROJECTS = REPO / "projects"
 
 #: ⚠️ **`_meta` も節として数える。** **表自身の素性も、3本で揃っていなければならない。**
-SECTIONS = ("refusal", "pet_cli", "pet_report")
+SECTIONS = ("refusal", "pet_cli", "pet_report", "stackchan_cli")
 
 
 def _python_files(root: pathlib.Path):

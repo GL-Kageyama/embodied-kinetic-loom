@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: docs/construction-memo.md | translated: 2026-10-15 -->
+<!-- i18n-version: 1.3.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
 
 **Language:** [English](construction-memo.md) | [日本語](construction-memo-ja.md) | [中文](construction-memo-zh.md)
 
@@ -21,7 +21,7 @@
 | the numbers | **10-bit counts** — neutral `512`, envelope `190–833` | ⛔ **degrees in, the servo's own counts out.** ⚠️ **the conversion between them is in no record** |
 | host → machine | the vendor's protocol, over serial or HID | ⛔ **none on the unit in hand** |
 | where its numbers live in code | `engine/backend/protocol.py` — `DofRealityWire`, `DOF_REALITY_ENVELOPE` | ⛔ **nowhere. No module exists.** |
-| what this repository holds for it | the wire and the mock | ⛔ **nothing** |
+| what this repository holds for it | the wire and the mock | the layer above the wire — events to faces. ⛔ **no numbers, no motion** |
 | its checklist | `docs/first-contact.md` | `docs/first-contact-stackchan.md` |
 | has a value from this repository ever reached it | ⛔ **no** | ⛔ **no** |
 | has it ever moved | not known here | ✅ **yes** — the vendor's SETUP wizard drove it home and the owner watched, 2026-10-15 |
@@ -44,6 +44,8 @@
 ⛔ **And the honest summary of where the route stands: it is not open.** ⚠️ **Four rungs built the socket, not the second plug.** `engine/backend/` holds `axis_map.py`, `cycle.py`, `gate.py`, `mock.py`, `protocol.py`, `transmit.py`, `wire.py` — **machine 1's wire and nothing else.** ⛔ **This repository cannot move a Stack-chan by one millimetre today.**
 
 ⚠️ **And the ladder is now longer than the plan says.** 0.17.0 decided a requirement and not a shape, so **the rung that decides the record's shape has no place on this ladder yet** — **it comes after 0.20.0, and it is not in the plan.** ⛔ **A summary that showed six clean rungs would be lying by omission.**
+
+⚠️ **2026-10-18: a layer that is not on this ladder.** `projects/stackchan/` maps Claude Code's hook events onto six phases, the Pet's five faces, six lights and five candidate gestures — ⛔ **with no numbers for machine 2, so nothing is sent (`sent` is `False`), and one neck stays on one window when two or more run at once.** It arrived before 0.19.0 **and it is not a rung**: the ladder's order is unchanged, and **the row above changed instead — the repository now holds something for machine 2, and it is not a wire.** ⚠️ **It is not wired to a hook, but the end that holds the state now exists:** `projects/stackchan/daemon/` is that process — a pure core (`room.py`) and a socket edge (`__main__.py`), twenty-four tests — and a hook cannot reach it yet, **because the launchd job and the hook client are not built.** **That installation is the next thing 0.19.0 does not contain.**
 
 ## The traps
 

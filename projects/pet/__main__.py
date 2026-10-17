@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """**見るための入口。** `python3 -m projects.pet`（リポジトリの根から走らせる）。
 
-⛔ **このファイルは、このリポジトリで外の世界を読んでよい唯一の場所である。**
+⛔ **`projects/` の中で、外の世界を読んでよいのは入口だけである。**
 `engine/` は `time` も `os` も import しない（`tests/test_purity.py`）——
 **ループは時計を呼ぶ側から受け取り、言語は環境から受け取る。**
-**その「呼ぶ側」が、ここである。**
-⚠️ **`tests/test_pet_purity.py` は、このファイルだけを名指しで除く**——
+**その「呼ぶ側」が、`projects/**/__main__.py` である。**
+⚠️ **`tests/test_pet_purity.py` は、入口の集合だけを名指しで除く**——
 **除いたことが検査の中に書いてある**。
 
 ⚠️ **この入口は、決定 A を目で見るために在る。**
@@ -51,13 +51,11 @@ def language_of(argv: list[str]) -> str:
     """**言語だけを先に読む。** ⛔ **これが要る理由。**
 
     ヘルプの文そのものが翻訳されるので、**本物の parser を組む前に言語が要る。**
-    ゆえに、ここで `--lang` だけを読む——**知らない引数は素通しする**（`parse_known_args`）。
-    ⚠️ **環境を読むのはこの関数の呼ぶ側である**（`strings.resolve` は値しか受け取らない）。
+    ⚠️ **`--lang` を読む規則は `strings.language_of` と1か所である**——
+    **2つの入口が同じ規則を写し合えば、片方だけが直る。**
+    ⚠️ **環境を読むのはこの入口である**（`strings.resolve` は値しか受け取らない）。
     """
-    pre = argparse.ArgumentParser(add_help=False)
-    pre.add_argument("--lang", default=None)
-    known, _ = pre.parse_known_args(argv)
-    return strings.resolve(known.lang, os.environ.get(strings.ENV_VAR))
+    return strings.language_of(argv, os.environ.get(strings.ENV_VAR))
 
 
 def build_parser(lang: str) -> argparse.ArgumentParser:
