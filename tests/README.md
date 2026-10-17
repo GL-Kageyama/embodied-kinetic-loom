@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.13.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.14.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Twenty-five files, three hundred and sixty tests, all green — measured 2026-10-18.**
+**Twenty-six files, three hundred and eighty-five tests, all green — measured 2026-10-18.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -193,7 +193,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The check that arrived before the second wire (2026-10-18)
 
-**`projects/stackchan/` arrived, and with it the layer above the wire — events to phases, faces and lights, with no numbers for machine 2.** Thirty-four tests were added; the count moved from 281 to 315 — **then twenty-four more with the daemon, and twenty-one with its client, moving it to 360.** **They are check 13, and it is of a sixth kind**: not a trajectory, not a drawing or a directory or a joint, not bookkeeping, not the boundary, not the words — **it is a check on a decision that is upstream of the `Motion Intent` and therefore has no trajectory to check.**
+**`projects/stackchan/` arrived, and with it the layer above the wire — events to phases, faces and lights, with no numbers for machine 2.** Thirty-four tests were added; the count moved from 281 to 315 — **then twenty-four more with the daemon, twenty-one with its client, and twenty-five with the wire to machine 2, moving it to 385.** **They are check 13, and it is of a sixth kind**: not a trajectory, not a drawing or a directory or a joint, not bookkeeping, not the boundary, not the words — **it is a check on a decision that is upstream of the `Motion Intent` and therefore has no trajectory to check.**
 
 **What it holds:**
 
@@ -232,7 +232,24 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | **one daemon carries the phase across two separate hook processes** | `test_stackchan_hook_client.py` | ⛔ **this is why the bridge exists** — `Companion` holds state, and a hook does not |
 | **two windows through two clients keep one gaze, and a background `Stop` is `distant`** | `test_stackchan_hook_client.py` | the focus rule, asserted across processes rather than inside one |
 
-⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **And the layer is still not registered as a hook:** a hook is one process per event, while the phase, the timers and the gaze live inside one process. **Both ends of that bridge exist, and since 2026-10-18 both are installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client — **but this directory tests the two processes, not the installation.** ⛔ **Nothing here rings on the launchd job or on `settings.json`:** an installation is a place on one host, and it is recorded on `docs/stackchan-daemon.md`, not checked.
+**Twenty-five more hold the wire to machine 2 — the frame a gesture would cross on:**
+
+| the check | where | what it is for |
+|---|---|---|
+| every symbol round-trips — the six face values (five and `null`) × six lights × the six gesture values | `test_stackchan_wire.py` | ⚠️ **216 frames counted, 150 of them carrying no `null`**, and not one carries a number |
+| a frame is one ASCII line, and the two nullable fields are present as `null` | `test_stackchan_wire.py` | ⛔ **a missing field is filled by the receiver's memory**; `null` is a value |
+| an unknown key is refused — a `prompt` cannot ride along | `test_stackchan_wire.py` | the same rule the socket holds, asserted on the wire |
+| an unknown value is refused in each field | `test_stackchan_wire.py` | ⛔ **a word outside the table is outside the vocabulary** |
+| `light` is required and never `null`; malformed, two-line and over-long input are refused | `test_stackchan_wire.py` | the light is the one channel that is always on |
+| the encoder refuses what the decoder refuses | `test_stackchan_wire.py` | ⛔ **two rules would let one side be fixed alone** |
+| the schema, the codec and the firmware's literals name the same words | `test_stackchan_wire.py` | the contract is a copy in three places, and this is where it rings |
+| the firmware source has no angle for either machine | `test_stackchan_wire.py` | ⛔ **a guessed angle is indistinguishable from a measured one in the source** |
+| the wire imports nothing but `json` and `dataclasses` | `test_stackchan_wire.py` | no clock, no socket, no environment — and ⛔ **no import of machine 1's protocol** |
+| the mock records and answers nothing; `send` returns `None` | `test_stackchan_wire.py` | ⚠️ **green means the protocol computes, not that anything moved** |
+
+⛔ **And the wire is not connected to anything.** The daemon still does not open it, no transport is chosen, and `projects/stackchan-firmware/` has never been built or flashed. **These twenty-five tests hold a frame and a contract; they hold no machine.**
+
+⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **The layer has been registered as a hook since 2026-10-18**, and the phase, the timers and the gaze live inside one process, so that registration is a client and a daemon rather than the CLI. **Both ends of that bridge exist, and both are installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client — **but this directory tests the two processes, not the installation.** ⛔ **Nothing here rings on the launchd job or on `settings.json`:** an installation is a place on one host, and it is recorded on `docs/stackchan-daemon.md`, not checked.
 
 ## The rule that holds this directory — applied to us
 

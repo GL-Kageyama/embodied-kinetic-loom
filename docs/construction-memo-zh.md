@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.6.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.7.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
 
 **Language:** [English](construction-memo.md) | [日本語](construction-memo-ja.md) | [中文](construction-memo-zh.md)
 
@@ -38,14 +38,14 @@
 | **0.16.0** | 语汇报出机体 | ✅ 已落地。`references/` ×3、`COLUMNS` 6→7、V4 与 V5 扩展、自检 14→16 |
 | **0.17.0** | 为什么它是空的 | ✅ 已落地。**但只定了要求。** ⛔ 文件、它的名字、格式、位置，仍然开着 |
 | **0.18.0** | 机器2的第一个小时 | ✅ 已落地。`docs/first-contact-stackchan.md` ×3 |
-| **0.19.0** | 第二根电线 | ⛔ **未开始。** `protocol_stackchan.py`、`mock_stackchan.py`、两端共享的契约文件、`tests/test_stackchan_wire.py`、`projects/stackchan-firmware/`——**只有源码。不构建，不烧录** |
+| **0.19.0** | 第二根电线 | ✅ **作为源码落地。** `protocol_stackchan.py`、`mock_stackchan.py`、`schemas/stackchan-command.schema.json`、`tests/test_stackchan_wire.py`（25）、`projects/stackchan-firmware/`——⛔ **一次也没有构建，也没有烧写。传输路径未选定，守护进程不打开它** |
 | **0.20.0** | 打开端口 | ⛔ **未开始。** `engine/backend/serial.py`——**本工房第一段打开端口的代码**——以及 `tests/test_purity.py` 里一条指名的豁免 |
 
 ⛔ **而路线现在站在哪里，诚实的总结是: 没有打开。** ⚠️ **四级造的是插座，不是第二个插头。** `engine/backend/` 里只有 `axis_map.py`、`cycle.py`、`gate.py`、`mock.py`、`protocol.py`、`transmit.py`、`wire.py`——**机器1的电线而已。** ⛔ **本仓库现在，一毫米也动不了 Stack-chan。**
 
 ⚠️ **而梯子已经比计划长了。** 0.17.0 定下的是要求而不是形状，所以**决定记录形状的那一级，在这条梯子上还没有位置**——**它排在 0.20.0 后面，而不在计划里。** ⛔ **一份把六级排得整整齐齐的摘要，正在用省略撒谎。**
 
-⚠️ **2026-10-18: 一个不在这条梯子上的层。** `projects/stackchan/` 把 Claude Code 的钩子事件映射到六个阶段、Pet 的五张脸、六种光与五个候选身势——⛔ **没有机器2的数字，所以什么也不发送（`sent` 是 `False`）。当两个以上窗口同时运行时，脖子也只用在一个窗口上。** 它在 0.19.0 之前到来，**但它不是一级**: 梯子的顺序没有变，**变的是上面那张表的一行——本仓库现在为机器2持有东西，而它不是电线。** ⚠️ **2026-10-18 它接到了钩子上，而桥的两端都在:** `projects/stackchan/daemon/` 就是保住状态的那个进程——纯核心（`room.py`）与套接字边缘（`__main__.py`），二十四项测试——而 `projects/stackchan/hook/` 是钩子运行的客户端: 一个事件一个进程，沉默地以 0 退出，二十一项测试。✅ **launchd 用户代理在登录时启动守护进程，全部三十三个事件都调用客户端**，所以钩子能够到达房间。⛔ **但它到达不了机体。** **安装不是仓库的性质，而是一台主机上的一个位置**——plist 副本在 `projects/stackchan/launchd/`，记录与卸载路径在 `docs/stackchan-daemon.md`。
+⚠️ **2026-10-18: 一个不在这条梯子上的层。** `projects/stackchan/` 把 Claude Code 的钩子事件映射到六个阶段、Pet 的五张脸、六种光与五个候选身势——⛔ **没有机器2的数字，所以什么也不发送（`sent` 是 `False`）。当两个以上窗口同时运行时，脖子也只用在一个窗口上。** 它在 0.19.0 之前到来，**但它不是一级**: 梯子的顺序没有变，**变的是上面那张表的一行——本仓库现在为机器2持有东西，而它不是电线。** ⚠️ **2026-10-18 它接到了钩子上，而桥的两端都在:** `projects/stackchan/daemon/` 就是保住状态的那个进程——纯核心（`room.py`）与套接字边缘（`__main__.py`），二十四项测试——而 `projects/stackchan/hook/` 是钩子运行的客户端: 一个事件一个进程，沉默地以 0 退出，二十一项测试。✅ **launchd 用户代理在登录时启动守护进程，全部三十三个事件都调用客户端**，所以钩子能够到达房间。⛔ **但它到达不了机体。** **安装不是仓库的性质，而是一台主机上的一个位置**——plist 副本在 `projects/stackchan/launchd/`，记录与卸载路径在 `docs/stackchan-daemon.md`。✅ **而自 0.19.0 起，本仓库也为那一层持有一根电线**——帧、它的契约，以及机体那一端的源码——⛔ **所以「它不是电线」在那天为真，如今不再为真。如今仍然为真的是: 传输路径未选定，什么也没有被烧写。**
 
 ## 踩过的陷阱
 

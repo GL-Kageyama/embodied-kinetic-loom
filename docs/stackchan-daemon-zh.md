@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.5.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.6.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -98,7 +98,7 @@
 
 ⚠️ **舵机被放任不管时，头可能垂下来**——SCS 舵机在待机时释放扭矩。**那是机器的待机行为，不是故障**，而且在手头的个体上看见过。
 
-⚠️ **守护进程停止后，固件如何处理最后的脸，这里没有确定。** 如果固件保持它，脸就留着；如果固件自己的待机接管，它就会改变。那是 0.19.0 的契约，这一页不假装拥有它。
+⚠️ **守护进程停止后，固件如何处理最后的脸，这里没有确定。** 如果固件保持它，脸就留着；如果固件自己的待机接管，它就会改变。⛔ **0.19.0 的契约也没有定它**——契约里的 `face: null` 是「不改变」，而对没有任何一行到达时板子做什么，它什么也不说。
 
 ## 机器是可选的
 
@@ -121,8 +121,7 @@
 
 **在这里未决定的:**
 
-- 电线及其分帧（0.19.0）;
-- 跨过它的身势文法;
+- ✅ **成帧已经定了（0.19.0），而这一页仍然不拥有它**——每次转换一行 ASCII JSON，`face` / `light` / `gesture`，在 `schemas/stackchan-command.schema.json` 里，由 `engine/backend/protocol_stackchan.py` 编码。⛔ **未决定的是传输路径**: 那一行如何到达板子，由谁打开。**守护进程不打开它**，而 `projects/stackchan-firmware/`——只有源码，一次也没有被构建、没有被烧写——拒绝每一个身势;
 - 固件在待机时与停止后做什么;
 - 第二个身体——每台机器第二个守护进程——是否需要不同的东西。
 

@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.6.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.7.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -141,7 +141,9 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ✅ **客户端发送的是事件的名字和窗口的名字，而不是提示词。** 时间由守护进程在行到达时盖戳，所以客户端不带时钟，也不带状态。机器人需要知道回合开始了，而不是说了什么；**需要窗口的名字，只是因为窗口共享一个身体。** **用结构守住隐私，而不是用方针。** ⚠️ **启动与停止的设计是 `docs/stackchan-daemon.md`**——**循环、套接字、客户端、launchd 任务和 `settings.json` 里的注册，都已经建好，并安装在这台主机上。**
 
-⚠️ **通往机体的路也缺:** 屏幕的渲染器、LED 的驱动、声音、串行电线。**这一层的输出是 `Decision`；除了终端和守护进程的日志没有消费者。**
+⚠️ **通往机体的路也缺:** 屏幕的渲染器、LED 的驱动、声音，以及**传输路径**。**这一层的输出是 `Decision`；除了终端和守护进程的日志没有消费者。**
+
+✅ **自 2026-10-18 起，它将要被发送的那个帧作为源码存在**——`engine/backend/protocol_stackchan.py` 每次转换编码并解码一行 ASCII，`schemas/stackchan-command.schema.json` 是两端共读的契约，而 `projects/stackchan-firmware/` 解析那一行，**并拒绝每一个身势**。⛔ **它们没有一个接到守护进程上，传输路径未选定，固件一次也没有被构建、没有被烧写。** ⚠️ **电线只运记号；这台机器的第一个数，是在个体被测量之后写下的，不是之前。**
 
 ## 保住房间的进程（2026-10-18）
 
@@ -159,7 +161,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ## 检查了什么
 
-**`tests/test_stackchan_behaviors.py` 有三十四条主张，`tests/test_stackchan_daemon.py` 有二十四条，`tests/test_stackchan_hook_client.py` 有二十一条**，它们与其余检查一起运行:
+**`tests/test_stackchan_behaviors.py` 有三十四条主张，`tests/test_stackchan_daemon.py` 有二十四条，`tests/test_stackchan_hook_client.py` 有二十一条，`tests/test_stackchan_wire.py` 有二十五条**，它们与其余检查一起运行:
 
 - 列表是三十三个，没有重复；每个事件恰好属于三种类型之一，三种类型分割整个列表。
 - 每个事件都带理由代码——**没有空白。**
@@ -207,12 +209,22 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - **一个守护进程在两个不同进程之间保住阶段**: 第一个进程的 `SessionStart` 与第二个的 `Stop` 读作 `greeting` 与 `closing`，**而两个进程都没有持有任何状态。**
 - **两个窗口经过两个客户端，注视仍然只有一个**，背景的 `Stop` 被报告为 `distant`，阶段不变。
 
+**电线再加二十五条**——帧、它的契约，以及它的机体那一端:
+
+- 216 个帧往返——**其中 150 个不带任何 `null`**——而没有哪一个携带数字;
+- 帧是一行 ASCII，而 `null` 的栏位是以值在场，不是缺失;
+- 未知的键被拒绝（`prompt` 无法搭车），未知的词按栏位被拒绝，而 `light` 必须存在且永不为 `null`;
+- 编码器恰好拒绝解码器所拒绝的;
+- 契约、编码器与固件的字面量拼出同样的词，**而固件里没有哪一台机器的角度**;
+- 电线只导入 `json` 与 `dataclasses`，**不从机器 1 的 `protocol` 导入任何东西**;
+- 模拟器记录本该被发送的东西，什么也不回答。
+
 ⚠️ **这些主张中没有一条是关于机体的。** 一次绿色的运行说的是，**这一层按它被告知的方式计算了**——与 `CLAUDE.md` 对五项检查要求的同一句话。
 
 ## 这里没有的东西
 
 - **没有机器 2 的数。** 五个身势是候选词，不是词汇表里的行。行是在那个词于那台机体上变成数字的那天写下的。`projects/pet/motions/greeting.json` 是机器 1 的计数；借用它，这一层就会主张一个不会发生的运动。
-- **没有串行层，没有固件，没有烧写。** 见 `docs/first-contact-stackchan.md`。
+- **没有传输路径，板上也没有固件。** 帧已经定了、被测试了；**通往板子的路尚未选定**，而 `projects/stackchan-firmware/` 只有源码——一次也没有被构建、没有被烧写。见 `docs/first-contact-stackchan.md`。
 - **没有 LED 驱动，也没有屏幕渲染器。** 光是意义；没有东西把它变成像素。
 - **没有声音。** `--sound on` 指出的是一条不存在的通道，而这一台的扬声器从未被验证。
 - **没有头部触摸输入。** 传感器在这一台上有效（2026-10-18 在 AI.AGENT 中观察），但那是机体的输入，固件必须去读它。**钩子不是头。**

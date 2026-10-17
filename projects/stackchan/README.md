@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.6.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.7.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -141,7 +141,9 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ✅ **The client sends the event name and the window's name — and not the prompt.** The daemon stamps the time when the line arrives, so the client carries no clock and no state. The robot needs to know that a turn began, not what was said; it needs the window's name only because windows share one body. **Privacy by construction, not by policy.** ⚠️ **The start-and-stop design is `docs/stackchan-daemon.md`** — **the loop, the socket, the client, the launchd job and the registration in `settings.json` are all built and installed on this host.**
 
-⚠️ **And the device path is missing too:** a renderer for the display, a driver for the LEDs, a sound, and the serial wire. **This layer's output is a `Decision`; nothing consumes it but the terminal and the daemon's log.**
+⚠️ **And the device path is missing too:** a renderer for the display, a driver for the LEDs, a sound, and **a transport**. **This layer's output is a `Decision`; nothing consumes it but the terminal and the daemon's log.**
+
+✅ **Since 2026-10-18 the frame it would be sent in exists as source** — `engine/backend/protocol_stackchan.py` encodes and decodes one ASCII line per transition, `schemas/stackchan-command.schema.json` is the contract both ends read, and `projects/stackchan-firmware/` parses that line and **refuses every gesture**. ⛔ **None of it is connected to the daemon, the transport has not been chosen, and the firmware has never been built or flashed.** ⚠️ **The wire carries symbols only; the first number for this machine is written after the unit is measured, not before.**
 
 ## The process that holds the room (2026-10-18)
 
@@ -159,7 +161,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ## What is checked
 
-**`tests/test_stackchan_behaviors.py` holds thirty-four claims, `tests/test_stackchan_daemon.py` holds twenty-four, and `tests/test_stackchan_hook_client.py` holds twenty-one**, and they run with the rest of the suite:
+**`tests/test_stackchan_behaviors.py` holds thirty-four claims, `tests/test_stackchan_daemon.py` holds twenty-four, `tests/test_stackchan_hook_client.py` holds twenty-one, and `tests/test_stackchan_wire.py` holds twenty-five**, and they run with the rest of the suite:
 
 - the list is 33 and none is repeated; every event has exactly one of three kinds, and the kinds partition it;
 - every event carries a reason code — **there is no blank**;
@@ -207,12 +209,22 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - **one daemon carries the phase across two separate processes**: a `SessionStart` in one and a `Stop` in the next read `greeting` then `closing`, though neither process held any state;
 - **two windows through two clients keep one gaze**, and a background `Stop` is reported as `distant` without changing the phase.
 
+**The wire adds twenty-five more** — the frame, its contract and the machine's end of it:
+
+- 216 frames round-trip — **150 of them carrying no `null`** — and not one carries a number;
+- a frame is one ASCII line, and a `null` field is present as a value rather than missing;
+- an unknown key is refused (`prompt` cannot ride along), an unknown word is refused per field, and `light` is required and never `null`;
+- the encoder refuses exactly what the decoder refuses;
+- the contract, the codec and the firmware literals spell the same words, and **the firmware contains no angle for either machine**;
+- the wire imports only `json` and `dataclasses`, and **imports nothing from machine 1's `protocol`**;
+- the mock records what would have been sent and answers nothing.
+
 ⚠️ **Not one of these claims is about the machine.** A green run says the layer computes what it was told to compute — **the same sentence `CLAUDE.md` requires for the five checks.**
 
 ## What is not here
 
 - **No counts for machine 2.** The five gestures are candidate words, not rows in the vocabulary; a row is written the day a word becomes numbers on that machine. `projects/pet/motions/greeting.json` is machine 1's counts, and borrowing it would make this layer claim motion that will not happen.
-- **No serial layer, no firmware, no flash.** See `docs/first-contact-stackchan.md`.
+- **No transport, and no firmware on the board.** The frame is decided and tested; **the path to the board is not chosen**, and `projects/stackchan-firmware/` is source only — never built, never flashed. See `docs/first-contact-stackchan.md`.
 - **No LED driver and no display renderer.** The light is a meaning; nothing turns it into pixels.
 - **No sound.** `--sound on` names a channel that does not exist, and the speaker has never been verified on this unit.
 - **No head-touch input.** The sensor works on this unit (observed in AI.AGENT, 2026-10-18), but it is machine input, and a firmware would have to read it. **A hook is not a head.**

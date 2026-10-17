@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.5.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.6.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -98,7 +98,7 @@
 
 ⚠️ **The head may droop when the servos are left alone** — SCS servos release torque at idle. **That is the machine's idle behavior, not a fault**, and it was seen on the units in hand.
 
-⚠️ **What the firmware does with the last face after the daemon stops is not settled here.** If the firmware holds it, the face stays; if the firmware's own idle takes over, it changes. That is a 0.19.0 contract, and this page does not pretend to have it.
+⚠️ **What the firmware does with the last face after the daemon stops is not settled here.** If the firmware holds it, the face stays; if the firmware's own idle takes over, it changes. ⛔ **The 0.19.0 contract does not settle it either** — it carries `face: null` for *do not change*, and says nothing about what a board does when no line arrives.
 
 ## The device is optional
 
@@ -121,8 +121,7 @@
 
 **Not decided here:**
 
-- the wire and its framing (0.19.0);
-- the gesture grammar that crosses it;
+- ✅ **The framing is decided (0.19.0) and this page still does not own it** — one ASCII JSON line per transition, `face` / `light` / `gesture`, in `schemas/stackchan-command.schema.json`, encoded by `engine/backend/protocol_stackchan.py`. ⛔ **The transport is not decided**: how that line reaches the board, and who opens it. **The daemon does not open it**, and `projects/stackchan-firmware/` — source only, never built, never flashed — refuses every gesture;
 - what the firmware does at idle and after a stop;
 - whether a second body — a second daemon per unit — needs anything different.
 

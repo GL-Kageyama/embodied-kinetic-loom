@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.16.0 | canonical: README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.17.0 | canonical: README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -34,9 +34,9 @@ This repository holds what the engine *is*, what must never be assumed about the
 
 **And the writer now exists.** `skills/embodied-kinetic-loom/` holds the one skill — **the only thing that writes a `Motion Intent`.** ⛔ **It is a document, not a program: no code in this repository calls a model, and that is what makes the trajectory underneath it testable.** Its source of words is `references/README.md`, and ⚠️ **as of 2026-09-28 that file is a mapping rather than a fixed table** — written as rows, drawn from by name, **and grown by use, which is the only way it grows.** ⛔ **Drawn from by whom is the whole question: by Claude, not by a program** — so the canonical form is a table a reader reads, and no second, machine-only copy is built, because nothing would read it.
 
-✅ **And since 2026-10-18 there is a layer above the wire for the second machine.** `projects/stackchan/` turns Claude Code's hook events into six phases, the Pet's five faces, six lights and five candidate gestures — ⛔ **and sends nothing, because no number for that machine has been measured.** It keeps one neck on one window when two or more run at once. It is the part of the Stack-chan route that can be verified before a firmware is burned. ⚠️ **The daemon that will hold its state exists** — `projects/stackchan/daemon/`, a pure core and a socket edge — **and so does the client a hook runs** — `projects/stackchan/hook/`, one process per event, silent and exit 0. ✅ **Both are installed as of 2026-10-18**: a launchd user agent starts the daemon at login, and all thirty-three hook events in `~/.claude/settings.json` call the client. ⛔ **Nothing is sent to a machine — the wire does not exist.**
+✅ **And since 2026-10-18 there is a layer above the wire for the second machine.** `projects/stackchan/` turns Claude Code's hook events into six phases, the Pet's five faces, six lights and five candidate gestures — ⛔ **and sends nothing, because no number for that machine has been measured.** It keeps one neck on one window when two or more run at once. It is the part of the Stack-chan route that can be verified before a firmware is burned. ⚠️ **The daemon that will hold its state exists** — `projects/stackchan/daemon/`, a pure core and a socket edge — **and so does the client a hook runs** — `projects/stackchan/hook/`, one process per event, silent and exit 0. ✅ **Both are installed as of 2026-10-18**: a launchd user agent starts the daemon at login, and all thirty-three hook events in `~/.claude/settings.json` call the client. ✅ **And since the same day the wire exists as source** — `engine/backend/protocol_stackchan.py` frames one ASCII line per transition, `schemas/stackchan-command.schema.json` is the contract both ends read, and `projects/stackchan-firmware/` parses it and **refuses every gesture**. ⛔ **Nothing is sent to a machine: the transport is not chosen, the daemon does not open it, and the firmware has never been built or flashed.**
 
-⚠️ **The core, the backend, the Pet's screen and motion, the Stack-chan behaviour layer and its daemon are green — twenty-five files, three hundred and sixty tests, measured 2026-10-18 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
+⚠️ **The core, the backend, the Pet's screen and motion, the Stack-chan behaviour layer, its daemon and its wire are green — twenty-six files, three hundred and eighty-five tests, measured 2026-10-18 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
 
 ## Before you connect a machine
 
@@ -50,8 +50,8 @@ This repository holds what the engine *is*, what must never be assumed about the
 .claude-plugin/     plugin.json and marketplace.json — the two files that must carry one version
 docs/               the documents, canonical English with -ja and -zh mirrors beside them
 tools/              check_i18n.py — the mirrors; check_vocabulary.py — the vocabulary table; purity.py — the forbidden imports
-tests/              the suites — twenty-five files, three hundred and sixty tests
-schemas/            motion-intent.schema.json — the Motion Intent type
+tests/              the suites — twenty-six files, three hundred and eighty-five tests
+schemas/            motion-intent.schema.json — the Motion Intent type; stackchan-command.schema.json — the frame to machine 2
 engine/             the deterministic core. ⚠️ It calls no LLM and imports nothing that varies
 engine/backend/     the sending side — protocol, cycle, gate, axis map, transmitter, mock
 skills/             the one writer — the skill that writes a Motion Intent
@@ -60,6 +60,7 @@ assets/             the repository's face (the README hero)
 locales/            the program's own words — en / ja / zh
 projects/pet/       the Pet — the five faces, the frame that carries them, and the motion that runs
 projects/stackchan/ the layer above the wire — events to phases, faces and lights; no numbers for machine 2
+projects/stackchan-firmware/  the machine's end of that wire — source only, never built, never flashed
 install.sh          installs the skill (--local writes .claude/skills/, which is committed)
 ```
 
@@ -72,6 +73,7 @@ install.sh          installs the skill (--local writes .claude/skills/, which is
 ## What is not here yet
 
 - **No serial layer.** The backend frames, gates and transmits; nothing opens a port. ⛔ **This is the one part the machine gates**, because machine 1's control box has two generations and the protocol differs between them — and it is exactly where a mock and the machine diverge most.
+- ⛔ **No transport to machine 2, and no firmware on the board.** The frame is decided, encoded, decoded and tested; **the path it would travel is not chosen**, the daemon does not open it, and `projects/stackchan-firmware/` has never been built or flashed. ⚠️ **What the firmware does today is refuse**: there is no `gesture → angle` table, and an invented angle cannot be told from a measured one in a source file.
 - ⚠️ **The vocabulary has one row, not five.** Of the five verbs it starts from — 傾く / 倒れる / 沈む / 跳ねる / 後退 — **three name a degree of freedom machine 1 does not have**, and the mapping carries an explicit column saying what the difference is. ⛔ **The four missing rows are the ones that were not used**, and writing them now would be writing down what has never run.
 - ⚠️ **No record of what happened.** `--motion` prints its numbers and they scroll away. **The vessel for records is `projects/`** (see `CLAUDE.md`) — **it is empty, and it is empty because no value has ever left this repository for a machine.** ⛔ **That is not the same sentence as *the machine has never moved*** — the author's own unit has, under the vendor's SETUP wizard, and that was seen on 2026-10-15. **What is missing is an arrival.** ✅ **What the first record must satisfy is decided: what was observed is its spine, and the program's numbers are quoted inside it as evidence** — ⛔ **the reverse is the shape that reads as proof nothing moved.**
 
@@ -79,8 +81,9 @@ install.sh          installs the skill (--local writes .claude/skills/, which is
 
 1. **The serial layer** — the one step that reaches the wire. ⛔ **Gated on the machine**: confirm which generation of control box is in hand before trusting any protocol document, including this repository's.
 2. **A second motion** — the vocabulary starts from five verbs. ⚠️ **Three of them name a translation machine 1 does not have, so not one row has yet crossed the difference column** — and how that column behaves has never been exercised.
+3. **The transport to machine 2, and one gesture actually arriving** — ⛔ **after an inventory restore and a version read back** (`docs/first-contact-stackchan.md`). ⚠️ **The frame is ready; the first angle is not**, and it is written only after that one unit is measured.
 
-⚠️ **Step 1 is the only one the machine gates; step 2 is waiting on work.** **And finishing either says nothing about whether anything is *there*.**
+⚠️ **Step 1 is the only one the machine gates; steps 2 and 3 are waiting on work and on a measurement.** **And finishing any of them says nothing about whether anything is *there*.**
 
 ## Language
 
