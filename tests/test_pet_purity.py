@@ -61,6 +61,7 @@ def test_the_skip_list_is_exactly_the_entry_points():
     assert SKIP == _entry_points()
     assert "projects/pet/__main__.py" in SKIP
     assert "projects/stackchan/__main__.py" in SKIP
+    assert "projects/stackchan/hook/__main__.py" in SKIP
 
     scanned = {
         path.relative_to(PROJECTS.parent).as_posix()
@@ -71,3 +72,4 @@ def test_the_skip_list_is_exactly_the_entry_points():
     assert "projects/stackchan/behaviors.py" in scanned
     assert "projects/stackchan/hooks.py" in scanned
     assert "projects/stackchan/daemon/room.py" in scanned
+    assert "projects/stackchan/client.py" in scanned

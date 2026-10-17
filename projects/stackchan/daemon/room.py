@@ -52,6 +52,16 @@ MAX_LINE = 4096
 CLIENT_TIMEOUT = 0.1
 
 
+def socket_path(uid: int) -> str:
+    """**ソケットの場所。** ⚠️ **デーモンとクライアントが共有する、1つの綴りである。**
+
+    ⛔ **`/tmp` の下である。** macOS の `sun_path` は104バイトであり、
+    `/var/folders/…` の下の `$TMPDIR` は、長いユーザー名でそこへ届く。
+    ⚠️ **uid を値として受ける**——この関数は環境を読まない。
+    """
+    return f"/tmp/ekl-stackchan-{uid}.sock"
+
+
 class BadRequest(ValueError):
     """**読めない行。** `code` は `REFUSAL_CODES` のどれかである。"""
 
@@ -144,6 +154,7 @@ __all__ = [
     "REFUSAL_CODES",
     "MAX_LINE",
     "CLIENT_TIMEOUT",
+    "socket_path",
     "BadRequest",
     "parse_request",
     "row",

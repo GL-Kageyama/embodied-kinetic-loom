@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.13.0 | canonical: README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.14.0 | canonical: README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -34,9 +34,9 @@ This repository holds what the engine *is*, what must never be assumed about the
 
 **And the writer now exists.** `skills/embodied-kinetic-loom/` holds the one skill — **the only thing that writes a `Motion Intent`.** ⛔ **It is a document, not a program: no code in this repository calls a model, and that is what makes the trajectory underneath it testable.** Its source of words is `references/README.md`, and ⚠️ **as of 2026-09-28 that file is a mapping rather than a fixed table** — written as rows, drawn from by name, **and grown by use, which is the only way it grows.** ⛔ **Drawn from by whom is the whole question: by Claude, not by a program** — so the canonical form is a table a reader reads, and no second, machine-only copy is built, because nothing would read it.
 
-✅ **And since 2026-10-18 there is a layer above the wire for the second machine.** `projects/stackchan/` turns Claude Code's hook events into six phases, the Pet's five faces, six lights and five candidate gestures — ⛔ **and sends nothing, because no number for that machine has been measured.** It keeps one neck on one window when two or more run at once. It is the part of the Stack-chan route that can be verified before a firmware is burned. ⚠️ **The daemon that will hold its state now exists** — `projects/stackchan/daemon/`, a pure core and a socket edge — and **it is not installed**: no launchd job and no hook client.
+✅ **And since 2026-10-18 there is a layer above the wire for the second machine.** `projects/stackchan/` turns Claude Code's hook events into six phases, the Pet's five faces, six lights and five candidate gestures — ⛔ **and sends nothing, because no number for that machine has been measured.** It keeps one neck on one window when two or more run at once. It is the part of the Stack-chan route that can be verified before a firmware is burned. ⚠️ **The daemon that will hold its state now exists** — `projects/stackchan/daemon/`, a pure core and a socket edge — **and so does the client a hook would run** — `projects/stackchan/hook/`, one process per event, silent and exit 0. **Neither is installed**: no launchd job and nothing in `settings.json` calls the client.
 
-⚠️ **The core, the backend, the Pet's screen and motion, the Stack-chan behaviour layer and its daemon are green — twenty-four files, three hundred and thirty-nine tests, measured 2026-10-18 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
+⚠️ **The core, the backend, the Pet's screen and motion, the Stack-chan behaviour layer and its daemon are green — twenty-five files, three hundred and fifty-eight tests, measured 2026-10-18 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
 
 ## Before you connect a machine
 
@@ -50,7 +50,7 @@ This repository holds what the engine *is*, what must never be assumed about the
 .claude-plugin/     plugin.json and marketplace.json — the two files that must carry one version
 docs/               the documents, canonical English with -ja and -zh mirrors beside them
 tools/              check_i18n.py — the mirrors; check_vocabulary.py — the vocabulary table; purity.py — the forbidden imports
-tests/              the suites — twenty-four files, three hundred and thirty-nine tests
+tests/              the suites — twenty-five files, three hundred and fifty-eight tests
 schemas/            motion-intent.schema.json — the Motion Intent type
 engine/             the deterministic core. ⚠️ It calls no LLM and imports nothing that varies
 engine/backend/     the sending side — protocol, cycle, gate, axis map, transmitter, mock

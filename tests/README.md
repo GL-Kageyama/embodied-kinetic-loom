@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.10.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.11.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Twenty-four files, three hundred and thirty-nine tests, all green — measured 2026-10-18.**
+**Twenty-five files, three hundred and fifty-eight tests, all green — measured 2026-10-18.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -193,7 +193,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The check that arrived before the second wire (2026-10-18)
 
-**`projects/stackchan/` arrived, and with it the layer above the wire — events to phases, faces and lights, with no numbers for machine 2.** Thirty-four tests were added; the count moved from 281 to 315 — **and twenty-four more arrived the same day with the daemon, moving it to 339.** **They are check 13, and it is of a sixth kind**: not a trajectory, not a drawing or a directory or a joint, not bookkeeping, not the boundary, not the words — **it is a check on a decision that is upstream of the `Motion Intent` and therefore has no trajectory to check.**
+**`projects/stackchan/` arrived, and with it the layer above the wire — events to phases, faces and lights, with no numbers for machine 2.** Thirty-four tests were added; the count moved from 281 to 315 — **then twenty-four more with the daemon, and nineteen with its client, moving it to 358.** **They are check 13, and it is of a sixth kind**: not a trajectory, not a drawing or a directory or a joint, not bookkeeping, not the boundary, not the words — **it is a check on a decision that is upstream of the `Motion Intent` and therefore has no trajectory to check.**
 
 **What it holds:**
 
@@ -219,7 +219,18 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | a prompt in the line never reaches the log | `test_stackchan_daemon.py` | privacy by construction, asserted end to end |
 | the next wake is the expression, then the idle clock; a silent client does not block the room | `test_stackchan_daemon.py` | no fixed tick; the deadline is a value |
 
-⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **And the layer is still not wired to a hook:** a hook is one process per event, while the phase, the timers and the gaze live inside one process. **That bridge is now half built** — the end that holds the state exists (`projects/stackchan/daemon/`); **the end that starts it (launchd) and the end that calls it (a hook client) do not.** This directory tests the process, not the installation.
+**Nineteen more hold the client — the process a hook would run:**
+
+| the check | where | what it is for |
+|---|---|---|
+| a full hook payload yields exactly `session` and `event` | `test_stackchan_hook_client.py` | ⛔ **the prompt, the cwd and the tool input never reach the line** — privacy by construction, not by policy |
+| a payload without the two fields, or with an unknown event, is dropped | `test_stackchan_hook_client.py` | ⚠️ **two gates, not one** — the daemon refuses the same cases, so a silent loosening on one side still rings on the other |
+| the line parses against the daemon's schema, and the socket path is spelled once | `test_stackchan_hook_client.py` | the client and the daemon share `parse_request` and `socket_path` rather than a copied contract |
+| a real payload reaches the room, and its prompt is absent from the daemon's log | `test_stackchan_hook_client.py` | the same claim as above, asserted end to end |
+| no daemon, malformed input and an over-long input are silent with exit 0 | `test_stackchan_hook_client.py` | **a hook must never fail the turn it is reporting** |
+| the client does not wait for a reply | `test_stackchan_hook_client.py` | ⛔ **reading the answer would make the turn wait on the daemon** |
+
+⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **And the layer is still not registered as a hook:** a hook is one process per event, while the phase, the timers and the gaze live inside one process. **Both ends of that bridge now exist** — the process that holds the state (`projects/stackchan/daemon/`) and the client that feeds it (`projects/stackchan/hook/`) — **but nothing starts the first at login and nothing calls the second.** This directory tests the two processes, not the installation.
 
 ## The rule that holds this directory — applied to us
 

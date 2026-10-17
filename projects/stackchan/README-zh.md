@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.3.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.4.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -126,6 +126,7 @@ python3 -m projects.stackchan --sound on --event SessionStart@0
 python3 -m projects.stackchan --json --event PostToolUseFailure@0
 python3 -m projects.stackchan --event left:SessionStart@0 --event right:PermissionRequest@2
 python3 -m projects.stackchan.daemon --socket /tmp/ekl.sock   # 监听；Ctrl-C 或 SIGTERM 停止
+echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m projects.stackchan.hook --socket /tmp/ekl.sock
 ```
 
 ⚠️ **窗口写作 `窗口:事件@秒`；不写窗口就是 `main`，所以单窗口的剧本读起来与以前相同。** ⚠️ **时间由剧本给出，不从时钟读取。** 剧本不能倒流；倒流的剧本会被拒绝。这使一次运行可以复现——**也是 CLI 不是钩子所调用的东西的理由**（见下）。⚠️ **每一行都显示光和身体，脸改变时还显示脸的画**——**即使身势被丢弃，也仍然读得出反应。**
@@ -134,9 +135,11 @@ python3 -m projects.stackchan.daemon --socket /tmp/ekl.sock   # 监听；Ctrl-C 
 
 ⛔ **Claude Code 的钩子是一个事件一个进程。`Companion` 是一个在事件之间保持阶段、期限和 cooldown 的对象。** 这里没有任何东西把那个状态跨进程携带。
 
-⇒ **一个长命进程现在有了**——`projects/stackchan/daemon/`，它拥有时钟、companion 和套接字。**核心（`room.py`）不读时钟、不读套接字，边缘（`__main__.py`）独自持有这两者。** ⛔ **它没有被安装**：没有 launchd 任务，也没有钩子客户端，钩子仍然够不到它。 ⚠️ **直接接到这个 CLI 的钩子，会在每个事件上重置阶段和 idle 时钟**——正是它要防止的洪水，而且更糟：**机器人永远无法安定，也无法入睡。**
+⇒ **一个长命进程现在有了**——`projects/stackchan/daemon/`，它拥有时钟、companion 和套接字。**核心（`room.py`）不读时钟、不读套接字，边缘（`__main__.py`）独自持有这两者。** ⛔ **它没有被安装**：没有 launchd 任务，钩子仍然够不到它。 ⚠️ **直接接到这个 CLI 的钩子，会在每个事件上重置阶段和 idle 时钟**——正是它要防止的洪水，而且更糟：**机器人永远无法安定，也无法入睡。**
 
-⛔ **客户端应该发送事件的名字和窗口的名字，而不是提示词。** 时间由守护进程在行到达时盖戳，所以客户端不带时钟，也不带状态。机器人需要知道回合开始了，而不是说了什么；**需要窗口的名字，只是因为窗口共享一个身体。** **用结构守住隐私，而不是用方针。** ⚠️ **启动与停止的设计是 `docs/stackchan-daemon.md`**——**循环和套接字已经建好；launchd 任务和钩子客户端还没有。**
+✅ **而同一天，客户端也有了**——`projects/stackchan/hook/` 从标准输入读一个事件，发送一行，**什么都不打印，无论发生什么都以 0 退出。** ⛔ **它没有注册进 `settings.json`**：还没有东西调用它。
+
+✅ **客户端发送的是事件的名字和窗口的名字，而不是提示词。** 时间由守护进程在行到达时盖戳，所以客户端不带时钟，也不带状态。机器人需要知道回合开始了，而不是说了什么；**需要窗口的名字，只是因为窗口共享一个身体。** **用结构守住隐私，而不是用方针。** ⚠️ **启动与停止的设计是 `docs/stackchan-daemon.md`**——**循环、套接字和客户端已经建好；launchd 任务和 `settings.json` 里的注册还没有。**
 
 ⚠️ **通往机体的路也缺:** 屏幕的渲染器、LED 的驱动、声音、串行电线。**这一层的输出是 `Decision`；除了终端和守护进程的日志没有消费者。**
 
@@ -150,11 +153,13 @@ python3 -m projects.stackchan.daemon --socket /tmp/ekl.sock   # 监听；Ctrl-C 
 - **循环等待套接字或下一个期限**——`min(hold_until, idle_until, quiet_until)`——醒来时发出 `settled` 或 `slept`。**没有固定的刻。**
 - **`SIGTERM` 让它停止**，unlink 套接字并以 0 退出。**不对机体发送任何东西**——因为还没有机体。
 
-⛔ **没有安装。** 没有 launchd 任务，也没有钩子客户端；那份设计的记录是 `docs/stackchan-daemon.md`。
+**客户端**是 `projects/stackchan/hook/`——一个事件一个进程。它读标准输入（上限 1 MiB），**只重建两个栏位**，发送，**不读回信就关闭。** **守护进程不在，不是钩子的失败: 以 0 退出，保持沉默。** 重建在 `client.line_from` 里，是纯函数，不用进程就能检查。
+
+⛔ **没有安装。** 没有 launchd 任务，也没有 `settings.json` 里的注册；那份设计的记录是 `docs/stackchan-daemon.md`。
 
 ## 检查了什么
 
-**`tests/test_stackchan_behaviors.py` 有三十四条主张，`tests/test_stackchan_daemon.py` 有二十四条**，它们与其余检查一起运行:
+**`tests/test_stackchan_behaviors.py` 有三十四条主张，`tests/test_stackchan_daemon.py` 有二十四条，`tests/test_stackchan_hook_client.py` 有十九条**，它们与其余检查一起运行:
 
 - 列表是三十三个，没有重复；每个事件恰好属于三种类型之一，三种类型分割整个列表。
 - 每个事件都带理由代码——**没有空白。**
@@ -190,6 +195,16 @@ python3 -m projects.stackchan.daemon --socket /tmp/ekl.sock   # 监听；Ctrl-C 
 - 干净的退出会删除套接字。
 - 下一次醒来先是表情，然后是 idle 时钟；`blocked` 和 `resting` 没有期限。
 
+**客户端再加十九条:**
+
+- 一份完整的钩子输入只产出一行 `session` 与 `event`——**提示词、cwd 和工具输入都不在其中。**
+- 缺少两个栏位的输入被丢弃，未知事件在到达套接字之前被丢弃。
+- 那一行能用守护进程自己的模式读出，并且不超过守护进程的上限。
+- **套接字路径只有一种拼写**，两个入口都用它。
+- 真实的输入到达房间，而其中的提示词不在守护进程的日志里。
+- 没有守护进程、读不出的输入、过长的输入，都是沉默地以 0 退出。
+- **客户端不等待回信**——永不作答的对方也不会让它迟延。
+
 ⚠️ **这些主张中没有一条是关于机体的。** 一次绿色的运行说的是，**这一层按它被告知的方式计算了**——与 `CLAUDE.md` 对五项检查要求的同一句话。
 
 ## 这里没有的东西
@@ -199,5 +214,5 @@ python3 -m projects.stackchan.daemon --socket /tmp/ekl.sock   # 监听；Ctrl-C 
 - **没有 LED 驱动，也没有屏幕渲染器。** 光是意义；没有东西把它变成像素。
 - **没有声音。** `--sound on` 指出的是一条不存在的通道，而这一台的扬声器从未被验证。
 - **没有头部触摸输入。** 传感器在这一台上有效（2026-10-18 在 AI.AGENT 中观察），但那是机体的输入，固件必须去读它。**钩子不是头。**
-- **没有钩子客户端，也没有 launchd 任务。** 守护进程在套接字上监听；现在还没有东西向它发送，登录时也没有东西启动它。
+- **没有钩子注册，也没有 launchd 任务。** 客户端存在，但没有什么调用它——`settings.json` 没有被碰过——登录时也没有东西启动守护进程。
 - **没有记录。** `projects/` 放的是工作；记录的容器仍然空着，而这一层从未观察过机体。

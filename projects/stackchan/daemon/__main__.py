@@ -30,6 +30,7 @@ from .room import (
     parse_request,
     refusal,
     row,
+    socket_path,
 )
 
 #: ⚠️ **別のデーモンが生きている。** 2つ目のプロセスは、機体に一言も告げずに終わる。
@@ -40,10 +41,8 @@ RECV = 1024
 
 
 def default_socket() -> str:
-    """⚠️ **短いパスである。** macOS の `sun_path` は104バイトであり、
-    `/var/folders/…` の下の `$TMPDIR` は、長いユーザー名でそこへ届く。
-    """
-    return f"/tmp/ekl-stackchan-{os.getuid()}.sock"
+    """**綴りは `room.socket_path` に1つだけ在る。** ⚠️ ここは uid を渡すだけである。"""
+    return socket_path(os.getuid())
 
 
 def probe(path: str) -> bool:

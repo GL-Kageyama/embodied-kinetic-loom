@@ -1,14 +1,14 @@
-<!-- i18n-version: 1.2.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.3.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
 # Stack-chan 的守护进程 — 启动与停止
 
-✅ **循环和套接字已经建好——2026-10-18。** `projects/stackchan/daemon/` 持有纯核心（`room.py`）和边缘（`__main__.py`），`tests/test_stackchan_daemon.py` 对它们持有二十四条主张。⛔ **没有任何东西被安装**：存在的是进程，不存在的是启动它的东西和呼唤它的东西。这一页仍然是安装的设计，下面的生命周期仍然是一张清单。
+✅ **循环、套接字和客户端都已经建好——2026-10-18。** `projects/stackchan/daemon/` 持有纯核心（`room.py`）和边缘（`__main__.py`），`projects/stackchan/hook/` 持有钩子会运行的客户端，`tests/test_stackchan_daemon.py` 对前者持有二十四条主张，`tests/test_stackchan_hook_client.py` 对后者持有十九条。⛔ **没有任何东西被安装**：存在的是两个进程，不存在的是启动守护进程的东西和注册客户端的东西。这一页仍然是安装的设计，下面的生命周期仍然是一张清单。
 
 ⚠️ **它是为了什么。** Claude Code 的钩子是一个事件一个进程，而 `Focus` 与 `Companion` 是一个必须在事件之间存活的物体。守护进程就是那个物体，加上一个时钟和一个套接字。它是链条的中段——**钩子 → 守护进程 → 电线 → 固件**——也正是它，让机器人属于房间，而不是属于一个开着的终端。
 
-⛔ **这里没有任何东西被安装。** 没有 launchd 作业、没有 plist、没有钩子。`tools/check_i18n.py` 只看三份副本是否一致，不看设计；**进程由 `tests/test_stackchan_daemon.py` 看着。**
+⛔ **这里没有任何东西被安装。** 没有 launchd 作业、没有 plist，也没有任何东西从 `settings.json` 调用客户端。`tools/check_i18n.py` 只看三份副本是否一致，不看设计；**两个进程由 `tests/test_stackchan_daemon.py` 和 `tests/test_stackchan_hook_client.py` 看着。**
 
 ## 为什么状态住在主机上
 
@@ -82,6 +82,8 @@
 
 ⚠️ **代价要点名:** 如果 `SessionStart` 时守护进程不在，就没有问候，机器人显示 `present` 直到下一次迁移。如果 `SessionEnd` 时它不在，机器人就靠待机定时器入睡。两者都能在痕迹里看见，两者都不是错误。
 
+✅ **客户端本身现在有了**——`projects/stackchan/hook/`，一个事件一个进程。它读标准输入（上限 1 MiB），**只重建 `session` 与 `event`**，所以提示词无法搭车，发送那一行，**不读回信**，什么也不打印，无论什么失败都以 0 退出。**守护进程不在，不是钩子的失败。** 它没有的是调用者：`settings.json` 里没有任何东西调用它。
+
 ## 等待的循环
 
 ⚠️ **不轮询。** 守护进程在监听器上等待，超时等于下一个期限——`min(hold_until, idle_until, quiet_until)`——并在 `settled` 或 `slept` 决定该发出的那一刻醒来发出它。**这没有发明任何间隔**: 层里不添任何 tick 常量。
@@ -126,7 +128,7 @@
 
 ## 什么会响，什么不会
 
-✅ **这一页的一部分会响。** 纯的部分在没有套接字的情况下被检查——请求的模式、未知键的拒绝、以及给定 `(session, event, at)` 的决定——而套接字作为一个真实的进程被检查: 它作答、拒绝、把返回的行写进日志，并在 `SIGTERM` 时干净地退出。**二十四条主张都在 `tests/test_stackchan_daemon.py` 里。**
+✅ **这一页的一部分会响。** 纯的部分在没有套接字的情况下被检查——请求的模式、未知键的拒绝、以及给定 `(session, event, at)` 的决定——而套接字作为一个真实的进程被检查: 它作答、拒绝、把返回的行写进日志，并在 `SIGTERM` 时干净地退出。**二十四条主张都在 `tests/test_stackchan_daemon.py` 里。** ✅ **另有十九条守住客户端**——输入里的提示词、cwd 与工具输入到不了那一行，未知事件在套接字之前被丢弃，路径只有一种拼写，而永不回应的对方也不会让它迟延——**在 `tests/test_stackchan_hook_client.py` 里。**
 
 ⛔ **没有被检查的是安装。** launchd 的 `RunAtLoad` 与 `KeepAlive`、登录与登出、plist，以及重启后出现的陈旧套接字。**那部分仍然是一张清单**，因为那是操作系统的行为，不是一个函数。`tools/check_i18n.py` 仍然只确认三份副本一致。
 

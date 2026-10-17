@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.3.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.4.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -126,6 +126,7 @@ python3 -m projects.stackchan --sound on --event SessionStart@0
 python3 -m projects.stackchan --json --event PostToolUseFailure@0
 python3 -m projects.stackchan --event left:SessionStart@0 --event right:PermissionRequest@2
 python3 -m projects.stackchan.daemon --socket /tmp/ekl.sock   # listen; Ctrl-C or SIGTERM stops it
+echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m projects.stackchan.hook --socket /tmp/ekl.sock
 ```
 
 ⚠️ **A window is written `window:EVENT@seconds`; a window left unwritten is `main`, so a one-window script reads as it did before.** ⚠️ **Times are supplied in the script, not read from a clock.** The script must not run backwards; a script that does is refused. That is what makes a run reproducible — and it is why the CLI is not the thing a hook calls (see below). ⚠️ **The trace shows the light and the body on every line, and the face drawing whenever a face changes**, so a refused gesture is still readable as a reaction.
@@ -134,9 +135,11 @@ python3 -m projects.stackchan.daemon --socket /tmp/ekl.sock   # listen; Ctrl-C o
 
 ⛔ **A Claude Code hook is one process per event. `Companion` is one object that keeps the phase, the timers and the cooldown between events.** Nothing here carries that state across processes.
 
-⇒ **A long-lived process now exists** — `projects/stackchan/daemon/`, which holds the clock, the companion and the socket. **Its core (`room.py`) reads no clock and opens no socket; its edge (`__main__.py`) holds both alone.** ⛔ **It is not installed**: there is no launchd job and no hook client, so a hook still cannot reach it. ⚠️ **A hook wired straight to this CLI would reset the phase and the idle clock on every event** — the flood it is meant to prevent, and worse: the robot would never settle or sleep.
+⇒ **A long-lived process now exists** — `projects/stackchan/daemon/`, which holds the clock, the companion and the socket. **Its core (`room.py`) reads no clock and opens no socket; its edge (`__main__.py`) holds both alone.** ⛔ **It is not installed**: no launchd job starts it and the client is not registered, so a hook still cannot reach it. ⚠️ **A hook wired straight to this CLI would reset the phase and the idle clock on every event** — the flood it is meant to prevent, and worse: the robot would never settle or sleep.
 
-⛔ **The client should send the event name and the window's name — and not the prompt.** The daemon stamps the time when the line arrives, so the client carries no clock and no state. The robot needs to know that a turn began, not what was said; it needs the window's name only because windows share one body. **Privacy by construction, not by policy.** ⚠️ **The start-and-stop design is `docs/stackchan-daemon.md`** — **the loop and the socket are built; the launchd job and the hook client are not.**
+✅ **And since the same day, the client exists** — `projects/stackchan/hook/` reads one event from standard input, sends one line, **prints nothing and exits 0 whatever happens.** ⛔ **It is not registered in `settings.json`**: nothing calls it yet.
+
+✅ **The client sends the event name and the window's name — and not the prompt.** The daemon stamps the time when the line arrives, so the client carries no clock and no state. The robot needs to know that a turn began, not what was said; it needs the window's name only because windows share one body. **Privacy by construction, not by policy.** ⚠️ **The start-and-stop design is `docs/stackchan-daemon.md`** — **the loop, the socket and the client are built; the launchd job and the registration in `settings.json` are not.**
 
 ⚠️ **And the device path is missing too:** a renderer for the display, a driver for the LEDs, a sound, and the serial wire. **This layer's output is a `Decision`; nothing consumes it but the terminal and the daemon's log.**
 
@@ -150,11 +153,13 @@ python3 -m projects.stackchan.daemon --socket /tmp/ekl.sock   # listen; Ctrl-C o
 - **The loop waits on the socket or on the next deadline** — `min(hold_until, idle_until, quiet_until)` — and wakes to emit `settled` or `slept`. **No fixed tick.**
 - **`SIGTERM` stops it**, unlinks the socket and exits 0. **Nothing is sent to a device**, because there is still no device.
 
+**The client** is `projects/stackchan/hook/` — one process per event. It reads standard input (bounded at 1 MiB), **rebuilds exactly two fields**, sends, and closes without reading a reply. **A missing daemon is not a hook failure: exit 0, silent.** The rebuilding is `client.line_from`, which is pure and tested without a process.
+
 ⛔ **Not installed.** No launchd job and no hook client; the record of that design is `docs/stackchan-daemon.md`.
 
 ## What is checked
 
-**`tests/test_stackchan_behaviors.py` holds thirty-four claims and `tests/test_stackchan_daemon.py` holds twenty-four**, and they run with the rest of the suite:
+**`tests/test_stackchan_behaviors.py` holds thirty-four claims, `tests/test_stackchan_daemon.py` holds twenty-four, and `tests/test_stackchan_hook_client.py` holds nineteen**, and they run with the rest of the suite:
 
 - the list is 33 and none is repeated; every event has exactly one of three kinds, and the kinds partition it;
 - every event carries a reason code — **there is no blank**;
@@ -190,6 +195,16 @@ python3 -m projects.stackchan.daemon --socket /tmp/ekl.sock   # listen; Ctrl-C o
 - a clean exit removes the socket;
 - the next wake is the expression first, then the idle clock, and `blocked` and `resting` have no deadline.
 
+**The client adds nineteen more:**
+
+- a full hook payload yields a line with exactly `session` and `event` — **the prompt, the cwd and the tool input are not in it**;
+- a payload without the two fields is dropped, and an unknown event is dropped before it reaches the socket;
+- the line parses against the daemon's own schema, and fits the daemon's bound;
+- **the socket path is spelled once**, and both entry points use it;
+- a real payload reaches the room, and its prompt is absent from the daemon's log;
+- no daemon, malformed input and an over-long input are each silent, with exit 0;
+- **the client does not wait for a reply** — a listener that never answers does not delay it.
+
 ⚠️ **Not one of these claims is about the machine.** A green run says the layer computes what it was told to compute — **the same sentence `CLAUDE.md` requires for the five checks.**
 
 ## What is not here
@@ -199,5 +214,5 @@ python3 -m projects.stackchan.daemon --socket /tmp/ekl.sock   # listen; Ctrl-C o
 - **No LED driver and no display renderer.** The light is a meaning; nothing turns it into pixels.
 - **No sound.** `--sound on` names a channel that does not exist, and the speaker has never been verified on this unit.
 - **No head-touch input.** The sensor works on this unit (observed in AI.AGENT, 2026-10-18), but it is machine input, and a firmware would have to read it. **A hook is not a head.**
-- **No hook client and no launchd job.** The daemon listens on a socket; nothing sends to it yet, and nothing starts it at login.
+- **No hook registration and no launchd job.** The client exists, but nothing calls it — `settings.json` is untouched — and nothing starts the daemon at login.
 - **No record.** `projects/` holds work; the record vessel is still empty, and this layer has never observed a machine.

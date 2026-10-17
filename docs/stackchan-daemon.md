@@ -1,14 +1,14 @@
-<!-- i18n-version: 1.2.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.3.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
 # The Stack-chan daemon — start and stop
 
-✅ **The loop and the socket are built — 2026-10-18.** `projects/stackchan/daemon/` holds a pure core (`room.py`) and the edge (`__main__.py`), and `tests/test_stackchan_daemon.py` holds twenty-four claims about them. ⛔ **Nothing is installed**: what exists is the process; what does not is anything that starts it or calls it. This page remains the design for the installation, and the lifecycle below remains a checklist.
+✅ **The loop, the socket and the client are built — 2026-10-18.** `projects/stackchan/daemon/` holds a pure core (`room.py`) and the edge (`__main__.py`), `projects/stackchan/hook/` holds the client a hook would run, and `tests/test_stackchan_daemon.py` holds twenty-four claims about the first while `tests/test_stackchan_hook_client.py` holds nineteen about the second. ⛔ **Nothing is installed**: what exists are the two processes; what does not is anything that starts the daemon or registers the client. This page remains the design for the installation, and the lifecycle below remains a checklist.
 
 ⚠️ **What it is for.** A Claude Code hook is one process per event; `Focus` and `Companion` are one object that must live between events. The daemon is that object, plus a clock, plus a socket. It is the middle of the chain — **hooks → daemon → wire → firmware** — and it is the piece that makes the robot belong to the room rather than to a terminal that is open.
 
-⛔ **Nothing here is installed.** No launchd job, no plist, no hook. `tools/check_i18n.py` checks the mirrors, not the design; **the process is checked in `tests/test_stackchan_daemon.py`.**
+⛔ **Nothing here is installed.** No launchd job, no plist, and nothing in `settings.json` calls the client. `tools/check_i18n.py` checks the mirrors, not the design; **the two processes are checked in `tests/test_stackchan_daemon.py` and `tests/test_stackchan_hook_client.py`.**
 
 ## Why the state lives on the host
 
@@ -82,6 +82,8 @@
 
 ⚠️ **The cost, named:** if the daemon is down at `SessionStart`, there is no greeting, and the robot shows `present` until the next transition. If it is down at `SessionEnd`, the robot sleeps on the idle timer instead. Both are visible in the trace, and neither is an error.
 
+✅ **The client itself now exists** — `projects/stackchan/hook/`, one process per event. It reads standard input (bounded at 1 MiB), rebuilds exactly `session` and `event` so the prompt cannot ride along, sends the line, **does not read the reply**, prints nothing and exits 0 on every failure. **A missing daemon is not a hook failure.** What it does not have is a caller: nothing in `settings.json` invokes it.
+
 ## The wait loop
 
 ⚠️ **No polling.** The daemon waits on the listener with a timeout equal to the next deadline — `min(hold_until, idle_until, quiet_until)` — and wakes to emit the `settled` or `slept` decision exactly when it is due. **This invents no interval**: no tick constant is added to the layer.
@@ -126,7 +128,7 @@
 
 ## What rings, and what does not
 
-✅ **Part of this page rings.** The pure parts are checked with no socket at all — the request schema, the refusal of an unknown key, and the decision for a given `(session, event, at)` — and the socket is checked as a real process: it answers, refuses, logs the row it returned, and exits cleanly on `SIGTERM`. **All twenty-four claims are in `tests/test_stackchan_daemon.py`.**
+✅ **Part of this page rings.** The pure parts are checked with no socket at all — the request schema, the refusal of an unknown key, and the decision for a given `(session, event, at)` — and the socket is checked as a real process: it answers, refuses, logs the row it returned, and exits cleanly on `SIGTERM`. **All twenty-four claims are in `tests/test_stackchan_daemon.py`.** ✅ **Nineteen more hold the client** — that a payload's prompt, cwd and tool input never reach the line, that an unknown event is dropped before the socket, that the path is spelled once, and that a listener which never answers does not delay it — **in `tests/test_stackchan_hook_client.py`.**
 
 ⛔ **What is not checked is the installation.** launchd's `RunAtLoad` and `KeepAlive`, login and logout, the plist, and the stale socket as it appears after a reboot. **That part stays a checklist**, because it is the operating system's behavior and not a function. `tools/check_i18n.py` still only confirms that the three mirrors agree.
 

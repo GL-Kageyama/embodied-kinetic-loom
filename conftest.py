@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 """リポジトリ直下の `conftest`。
 
-⚠️ **これがやっているのは2つである。**
+⚠️ **これがやっているのは3つである。**
 
 1. **`tests/` からリポジトリの根を `import` できるようにする。**
    pytest は `rootdir` を `sys.path` に入れないので、`tests/` の外に置いたモジュール
    （`tools/` など）は、これが無いと `import` できない。
 2. **`FakeClock` を1つだけ置く。** ⚠️ **`test_cycle.py` と `test_backend.py` が
    同じ時計を要る**——**2つ書けば、片方だけが直る。**
+3. **`sock` フィクスチャを1つだけ置く。** ⚠️ **`test_stackchan_daemon.py` と
+   `test_stackchan_hook_client.py` が同じ短いパスを要る**——**同じ理由である。**
 
 ⚠️ **`FakeClock` は何も検査しない。** **検査は、これを使う側に在る。**
 ⚠️ **このファイルは `time` を import しない**（`engine/` の純粋性とは別の話である——
@@ -15,8 +17,12 @@
 """
 from __future__ import annotations
 
+import shutil
 import sys
+import tempfile
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parent
 
@@ -53,4 +59,19 @@ class FakeClock:
     def advance(self, seconds: float) -> None:
         """⚠️ **ループの外から時間を進める**（「`body` が長くかかった」を作るため）。"""
         self.t += seconds
+
+
+@pytest.fixture
+def sock():
+    """**デーモンのソケットを、短いパスに置く。**
+
+    ⛔ **`tmp_path` では長すぎる**——macOS の `sun_path` は104バイトであり、
+    pytest の一時ディレクトリはそこへ届く。**この制約は、設計が `/tmp` を選んだ
+    理由そのものである**（`projects/stackchan/daemon/room.py` の `socket_path`）。
+    """
+    directory = tempfile.mkdtemp(prefix="ekl-daemon-", dir="/tmp")
+    try:
+        yield Path(directory) / "room.sock"
+    finally:
+        shutil.rmtree(directory, ignore_errors=True)
 

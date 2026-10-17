@@ -12,12 +12,10 @@ from __future__ import annotations
 
 import json
 import pathlib
-import shutil
 import signal
 import socket
 import subprocess
 import sys
-import tempfile
 import time
 
 import pytest
@@ -162,19 +160,6 @@ def test_a_refusal_is_not_a_decision():
 # ---------------------------------------------------------------------------
 # 縁。⚠️ 本物のソケットを開き、プロセスを1つ起こす。
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def sock():
-    """**短いパスに置く。** ⛔ **`tmp_path` では長すぎる**——
-    macOS の `sun_path` は104バイトであり、pytest の一時ディレクトリはそこへ届く。
-    ⚠️ **この制約は、設計が `/tmp` を選んだ理由そのものである。**
-    """
-    directory = tempfile.mkdtemp(prefix="ekl-daemon-", dir="/tmp")
-    try:
-        yield pathlib.Path(directory) / "room.sock"
-    finally:
-        shutil.rmtree(directory, ignore_errors=True)
 
 
 class Daemon:
