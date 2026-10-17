@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.12.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.13.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -232,7 +232,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | **one daemon carries the phase across two separate hook processes** | `test_stackchan_hook_client.py` | ⛔ **this is why the bridge exists** — `Companion` holds state, and a hook does not |
 | **two windows through two clients keep one gaze, and a background `Stop` is `distant`** | `test_stackchan_hook_client.py` | the focus rule, asserted across processes rather than inside one |
 
-⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **And the layer is still not registered as a hook:** a hook is one process per event, while the phase, the timers and the gaze live inside one process. **Both ends of that bridge now exist** — the process that holds the state (`projects/stackchan/daemon/`) and the client that feeds it (`projects/stackchan/hook/`) — **but nothing starts the first at login and nothing calls the second.** This directory tests the two processes, not the installation.
+⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **And the layer is still not registered as a hook:** a hook is one process per event, while the phase, the timers and the gaze live inside one process. **Both ends of that bridge exist, and since 2026-10-18 both are installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client — **but this directory tests the two processes, not the installation.** ⛔ **Nothing here rings on the launchd job or on `settings.json`:** an installation is a place on one host, and it is recorded on `docs/stackchan-daemon.md`, not checked.
 
 ## The rule that holds this directory — applied to us
 

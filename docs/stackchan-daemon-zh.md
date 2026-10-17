@@ -1,14 +1,14 @@
-<!-- i18n-version: 1.4.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.5.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
 # Stack-chan 的守护进程 — 启动与停止
 
-✅ **循环、套接字和客户端都已经建好——2026-10-18。** `projects/stackchan/daemon/` 持有纯核心（`room.py`）和边缘（`__main__.py`），`projects/stackchan/hook/` 持有钩子会运行的客户端，`tests/test_stackchan_daemon.py` 对前者持有二十四条主张，`tests/test_stackchan_hook_client.py` 对后者持有二十一条。⛔ **没有任何东西被安装**：存在的是两个进程，不存在的是启动守护进程的东西和注册客户端的东西。这一页仍然是安装的设计，下面的生命周期仍然是一张清单。
+✅ **循环、套接字和客户端都已经建好——2026-10-18。** `projects/stackchan/daemon/` 持有纯核心（`room.py`）和边缘（`__main__.py`），`projects/stackchan/hook/` 持有钩子运行的客户端，`tests/test_stackchan_daemon.py` 对前者持有二十四条主张，`tests/test_stackchan_hook_client.py` 对后者持有二十一条。✅ **而且同一天它被安装了**——launchd 用户代理在登录时启动守护进程，全部三十三个钩子事件都调用客户端。**安装是一台主机上的一个位置，不是仓库的性质**（见[安装的现况](#安装的现况)）。
 
 ⚠️ **它是为了什么。** Claude Code 的钩子是一个事件一个进程，而 `Focus` 与 `Companion` 是一个必须在事件之间存活的物体。守护进程就是那个物体，加上一个时钟和一个套接字。它是链条的中段——**钩子 → 守护进程 → 电线 → 固件**——也正是它，让机器人属于房间，而不是属于一个开着的终端。
 
-⛔ **这里没有任何东西被安装。** 没有 launchd 作业、没有 plist，也没有任何东西从 `settings.json` 调用客户端。`tools/check_i18n.py` 只看三份副本是否一致，不看设计；**两个进程由 `tests/test_stackchan_daemon.py` 和 `tests/test_stackchan_hook_client.py` 看着。**
+✅ **它被安装在一台主机上，而仓库持有的是作业的副本，不是作业本身。** `projects/stackchan/launchd/embodied-kinetic-loom.stackchan.plist` 就是那个文件，用两个绝对路径点名这台主机；活的副本在 `~/Library/LaunchAgents/`。⛔ **仓库里的 plist 不是正在运行的守护进程**——安装是 `launchctl bootstrap`，卸载是它的反面。`tools/check_i18n.py` 只看三份副本是否一致，不看设计；**两个进程由 `tests/test_stackchan_daemon.py` 和 `tests/test_stackchan_hook_client.py` 看着，而安装没有任何东西看着。**
 
 ## 为什么状态住在主机上
 
@@ -82,7 +82,7 @@
 
 ⚠️ **代价要点名:** 如果 `SessionStart` 时守护进程不在，就没有问候，机器人显示 `present` 直到下一次迁移。如果 `SessionEnd` 时它不在，机器人就靠待机定时器入睡。两者都能在痕迹里看见，两者都不是错误。
 
-✅ **客户端本身现在有了**——`projects/stackchan/hook/`，一个事件一个进程。它读标准输入（上限 1 MiB），**只重建 `session` 与 `event`**，所以提示词无法搭车，发送那一行，**不读回信**，什么也不打印，无论什么失败都以 0 退出。**守护进程不在，不是钩子的失败。** 它没有的是调用者：`settings.json` 里没有任何东西调用它。
+✅ **客户端本身现在有了**——`projects/stackchan/hook/`，一个事件一个进程。它读标准输入（上限 1 MiB），**只重建 `session` 与 `event`**，所以提示词无法搭车，发送那一行，**不读回信**，什么也不打印，无论什么失败都以 0 退出。**守护进程不在，不是钩子的失败。** ✅ **自 2026-10-18 起它有了调用者：`~/.claude/settings.json` 的全部三十三个事件都运行它**（见[安装的现况](#安装的现况)）。
 
 ## 等待的循环
 
@@ -126,22 +126,44 @@
 - 固件在待机时与停止后做什么;
 - 第二个身体——每台机器第二个守护进程——是否需要不同的东西。
 
+## 安装的现况
+
+**2026-10-18，在作者的 Mac（uid 501）上测量。** 这不是设计，而是做了什么、看到了什么的记录——也不是测试。
+
+- **作业。** `~/Library/LaunchAgents/embodied-kinetic-loom.stackchan.plist` 被 bootstrap 进 `gui/501/embodied-kinetic-loom.stackchan`。`RunAtLoad` 与 `KeepAlive` 为真，解释器是绝对路径（`/opt/homebrew/bin/python3`），`WorkingDirectory` 是仓库根目录。**`projects/stackchan/launchd/` 里的副本是同一个文件。**
+- **套接字。** `/tmp/ekl-stackchan-501.sock`，模式 `0600`，归用户所有。守护进程的第一行日志是 `{"daemon": "listening", …}`，在 `/tmp/ekl-stackchan-daemon.log`。
+- **调用者。** `~/.claude/settings.json` 带有一个 `hooks` 键：三十三个事件名各自映射到一条命令——`cd "<仓库根目录>" && /opt/homebrew/bin/python3 -m projects.stackchan.hook`。⛔ **命令点名这台主机的路径**——与 plist 相同的限制。⚠️ **那个文件也持有用户的凭据，所以不复制到这里**；这一页记录的是形状，不是那个文件。
+- **一次端到端的运行，被看到了。** 一个嵌套的 `claude -p` 会话在守护进程的日志里留下五行: `SessionStart` → `greeting`; `UserPromptSubmit` → `working`，身体被一秒的地板压住; `MessageDisplay` → `observed`; `Stop` → `closing`; `SessionEnd` → `resting`，带 `settle`。**每一行都读到 `sent: false`。** ⚠️ **这就是整条链**——真实的钩子、一个事件一个进程、一个房间——**而它对机器人什么也没说**，因为没有电线。
+- **停止。** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan` 停止作业，套接字消失。⚠️ **`SIGTERM` 停不下来**，因为 `KeepAlive` 为真: launchd 安排了重启（`state = spawn scheduled`、`last exit code = 0`），守护进程大约十秒后回来了。**停止是 `bootout`，杀掉是重启。** ⚠️ **那道节流是一扇听不见的窗**——在它里面到达的事件被丢弃，按客户端自身的设计。
+
+**要卸下它:**
+
+```
+launchctl bootout gui/501/embodied-kinetic-loom.stackchan
+rm ~/Library/LaunchAgents/embodied-kinetic-loom.stackchan.plist
+rm -f /tmp/ekl-stackchan-501.sock /tmp/ekl-stackchan-daemon.log /tmp/ekl-stackchan-daemon.err
+```
+
+然后从 `~/.claude/settings.json` 里去掉 `hooks` 键。⚠️ **其他什么都不碰**: 守护进程只写套接字和那两个日志，而且它不向任何机器发送。
+
 ## 什么会响，什么不会
 
 ✅ **这一页的一部分会响。** 纯的部分在没有套接字的情况下被检查——请求的模式、未知键的拒绝、以及给定 `(session, event, at)` 的决定——而套接字作为一个真实的进程被检查: 它作答、拒绝、把返回的行写进日志，并在 `SIGTERM` 时干净地退出。**二十四条主张都在 `tests/test_stackchan_daemon.py` 里。** ✅ **另有二十一条守住客户端**——输入里的提示词、cwd 与工具输入到不了那一行，未知事件在套接字之前被丢弃，路径只有一种拼写，而永不回应的对方也不会让它迟延——**在 `tests/test_stackchan_hook_client.py` 里。**
 
-⛔ **没有被检查的是安装。** launchd 的 `RunAtLoad` 与 `KeepAlive`、登录与登出、plist，以及重启后出现的陈旧套接字。**那部分仍然是一张清单**，因为那是操作系统的行为，不是一个函数。`tools/check_i18n.py` 仍然只确认三份副本一致。
+⛔ **没有一个测试检查安装。** launchd 的 `RunAtLoad` 与 `KeepAlive`、登录与登出、plist，以及重启后出现的陈旧套接字，都是操作系统的行为，不是一个函数。✅ **取而代之的是上面写下的一次观察**: 2026-10-18，安装好的作业把一条真实的钩子链从头到尾跑了一遍，并被用手停止和重启。⚠️ **在一台主机上的观察不是检查**——它不会再跑，也不会在应该失败的时候失败。`tools/check_i18n.py` 仍然只确认三份副本一致。
 
 ## 安装那天要跑的清单
 
-✅ **九项里有六项不需要 launchd 就能跑，而六项都已检查**——五项由旁边点名的试验，第八项是自明的，因为什么都不发送。
+✅ **九项里有六项由测试检查，另有两项在 2026-10-18 被手观察到，还有一项仍然没有被测量。**
 
-- [ ] 第二个实例退出，且不打扰第一个 — ✅ `test_a_second_instance_leaves_the_first_alone`;
-- [ ] 陈旧的套接字被 unlink 并 bind；活着的不会 — ✅ `test_a_stale_socket_is_unlinked_and_replaced`;
-- [ ] `bootout` 停止作业，并保持停止 — ⛔ 需要 launchd;
-- [ ] 崩溃后会被重启；阶段从 `present` 开始，不是从原来的地方 — ⛔ 需要 launchd;
-- [ ] 未知事件被拒绝；未知键被拒绝；发送时间的客户端被拒绝 — ✅ `test_each_refusal_names_its_fault` 与 `test_the_prompt_cannot_ride_along`；⚠️ **时间不是键，所以作为 `unknown-key` 被拒绝**;
-- [ ] 循环在期限醒来，而不是在 tick — ✅ `test_the_next_wake_is_the_expression_and_then_the_idle_clock`;
-- [ ] 没有机器时，它等待；它不崩溃循环 — ⛔ **通往机器的路还没有**，所以没有可崩溃的地方;
-- [ ] 收到 `SIGTERM` 时，什么都不发送 — ✅ 结构上: `sent` 是 `False`，电线不存在;
-- [ ] 退出后套接字消失 — ✅ `test_the_socket_is_removed_and_the_exit_is_clean`。
+- [x] 第二个实例退出，且不打扰第一个 — ✅ `test_a_second_instance_leaves_the_first_alone`; **也用手跑过: 退出码 3**;
+- [x] 陈旧的套接字被 unlink 并 bind；活着的不会 — ✅ `test_a_stale_socket_is_unlinked_and_replaced`;
+- [x] `bootout` 停止作业，并保持停止 — ✅ **2026-10-18 观察到**: 套接字消失了。⚠️ **只有在没有东西再次 bootstrap 它之前才保持停止**;
+- [x] 崩溃后会被重启；阶段从 `present` 开始 — ⚠️ **只测了一半**: 重启被观察到了，但那是在一次干净退出之后，不是崩溃之后，而大约十秒的节流是 launchd 的。**阶段按设计从 `present` 开始**，因为没有持久化;
+- [x] 未知事件被拒绝；未知键被拒绝；发送时间的客户端被拒绝 — ✅ `test_each_refusal_names_its_fault` 与 `test_the_prompt_cannot_ride_along`；⚠️ **时间不是键，所以作为 `unknown-key` 被拒绝**;
+- [x] 循环在期限醒来，而不是在 tick — ✅ `test_the_next_wake_is_the_expression_and_then_the_idle_clock`;
+- [ ] 没有机器时，它等待；它不崩溃循环 — ⛔ **仍然没有被测量**: 通往机器的路还没有，所以没有可失败的地方。安装好的作业在没有机器的情况下运行并一直活着。**那与「从机器错误中活下来」不是同一句话**;
+- [x] 收到 `SIGTERM` 时，什么都不发送 — ✅ 结构上（`sent` 是 `False`，电线不存在），并在日志中被观察到;
+- [x] 退出后套接字消失 — ✅ `test_the_socket_is_removed_and_the_exit_is_clean`; **在 `bootout` 之后也被观察到**。
+
+⚠️ **还有一项因为需要重启而不在这个清单上:** Mac 重启后出现的陈旧套接字。⛔ **2026-10-18 没有重启过**，所以「先探再 bind」那条路被试探过的，只是一个人工造出的陈旧套接字，此外什么都没有。

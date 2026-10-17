@@ -1,14 +1,14 @@
-<!-- i18n-version: 1.4.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.5.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
 # The Stack-chan daemon — start and stop
 
-✅ **The loop, the socket and the client are built — 2026-10-18.** `projects/stackchan/daemon/` holds a pure core (`room.py`) and the edge (`__main__.py`), `projects/stackchan/hook/` holds the client a hook would run, and `tests/test_stackchan_daemon.py` holds twenty-four claims about the first while `tests/test_stackchan_hook_client.py` holds twenty-one about the second. ⛔ **Nothing is installed**: what exists are the two processes; what does not is anything that starts the daemon or registers the client. This page remains the design for the installation, and the lifecycle below remains a checklist.
+✅ **The loop, the socket and the client are built — 2026-10-18.** `projects/stackchan/daemon/` holds a pure core (`room.py`) and the edge (`__main__.py`), `projects/stackchan/hook/` holds the client a hook runs, and `tests/test_stackchan_daemon.py` holds twenty-four claims about the first while `tests/test_stackchan_hook_client.py` holds twenty-one about the second. ✅ **And since the same day it is installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client. **The installation is a place on one host, not a property of the repository** (see [The installation, as it stands](#the-installation-as-it-stands)).
 
 ⚠️ **What it is for.** A Claude Code hook is one process per event; `Focus` and `Companion` are one object that must live between events. The daemon is that object, plus a clock, plus a socket. It is the middle of the chain — **hooks → daemon → wire → firmware** — and it is the piece that makes the robot belong to the room rather than to a terminal that is open.
 
-⛔ **Nothing here is installed.** No launchd job, no plist, and nothing in `settings.json` calls the client. `tools/check_i18n.py` checks the mirrors, not the design; **the two processes are checked in `tests/test_stackchan_daemon.py` and `tests/test_stackchan_hook_client.py`.**
+✅ **It is installed on one host, and the repository holds a copy of the job, not the job itself.** `projects/stackchan/launchd/embodied-kinetic-loom.stackchan.plist` is the file, and it names this host in two absolute paths; the live copy is at `~/Library/LaunchAgents/`. ⛔ **A plist in this repository is not a running daemon** — installation is `launchctl bootstrap`, and uninstallation is the reverse. `tools/check_i18n.py` checks the mirrors, not the design; **the two processes are checked in `tests/test_stackchan_daemon.py` and `tests/test_stackchan_hook_client.py`, and nothing checks the installation.**
 
 ## Why the state lives on the host
 
@@ -82,7 +82,7 @@
 
 ⚠️ **The cost, named:** if the daemon is down at `SessionStart`, there is no greeting, and the robot shows `present` until the next transition. If it is down at `SessionEnd`, the robot sleeps on the idle timer instead. Both are visible in the trace, and neither is an error.
 
-✅ **The client itself now exists** — `projects/stackchan/hook/`, one process per event. It reads standard input (bounded at 1 MiB), rebuilds exactly `session` and `event` so the prompt cannot ride along, sends the line, **does not read the reply**, prints nothing and exits 0 on every failure. **A missing daemon is not a hook failure.** What it does not have is a caller: nothing in `settings.json` invokes it.
+✅ **The client itself now exists** — `projects/stackchan/hook/`, one process per event. It reads standard input (bounded at 1 MiB), rebuilds exactly `session` and `event` so the prompt cannot ride along, sends the line, **does not read the reply**, prints nothing and exits 0 on every failure. **A missing daemon is not a hook failure.** ✅ **Since 2026-10-18 it has a caller: every one of the thirty-three events in `~/.claude/settings.json` runs it** (see [The installation, as it stands](#the-installation-as-it-stands)).
 
 ## The wait loop
 
@@ -126,22 +126,44 @@
 - what the firmware does at idle and after a stop;
 - whether a second body — a second daemon per unit — needs anything different.
 
+## The installation, as it stands
+
+**Measured on 2026-10-18, on the author's Mac (uid 501).** This is a record of what was done and what was seen — not a design, and not a test.
+
+- **The job.** `~/Library/LaunchAgents/embodied-kinetic-loom.stackchan.plist`, bootstrapped into `gui/501/embodied-kinetic-loom.stackchan`. `RunAtLoad` and `KeepAlive` are true; the interpreter is absolute (`/opt/homebrew/bin/python3`) and `WorkingDirectory` is the repository root. **The copy in `projects/stackchan/launchd/` is the same file.**
+- **The socket.** `/tmp/ekl-stackchan-501.sock`, mode `0600`, owned by the user. The daemon's first log line is `{"daemon": "listening", …}` in `/tmp/ekl-stackchan-daemon.log`.
+- **The caller.** `~/.claude/settings.json` carries a `hooks` key: each of the thirty-three event names maps to one command — `cd "<repository root>" && /opt/homebrew/bin/python3 -m projects.stackchan.hook`. ⛔ **The command names this host's path**, the same limit as the plist. ⚠️ **That file also holds the user's credentials, so it is not copied here**; this page records the shape, not the file.
+- **One end-to-end run, observed.** A nested `claude -p` session produced five rows in the daemon's log: `SessionStart` → `greeting`; `UserPromptSubmit` → `working`, the body held by the one-second floor; `MessageDisplay` → `observed`; `Stop` → `closing`; `SessionEnd` → `resting` with `settle`. **Every row read `sent: false`.** ⚠️ **That is the whole chain — a real hook, a process per event, one room — and it says nothing about a robot**, because there is no wire.
+- **Stopping.** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan` stops the job and the socket disappears. ⚠️ **A `SIGTERM` does not**, because `KeepAlive` is true: launchd scheduled a restart (`state = spawn scheduled`, `last exit code = 0`) and the daemon was back about ten seconds later. **The stop is `bootout`; a kill is a restart.** ⚠️ **That throttle is a deaf window** — an event arriving inside it is dropped, by the client's own design.
+
+**To remove it:**
+
+```
+launchctl bootout gui/501/embodied-kinetic-loom.stackchan
+rm ~/Library/LaunchAgents/embodied-kinetic-loom.stackchan.plist
+rm -f /tmp/ekl-stackchan-501.sock /tmp/ekl-stackchan-daemon.log /tmp/ekl-stackchan-daemon.err
+```
+
+and remove the `hooks` key from `~/.claude/settings.json`. ⚠️ **Nothing else is touched**: the daemon writes only the socket and those two logs, and it sends nothing to a machine.
+
 ## What rings, and what does not
 
 ✅ **Part of this page rings.** The pure parts are checked with no socket at all — the request schema, the refusal of an unknown key, and the decision for a given `(session, event, at)` — and the socket is checked as a real process: it answers, refuses, logs the row it returned, and exits cleanly on `SIGTERM`. **All twenty-four claims are in `tests/test_stackchan_daemon.py`.** ✅ **Twenty-one more hold the client** — that a payload's prompt, cwd and tool input never reach the line, that an unknown event is dropped before the socket, that the path is spelled once, and that a listener which never answers does not delay it — **in `tests/test_stackchan_hook_client.py`.**
 
-⛔ **What is not checked is the installation.** launchd's `RunAtLoad` and `KeepAlive`, login and logout, the plist, and the stale socket as it appears after a reboot. **That part stays a checklist**, because it is the operating system's behavior and not a function. `tools/check_i18n.py` still only confirms that the three mirrors agree.
+⛔ **No test checks the installation.** launchd's `RunAtLoad` and `KeepAlive`, login and logout, the plist, and the stale socket as it appears after a reboot are the operating system's behavior, not a function. ✅ **What exists instead is one observation, written above**: on 2026-10-18 the installed job ran a real hook chain end to end and was stopped and restarted by hand. ⚠️ **An observation on one host is not a check** — it does not run again, and it does not fail when it should. `tools/check_i18n.py` still only confirms that the three mirrors agree.
 
 ## The checklist for the day it is installed
 
-✅ **Six of the nine can be run without launchd, and all six are checked** — five by the test named beside them, and the eighth trivially, because nothing is ever sent.
+✅ **Six of the nine are checked by tests; two more were observed by hand on 2026-10-18; one remains unmeasured.**
 
-- [ ] a second instance exits, and does not disturb the first — ✅ `test_a_second_instance_leaves_the_first_alone`;
-- [ ] a stale socket is unlinked and bound; a live one is not — ✅ `test_a_stale_socket_is_unlinked_and_replaced`;
-- [ ] `bootout` stops the job, and it stays stopped — ⛔ needs launchd;
-- [ ] a crash restarts it; the phase begins at `present`, not where it was — ⛔ needs launchd;
-- [ ] an unknown event is refused; an unknown key is refused; a client that sends a time is refused — ✅ `test_each_refusal_names_its_fault` and `test_the_prompt_cannot_ride_along`; ⚠️ **a time is not a key, so it is refused as `unknown-key`**;
-- [ ] the loop wakes at the deadline, not on a tick — ✅ `test_the_next_wake_is_the_expression_and_then_the_idle_clock`;
-- [ ] with no device, it waits; it does not crash-loop — ⛔ **there is no device path yet**, so there is nothing to crash on;
-- [ ] on `SIGTERM`, nothing is sent — ✅ by construction: `sent` is `False` and no wire exists;
-- [ ] the socket is gone after the exit — ✅ `test_the_socket_is_removed_and_the_exit_is_clean`.
+- [x] a second instance exits, and does not disturb the first — ✅ `test_a_second_instance_leaves_the_first_alone`; **also run by hand: exit 3**;
+- [x] a stale socket is unlinked and bound; a live one is not — ✅ `test_a_stale_socket_is_unlinked_and_replaced`;
+- [x] `bootout` stops the job, and it stays stopped — ✅ **observed 2026-10-18**: the socket was gone. ⚠️ **Stays stopped only until something bootstraps it again**;
+- [x] a crash restarts it; the phase begins at `present`, not where it was — ⚠️ **half-measured**: the restart was observed after a clean exit, not a crash, and the ~10 s throttle is launchd's. **The phase began at `present` as designed, because there is no persistence**;
+- [x] an unknown event is refused; an unknown key is refused; a client that sends a time is refused — ✅ `test_each_refusal_names_its_fault` and `test_the_prompt_cannot_ride_along`; ⚠️ **a time is not a key, so it is refused as `unknown-key`**;
+- [x] the loop wakes at the deadline, not on a tick — ✅ `test_the_next_wake_is_the_expression_and_then_the_idle_clock`;
+- [ ] with no device, it waits; it does not crash-loop — ⛔ **still unmeasured**: there is no device path yet, so there is nothing to fail on. The installed job has run with no device and stayed up, **which is not the same as having survived a device error**;
+- [x] on `SIGTERM`, nothing is sent — ✅ by construction (`sent` is `False`, no wire exists), and observed in the log;
+- [x] the socket is gone after the exit — ✅ `test_the_socket_is_removed_and_the_exit_is_clean`; **also observed after `bootout`**.
+
+⚠️ **And one that is not on the list because it needs a reboot:** the stale socket as it appears after the Mac restarts. ⛔ **No reboot was done on 2026-10-18**, so the probe-then-bind path has been tested against a hand-made stale socket and against nothing else.

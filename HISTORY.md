@@ -5,6 +5,35 @@
 
 ---
 
+## 0.18.5 — 2026-10-18 フックが部屋へ届いた——**そして、機体へは届かない**
+
+### 著者の指示（逐語）
+
+> 実際に設置する
+
+⚠️ **版の番号について。** ⛔ **0.19.0 は「2台目の電線」であり、この版はその段ではない**——**電線は1本も増えていない。** 増えたのは、**今まで存在しなかった「呼ぶ側」と「起動する側」である。**
+
+### ✅ 着地したもの——設置
+
+- **launchd のユーザーエージェント。** `~/Library/LaunchAgents/embodied-kinetic-loom.stackchan.plist` を `gui/501/embodied-kinetic-loom.stackchan` に bootstrap した。`RunAtLoad` と `KeepAlive` は真、解釈系は絶対パス（`/opt/homebrew/bin/python3`）、`WorkingDirectory` はリポジトリのルート。**複製を `projects/stackchan/launchd/` に置いた**——⛔ **リポジトリの中の plist は、走っているデーモンではない。**
+- **`~/.claude/settings.json` への登録。** 33の事象すべてに、クライアントを呼ぶ1つのコマンドを書いた。⚠️ **そのファイルは認証情報も持つので、リポジトリには複製しない**——記録するのは形だけである（`docs/stackchan-daemon.md`）。
+- **ソケット。** `/tmp/ekl-stackchan-501.sock`、モード `0600`。デーモンの最初のログ行は `{"daemon": "listening", …}`。
+- ✅ **端から端までの1回、見た。** 入れ子の `claude -p` のセッションが、デーモンのログに5行を残した: `SessionStart` → `greeting`、`UserPromptSubmit` → `working`（体は1秒の床に押さえられた）、`MessageDisplay` → `observed`、`Stop` → `closing`、`SessionEnd` → `resting` で `settle`。**どの行も `sent: false`。** ⛔ **本物のフックが、本物のプロセスを1事象ずつ起こし、1つの部屋に届いた**——**そしてそれはロボットについて何も言わない。**
+- **止め方と、止まらないこと。** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan` でジョブは止まり、ソケットは消えた。⚠️ **`SIGTERM` では止まらない**——`KeepAlive` が再起動を予定し（`state = spawn scheduled`、`last exit code = 0`）、**およそ10秒後に戻った。** 手で2つ目のインスタンスを起こすと、終了コード 3 で黙って終わった。
+
+### ⛔ まだ無いもの
+
+**機体への電線。** `sent` はすべて `False` のままであり、**電線は 0.19.0 である。** ⚠️ **測れていないものも名指しする:** 異常終了からの再起動は起こしていない（観察したのは正常終了の後）。**再起動（Mac の）後に現れる古いソケットも未測定**である。**機体のエラーでクラッシュしないこと**は、機体への道が無いので、まだ試せない。⚠️ **設置そのものに検査は1つも無い**——観察が1つ在るだけで、それは二度と走らない。
+
+### 検査（実測 2026-10-18）
+
+- `python3 -m pytest tests/` — **360 passed / 25ファイル**
+- `tools/check_i18n.py` — **違反 0**（正典13／39ファイル）
+- `tools/check_vocabulary.py` — 自己検査 **16/16**、違反 0
+- `claude plugin validate --strict .` — 通過
+
+⚠️ **緑は設置について何も言わない。** 設置は1つのホストの上の場所であり、試験はそこを見ない。
+
 ## 0.18.4 — 2026-10-18 橋を、プロセスをまたいで検査した——**そして、まだ誰も呼ばない**
 
 ### 著者の指示（逐語）

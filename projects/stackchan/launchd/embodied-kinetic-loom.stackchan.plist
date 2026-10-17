@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- ⚠️ This file names this host. A launchd user agent belongs to one user and
+         cannot be carried to another machine as it is. Both paths are absolute,
+         because launchd does not inherit a working directory. -->
+    <key>Label</key>
+    <string>embodied-kinetic-loom.stackchan</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/python3</string>
+        <string>-m</string>
+        <string>projects.stackchan.daemon</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/user/AI創作工房/embodied-kinetic-loom</string>
+
+    <!-- It starts at login and comes back when it falls. ⛔ It sends nothing to a machine, because there is none. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- ⚠️ This is not a record. The rows flow here instead of a terminal, and not one
+         of them says whether anything moved. -->
+    <key>StandardOutPath</key>
+    <string>/tmp/ekl-stackchan-daemon.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/ekl-stackchan-daemon.err</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

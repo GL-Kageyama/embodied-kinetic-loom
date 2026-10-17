@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.5.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.6.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -16,7 +16,7 @@
 
 ✅ **它 import Pet 的 `State`，不是复制。** 五张表情只画过一次（决定 A，`projects/pet/expressions.py`）。第二套就是对同一个问题的第二个答案。
 
-⛔ **它没有连到机体。** 没有端口、没有电线、没有固件、没有记录。检查之外的消费者只有它自己的 CLI 和守护进程的日志。⚠️ **它也还没有连到 Claude Code**——`settings.json` 里没有任何东西调用它。**这个目录是层，不是安装。**
+⛔ **它没有连到机体。** 没有端口、没有电线、没有固件、没有记录。检查之外的消费者只有它自己的 CLI 和守护进程的日志。⚠️ **它在 2026-10-18 之前也没有连到 Claude Code。** ✅ **自那以后就连上了**——`~/.claude/settings.json` 的全部三十三个事件都运行 `projects/stackchan/hook/`，而 launchd 用户代理在登录时启动守护进程。⛔ **这个目录是层，不是安装**：这里的 plist 是副本，记录在 `docs/stackchan-daemon.md`。
 
 ## 六个阶段
 
@@ -135,11 +135,11 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ⛔ **Claude Code 的钩子是一个事件一个进程。`Companion` 是一个在事件之间保持阶段、期限和 cooldown 的对象。** 这里没有任何东西把那个状态跨进程携带。
 
-⇒ **一个长命进程现在有了**——`projects/stackchan/daemon/`，它拥有时钟、companion 和套接字。**核心（`room.py`）不读时钟、不读套接字，边缘（`__main__.py`）独自持有这两者。** ⛔ **它没有被安装**：没有 launchd 任务，钩子仍然够不到它。 ⚠️ **直接接到这个 CLI 的钩子，会在每个事件上重置阶段和 idle 时钟**——正是它要防止的洪水，而且更糟：**机器人永远无法安定，也无法入睡。**
+⇒ **一个长命进程现在有了**——`projects/stackchan/daemon/`，它拥有时钟、companion 和套接字。**核心（`room.py`）不读时钟、不读套接字，边缘（`__main__.py`）独自持有这两者。** ✅ **它被安装了**：launchd 用户代理在登录时启动它，而全部三十三个钩子事件都经由客户端到达它。 ⚠️ **直接接到这个 CLI 的钩子，会在每个事件上重置阶段和 idle 时钟**——正是它要防止的洪水，而且更糟：**机器人永远无法安定，也无法入睡。**
 
-✅ **而同一天，客户端也有了**——`projects/stackchan/hook/` 从标准输入读一个事件，发送一行，**什么都不打印，无论发生什么都以 0 退出。** ⛔ **它没有注册进 `settings.json`**：还没有东西调用它。
+✅ **而同一天，客户端也有了**——`projects/stackchan/hook/` 从标准输入读一个事件，发送一行，**什么都不打印，无论发生什么都以 0 退出。** ✅ **它在 `settings.json` 里注册于全部三十三个事件。**
 
-✅ **客户端发送的是事件的名字和窗口的名字，而不是提示词。** 时间由守护进程在行到达时盖戳，所以客户端不带时钟，也不带状态。机器人需要知道回合开始了，而不是说了什么；**需要窗口的名字，只是因为窗口共享一个身体。** **用结构守住隐私，而不是用方针。** ⚠️ **启动与停止的设计是 `docs/stackchan-daemon.md`**——**循环、套接字和客户端已经建好；launchd 任务和 `settings.json` 里的注册还没有。**
+✅ **客户端发送的是事件的名字和窗口的名字，而不是提示词。** 时间由守护进程在行到达时盖戳，所以客户端不带时钟，也不带状态。机器人需要知道回合开始了，而不是说了什么；**需要窗口的名字，只是因为窗口共享一个身体。** **用结构守住隐私，而不是用方针。** ⚠️ **启动与停止的设计是 `docs/stackchan-daemon.md`**——**循环、套接字、客户端、launchd 任务和 `settings.json` 里的注册，都已经建好，并安装在这台主机上。**
 
 ⚠️ **通往机体的路也缺:** 屏幕的渲染器、LED 的驱动、声音、串行电线。**这一层的输出是 `Decision`；除了终端和守护进程的日志没有消费者。**
 
@@ -155,7 +155,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 **客户端**是 `projects/stackchan/hook/`——一个事件一个进程。它读标准输入（上限 1 MiB），**只重建两个栏位**，发送，**不读回信就关闭。** **守护进程不在，不是钩子的失败: 以 0 退出，保持沉默。** 重建在 `client.line_from` 里，是纯函数，不用进程就能检查。
 
-⛔ **没有安装。** 没有 launchd 任务，也没有 `settings.json` 里的注册；那份设计的记录是 `docs/stackchan-daemon.md`。
+✅ **2026-10-18 安装完成。** 任务是 `launchd/embodied-kinetic-loom.stackchan.plist`——`~/Library/LaunchAgents/` 里那一份的副本——而客户端注册在全部三十三个事件上。**记录、实测的行为和卸载路径都在 `docs/stackchan-daemon.md`。**
 
 ## 检查了什么
 
@@ -216,5 +216,5 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - **没有 LED 驱动，也没有屏幕渲染器。** 光是意义；没有东西把它变成像素。
 - **没有声音。** `--sound on` 指出的是一条不存在的通道，而这一台的扬声器从未被验证。
 - **没有头部触摸输入。** 传感器在这一台上有效（2026-10-18 在 AI.AGENT 中观察），但那是机体的输入，固件必须去读它。**钩子不是头。**
-- **没有钩子注册，也没有 launchd 任务。** 客户端存在，但没有什么调用它——`settings.json` 没有被碰过——登录时也没有东西启动守护进程。
+- **这个目录里没有活的安装。** 这里的 plist 是副本，而 `settings.json` 根本不在仓库里；两者都记录在 `docs/stackchan-daemon.md`。
 - **没有记录。** `projects/` 放的是工作；记录的容器仍然空着，而这一层从未观察过机体。

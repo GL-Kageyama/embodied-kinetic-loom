@@ -1,14 +1,14 @@
-<!-- i18n-version: 1.4.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.5.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
 # スタックチャンのデーモン — 起動と停止
 
-✅ **ループとソケットとクライアントは作られた——2026-10-18。** `projects/stackchan/daemon/` が純粋な中核（`room.py`）と縁（`__main__.py`）を持ち、`projects/stackchan/hook/` がフックの走らせるクライアントを持ち、`tests/test_stackchan_daemon.py` が前者について24の主張を、`tests/test_stackchan_hook_client.py` が後者について21の主張を持つ。⛔ **何も導入されていない**: 在るのは2つのプロセスであり、無いのは、デーモンを起動するものと、クライアントを登録するものである。この頁は導入のための設計のままであり、下のライフサイクルは手順表のままである。
+✅ **ループとソケットとクライアントは作られた——2026-10-18。** `projects/stackchan/daemon/` が純粋な中核（`room.py`）と縁（`__main__.py`）を持ち、`projects/stackchan/hook/` がフックの走らせるクライアントを持ち、`tests/test_stackchan_daemon.py` が前者について24の主張を、`tests/test_stackchan_hook_client.py` が後者について21の主張を持つ。✅ **そして同じ日に導入された**——launchd のユーザーエージェントがログイン時にデーモンを起動し、33のフック事象すべてがクライアントを呼ぶ。**導入は1つのホストの上の場所であり、リポジトリの性質ではない**（[導入の、いまの姿](#導入のいまの姿)を見よ）。
 
 ⚠️ **何のために在るか。** Claude Code のフックは1事象につき1プロセスであり、`Focus` と `Companion` は事象と事象のあいだ生き続けなければならない1つの物体である。デーモンはその物体に、時計とソケットを足したものである。それは連鎖の中段——**フック → デーモン → 電線 → ファームウェア**——であり、ロボットを「開いている端末のもの」ではなく「部屋のもの」にする部品である。
 
-⛔ **ここにあるものは何も導入されていない。** launchd のジョブも、plist も無く、`settings.json` からクライアントを呼ぶものも無い。`tools/check_i18n.py` は写しが一致するかを見るだけで、設計を見ない。**2つのプロセスは `tests/test_stackchan_daemon.py` と `tests/test_stackchan_hook_client.py` が見ている。**
+✅ **1つのホストに導入されており、リポジトリが持つのはジョブの複製であって、ジョブそのものではない。** `projects/stackchan/launchd/embodied-kinetic-loom.stackchan.plist` がそのファイルであり、2つの絶対パスでこのホストを名指ししている。生きている複製は `~/Library/LaunchAgents/` に在る。⛔ **リポジトリの中の plist は、走っているデーモンではない**——導入は `launchctl bootstrap` であり、外すのはその逆である。`tools/check_i18n.py` は写しが一致するかを見るだけで、設計を見ない。**2つのプロセスは `tests/test_stackchan_daemon.py` と `tests/test_stackchan_hook_client.py` が見ており、導入は何も見ていない。**
 
 ## なぜ状態がホストに住むか
 
@@ -82,7 +82,7 @@
 
 ⚠️ **代価を名指しする:** `SessionStart` のときにデーモンが落ちていれば挨拶は無く、ロボットは次の遷移まで `present` を示す。`SessionEnd` のときに落ちていれば、ロボットは待機のタイマーで眠る。どちらも痕跡に見え、どちらもエラーではない。
 
-✅ **クライアントそのものが、いま在る**——`projects/stackchan/hook/`、1事象につき1プロセス。標準入力を読み（上限 1 MiB）、**`session` と `event` だけを組み直す**のでプロンプトは同行できず、行を送り、**返事を読まず**、何も印字せず、どの失敗でも 0 で終わる。**デーモンの不在は、フックの失敗ではない。** 無いのは呼ぶ側である: `settings.json` からそれを呼ぶものは無い。
+✅ **クライアントそのものが、いま在る**——`projects/stackchan/hook/`、1事象につき1プロセス。標準入力を読み（上限 1 MiB）、**`session` と `event` だけを組み直す**のでプロンプトは同行できず、行を送り、**返事を読まず**、何も印字せず、どの失敗でも 0 で終わる。**デーモンの不在は、フックの失敗ではない。** ✅ **2026-10-18 から呼ぶ側が在る: `~/.claude/settings.json` の33の事象すべてがそれを走らせる**（[導入の、いまの姿](#導入のいまの姿)を見よ）。
 
 ## 待つループ
 
@@ -126,22 +126,44 @@
 - 待機時と停止後にファームウェアが何をするか;
 - 2つ目の体——機体ごとの2つ目のデーモン——が何か違うものを要するか。
 
+## 導入の、いまの姿
+
+**2026-10-18 に、作者の Mac（uid 501）で測られた。** これは設計ではなく、何をし、何を見たかの記録である——試験でもない。
+
+- **ジョブ。** `~/Library/LaunchAgents/embodied-kinetic-loom.stackchan.plist` を `gui/501/embodied-kinetic-loom.stackchan` に bootstrap した。`RunAtLoad` と `KeepAlive` は真、インタプリタは絶対パス（`/opt/homebrew/bin/python3`）、`WorkingDirectory` はリポジトリのルートである。**`projects/stackchan/launchd/` の複製は同じファイルである。**
+- **ソケット。** `/tmp/ekl-stackchan-501.sock`、モード `0600`、利用者の所有。デーモンの最初のログ行は `{"daemon": "listening", …}`、`/tmp/ekl-stackchan-daemon.log` に。
+- **呼ぶ側。** `~/.claude/settings.json` が `hooks` の鍵を持つ: 33の事象名のそれぞれが1つのコマンドに写る——`cd "<リポジトリのルート>" && /opt/homebrew/bin/python3 -m projects.stackchan.hook`。⛔ **コマンドはこのホストのパスを名指しする**——plist と同じ限界である。⚠️ **あのファイルは利用者の認証情報も持つので、ここには複製しない**。この頁が記録するのは形であり、ファイルではない。
+- **端から端までの1回、見られた。** 入れ子の `claude -p` のセッションが、デーモンのログに5行を残した: `SessionStart` → `greeting`; `UserPromptSubmit` → `working` で、体は1秒の床に押さえられ; `MessageDisplay` → `observed`; `Stop` → `closing`; `SessionEnd` → `resting` で `settle`。**どの行も `sent: false` を読んだ。** ⚠️ **これが連鎖の全体である**——本物のフック、1事象につき1プロセス、1つの部屋——**そしてロボットについては何も言わない**。電線が無いからである。
+- **止める。** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan` がジョブを止め、ソケットは消える。⚠️ **`SIGTERM` では止まらない**——`KeepAlive` が真だからである: launchd は再起動を予定し（`state = spawn scheduled`、`last exit code = 0`）、デーモンはおよそ10秒後に戻った。**止めるのは `bootout` であり、殺すのは再起動である。** ⚠️ **その絞りは聞こえない窓である**——その中に届いた事象は、クライアント自身の設計によって捨てられる。
+
+**外すには:**
+
+```
+launchctl bootout gui/501/embodied-kinetic-loom.stackchan
+rm ~/Library/LaunchAgents/embodied-kinetic-loom.stackchan.plist
+rm -f /tmp/ekl-stackchan-501.sock /tmp/ekl-stackchan-daemon.log /tmp/ekl-stackchan-daemon.err
+```
+
+そして `~/.claude/settings.json` から `hooks` の鍵を外す。⚠️ **他には何も触らない**: デーモンが書くのはソケットとその2つのログだけで、機体へは何も送らない。
+
 ## 何が鳴り、何が鳴らないか
 
 ✅ **この頁の一部は鳴る。** 純粋な部分はソケット無しで検査される——要求のスキーマ、知らない鍵の拒否、与えられた `(session, event, at)` に対する決定——そしてソケットは本物のプロセスとして検査される: 答え、拒み、返した行をログに出し、`SIGTERM` できれいに終わる。**24の主張はすべて `tests/test_stackchan_daemon.py` に在る。** ✅ **さらに21がクライアントを押さえる**——入力のプロンプト・cwd・道具の入力が行に届かないこと、知らない事象がソケットの手前で捨てられること、パスの綴りが1つであること、そして決して答えない相手でも遅らせないこと——**`tests/test_stackchan_hook_client.py` に。**
 
-⛔ **検査されないのは導入である。** launchd の `RunAtLoad` と `KeepAlive`、ログインとログアウト、plist、そして再起動後に現れる古いソケット。**その部分は手順表のままである。** それは OS の振る舞いであり、関数ではないからである。`tools/check_i18n.py` は依然、3つの写しが一致することだけを確かめる。
+⛔ **試験は導入を1つも検査しない。** launchd の `RunAtLoad` と `KeepAlive`、ログインとログアウト、plist、そして再起動後に現れる古いソケットは、OS の振る舞いであり、関数ではない。✅ **代わりに在るのは、上に書いた1つの観察である**: 2026-10-18、導入されたジョブが本物のフックの連鎖を端から端まで走らせ、手で止められ、再起動された。⚠️ **1つのホストでの観察は検査ではない**——二度と走らず、走るべきときに落ちもしない。`tools/check_i18n.py` は依然、3つの写しが一致することだけを確かめる。
 
 ## 導入された日に走らせる手順表
 
-✅ **9つのうち6つは launchd 無しで走らせられ、6つとも検査済みである**——5つは隣に名指しした試験で、8つ目は自明に（何も送られないからである）。
+✅ **9つのうち6つは試験で検査され、さらに2つが 2026-10-18 に手で観察され、1つはまだ測られていない。**
 
-- [ ] 2つ目のインスタンスは終了し、1つ目を乱さない — ✅ `test_a_second_instance_leaves_the_first_alone`;
-- [ ] 古いソケットは unlink されて bind される。生きているものはされない — ✅ `test_a_stale_socket_is_unlinked_and_replaced`;
-- [ ] `bootout` はジョブを止め、止まったままになる — ⛔ launchd が要る;
-- [ ] 異常終了は再起動される。段階は `present` から始まり、前の場所ではない — ⛔ launchd が要る;
-- [ ] 知らない事象は拒まれ、知らない鍵は拒まれ、時刻を送るクライアントは拒まれる — ✅ `test_each_refusal_names_its_fault` と `test_the_prompt_cannot_ride_along`; ⚠️ **時刻は鍵ではないので、`unknown-key` として拒まれる**;
-- [ ] ループは期限に起き、tick では起きない — ✅ `test_the_next_wake_is_the_expression_and_then_the_idle_clock`;
-- [ ] 機体が無ければ待つ。クラッシュループしない — ⛔ **機体への道がまだ無い**ので、クラッシュする先が無い;
-- [ ] `SIGTERM` で何も送られない — ✅ 構造上: `sent` は `False` であり、電線が無い;
-- [ ] 終了後にソケットが消えている — ✅ `test_the_socket_is_removed_and_the_exit_is_clean`。
+- [x] 2つ目のインスタンスは終了し、1つ目を乱さない — ✅ `test_a_second_instance_leaves_the_first_alone`; **手でも走らせた: 終了コード 3**;
+- [x] 古いソケットは unlink されて bind される。生きているものはされない — ✅ `test_a_stale_socket_is_unlinked_and_replaced`;
+- [x] `bootout` はジョブを止め、止まったままになる — ✅ **2026-10-18 に観察**: ソケットが消えていた。⚠️ **何かが再び bootstrap するまでは止まったままである**;
+- [x] 異常終了は再起動される。段階は `present` から始まる — ⚠️ **半分だけ測られた**: 再起動は観察されたが、異常終了ではなく正常終了の後であり、およそ10秒の絞りは launchd のものである。**段階は設計どおり `present` から始まった**——永続化が無いからである;
+- [x] 知らない事象は拒まれ、知らない鍵は拒まれ、時刻を送るクライアントは拒まれる — ✅ `test_each_refusal_names_its_fault` と `test_the_prompt_cannot_ride_along`; ⚠️ **時刻は鍵ではないので、`unknown-key` として拒まれる**;
+- [x] ループは期限に起き、tick では起きない — ✅ `test_the_next_wake_is_the_expression_and_then_the_idle_clock`;
+- [ ] 機体が無ければ待つ。クラッシュループしない — ⛔ **まだ測られていない**: 機体への道がまだ無いので、失敗する先が無い。導入されたジョブは機体無しで走り、生き続けた。**それは機体のエラーを生き延びたことと同じではない**;
+- [x] `SIGTERM` で何も送られない — ✅ 構造上（`sent` は `False`、電線が無い）、そしてログで観察された;
+- [x] 終了後にソケットが消えている — ✅ `test_the_socket_is_removed_and_the_exit_is_clean`; **`bootout` の後でも観察された**。
+
+⚠️ **そして、再起動が要るのでこの一覧に無いものが1つある:** Mac の再起動後に現れる古いソケットである。⛔ **2026-10-18 に再起動はしていない**ので、探ってから bind する経路が試されたのは、手で作った古いソケットに対してだけであり、それ以外には何も無い。

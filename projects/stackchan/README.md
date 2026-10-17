@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.5.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.6.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -16,7 +16,7 @@
 
 ✅ **It imports the Pet's `State`; it does not copy it.** The five expressions were drawn once (decision A, `projects/pet/expressions.py`), and a second set would be a second answer to the same question.
 
-⛔ **It is not joined to a machine.** No port, no wire, no firmware, no record. Its only consumers outside the tests are its own CLI and the daemon's log. ⚠️ **It is not joined to Claude Code yet either** — nothing in `settings.json` calls it. **This directory is the layer, not the installation.**
+⛔ **It is not joined to a machine.** No port, no wire, no firmware, no record. Its only consumers outside the tests are its own CLI and the daemon's log. ⚠️ **It was not joined to Claude Code until 2026-10-18.** ✅ **Since then it is** — every one of the thirty-three events in `~/.claude/settings.json` runs `projects/stackchan/hook/`, and a launchd user agent starts the daemon at login. ⛔ **This directory is the layer, not the installation**: the plist here is a copy, and the record is `docs/stackchan-daemon.md`.
 
 ## The six phases
 
@@ -135,11 +135,11 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ⛔ **A Claude Code hook is one process per event. `Companion` is one object that keeps the phase, the timers and the cooldown between events.** Nothing here carries that state across processes.
 
-⇒ **A long-lived process now exists** — `projects/stackchan/daemon/`, which holds the clock, the companion and the socket. **Its core (`room.py`) reads no clock and opens no socket; its edge (`__main__.py`) holds both alone.** ⛔ **It is not installed**: no launchd job starts it and the client is not registered, so a hook still cannot reach it. ⚠️ **A hook wired straight to this CLI would reset the phase and the idle clock on every event** — the flood it is meant to prevent, and worse: the robot would never settle or sleep.
+⇒ **A long-lived process now exists** — `projects/stackchan/daemon/`, which holds the clock, the companion and the socket. **Its core (`room.py`) reads no clock and opens no socket; its edge (`__main__.py`) holds both alone.** ✅ **It is installed**: a launchd user agent starts it at login, and all thirty-three hook events reach it through the client. ⚠️ **A hook wired straight to this CLI would reset the phase and the idle clock on every event** — the flood it is meant to prevent, and worse: the robot would never settle or sleep.
 
-✅ **And since the same day, the client exists** — `projects/stackchan/hook/` reads one event from standard input, sends one line, **prints nothing and exits 0 whatever happens.** ⛔ **It is not registered in `settings.json`**: nothing calls it yet.
+✅ **And since the same day, the client exists** — `projects/stackchan/hook/` reads one event from standard input, sends one line, **prints nothing and exits 0 whatever happens.** ✅ **It is registered in `settings.json` for all thirty-three events.**
 
-✅ **The client sends the event name and the window's name — and not the prompt.** The daemon stamps the time when the line arrives, so the client carries no clock and no state. The robot needs to know that a turn began, not what was said; it needs the window's name only because windows share one body. **Privacy by construction, not by policy.** ⚠️ **The start-and-stop design is `docs/stackchan-daemon.md`** — **the loop, the socket and the client are built; the launchd job and the registration in `settings.json` are not.**
+✅ **The client sends the event name and the window's name — and not the prompt.** The daemon stamps the time when the line arrives, so the client carries no clock and no state. The robot needs to know that a turn began, not what was said; it needs the window's name only because windows share one body. **Privacy by construction, not by policy.** ⚠️ **The start-and-stop design is `docs/stackchan-daemon.md`** — **the loop, the socket, the client, the launchd job and the registration in `settings.json` are all built and installed on this host.**
 
 ⚠️ **And the device path is missing too:** a renderer for the display, a driver for the LEDs, a sound, and the serial wire. **This layer's output is a `Decision`; nothing consumes it but the terminal and the daemon's log.**
 
@@ -155,7 +155,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 **The client** is `projects/stackchan/hook/` — one process per event. It reads standard input (bounded at 1 MiB), **rebuilds exactly two fields**, sends, and closes without reading a reply. **A missing daemon is not a hook failure: exit 0, silent.** The rebuilding is `client.line_from`, which is pure and tested without a process.
 
-⛔ **Not installed.** No launchd job and no hook client; the record of that design is `docs/stackchan-daemon.md`.
+✅ **Installed on 2026-10-18.** The job is `launchd/embodied-kinetic-loom.stackchan.plist` — a copy of the live one at `~/Library/LaunchAgents/` — and the client is registered for all thirty-three events. **The record, the measured behavior and the uninstall path are `docs/stackchan-daemon.md`.**
 
 ## What is checked
 
@@ -216,5 +216,5 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - **No LED driver and no display renderer.** The light is a meaning; nothing turns it into pixels.
 - **No sound.** `--sound on` names a channel that does not exist, and the speaker has never been verified on this unit.
 - **No head-touch input.** The sensor works on this unit (observed in AI.AGENT, 2026-10-18), but it is machine input, and a firmware would have to read it. **A hook is not a head.**
-- **No hook registration and no launchd job.** The client exists, but nothing calls it — `settings.json` is untouched — and nothing starts the daemon at login.
+- **No live installation in this directory.** The plist here is a copy, and `settings.json` is not in the repository at all; both are recorded in `docs/stackchan-daemon.md`.
 - **No record.** `projects/` holds work; the record vessel is still empty, and this layer has never observed a machine.
