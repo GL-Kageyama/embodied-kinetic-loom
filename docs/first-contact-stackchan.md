@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: docs/first-contact-stackchan.md | translated: 2026-10-15 -->
+<!-- i18n-version: 1.1.0 | canonical: docs/first-contact-stackchan.md | translated: 2026-10-18 -->
 
 **Language:** [English](first-contact-stackchan.md) | [日本語](first-contact-stackchan-ja.md) | [中文](first-contact-stackchan-zh.md)
 
@@ -34,7 +34,7 @@
 
 ## The one check that gates the firmware
 
-**Can the stock image be written back?** Do this before anything else, because ⛔ **a flash is the one act on this page that nothing you send afterwards can undo.**
+**Can the stock image be written back?** ✅ **On 2026-10-18 it was written and read back bit-for-bit — see below.** ⛔ **Whether it boots is still unanswered.** **Ask this before anything else**, because ⛔ **a flash is the one act on this page that nothing you send afterwards can undo.**
 
 The safety net exists, and it is verified:
 
@@ -49,11 +49,35 @@ The safety net exists, and it is verified:
 
 eFuse, measured: **`SECURE_BOOT_EN` False**, **`SPI_BOOT_CRYPT_CNT` Disable**, **`DIS_DOWNLOAD_MODE` False**, **`DIS_USB_SERIAL_JTAG` False**, and `SOFT_DIS_JTAG` / `DIS_PAD_JTAG` not disabled. ⇒ **No lock is set, and a custom image can be flashed.**
 
-⛔ **And here is the part the safety net does not cover.** ⚠️ **Nothing in the record shows a write.** The image was made by *reading* the flash, and confirmed by *reading* it again. ⇒ **The write path — the cable, the chip, the driver, the offset — has never been exercised on this host.** **A verified read proves the image is the device's. It does not prove the image can be put back.**
+⛔ **And here is the part the safety net did not cover, until 2026-10-18.** ⚠️ **Nothing in the record showed a write.** The image was made by *reading* the flash, and confirmed by *reading* it again. ⇒ **A verified read proves the image is the device's. It does not prove the image can be put back.**
 
-⇒ **Perform one restore before the first custom flash.** Write the stock image, let it boot, read the version back. **Then you know the net holds.** ⛔ **A safety net that has never been loaded is a file, not a net.**
+✅ **On 2026-10-18 the write path was exercised, on the unit in hand, over `/dev/cu.usbmodem1101`.** Four operations, in order:
 
-⚠️ **And decide one thing before you press anything: the servo zeros live in NVS.** A full-image restore returns them to 455 / 603 — ⚠️ **it does not return the 460 / 620 the wizard wrote on 2026-10-15.** ⛔ **A partition-only restore returns something else again.** ⇒ **Know which of the three you are choosing, and write the choice down before you flash, not after.**
+| # | operation | reported |
+|---|---|---|
+| 1 | `write-flash 0 backup/stackchan-stock.bin` — 16,777,216 bytes, 36.7 s | ✅ *Hash of data verified* |
+| 2 | `verify-flash 0 backup/stackchan-stock.bin` | ✅ *Verification successful (digest matched)* |
+| 3 | `write-flash 0 stackchan-current-2026-10-18.bin` — 16,777,216 bytes, 36.6 s | ✅ *Hash of data verified* |
+| 4 | `verify-flash 0 stackchan-current-2026-10-18.bin`, then `read-mac` | ✅ *Verification successful (digest matched)*; MAC `80:45:6b:54:6d:b0` |
+
+⇒ **The net holds in the sense it was built to hold: the stock image goes onto this device and reads back bit-for-bit, and the device still identifies as itself afterwards.** ⛔ **And in the sense below it does not hold yet.**
+
+**What was measured about the two images.** The snapshot taken before the exercise, and its diff against stock:
+
+| | |
+|---|---|
+| snapshot | `~/stackchan/backup/stackchan-current-2026-10-18.bin` — ⚠️ **not in this repository** |
+| length | **16,777,216 bytes** |
+| SHA256 | `80c9dcafb558fc97b2bebd17182b0445cbc8f949c001253f04c1f2b5a3e6f963` |
+| differs from stock | **477 bytes, in 39 runs, all inside `0x9000`–`0xB000`** — ⚠️ **the NVS partition; zero differing bytes outside it** |
+
+⇒ **The app is byte-identical to stock.** The only thing separating the unit as it stood from the vendor's image is the NVS partition — **which is exactly where the servo zeros live.** ⚠️ **Byte-identity is not a reading of those zeros**: the image was restored bit-for-bit, and **whether the unit reads 460 / 620 back has not been observed** — that takes the wizard, and it was not run.
+
+⛔ **What the exercise still does not prove.** The step this page asked for was *write the stock image, let it boot, read the version back* — and **the boot was not observed and no version was read back.** The stock image was written, verified against its file, and the current snapshot was written over it. ⇒ **What is proven is the write path: cable, chip, driver, offset, hash.** **What is not proven is that this stock image boots on this unit.** The device answered from its ROM bootloader, which it does whether or not an app runs. ⚠️ **Those are two different claims, and the second is the one a safety net is for.**
+
+⇒ **The step still open before a custom image: restore stock once and watch it boot** — the launcher on the screen is the observation. ⛔ **A write that reads back is a proven write; it is not yet a proven machine.**
+
+⚠️ **And the choice this page demanded before anything was pressed was made — and it was the third of the three.** A full-image restore returns the zeros to 455 / 603; a partition-only restore returns something else again; **what was done was to write back the 16 MiB snapshot taken the same day, entire.** ⇒ **The unit is in the state it was in, NVS included, and the zeros were never asked to move.** ⛔ **It is recorded here because it was decided here — before the write, not after.**
 
 ## ⛔ One trap that will cost you an hour, and it looks like a dead board
 

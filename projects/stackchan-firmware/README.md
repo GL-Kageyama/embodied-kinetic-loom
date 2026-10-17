@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.1.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.2.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -31,6 +31,6 @@
 
 ## What must happen before the first flash
 
-⛔ **One restore of the stock image, and then the version read back.** The safety net exists and was verified by reading; the write path has never been exercised on this host. `docs/first-contact-stackchan.md` holds the file, its hashes, and the choice that must be written down before anything is pressed.
+✅ **The write path has been exercised; the boot after it has not.** On 2026-10-18, on the unit in hand: the stock image was written and read back bit-for-bit, and the current snapshot was written over it and read back the same way. ⛔ **What is still open is the second half of the step this section names — *and then the version read back*: no boot after a restore has been observed.** `docs/first-contact-stackchan.md` holds the file, its hashes, the measured diff, and what the exercise does and does not prove.
 
 ⚠️ **Nothing rings on this directory.** There is no C++ test here, and no build. `tests/test_stackchan_wire.py` reads these literals and refuses the day they disagree with the schema — that is the only check, and it checks a copy, not the machine.

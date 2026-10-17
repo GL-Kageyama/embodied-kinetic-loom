@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.1.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.2.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -31,6 +31,6 @@
 
 ## 第一次写入之前必须发生的事
 
-⛔ **对库存镜像做一次恢复，然后读回版本。** 安全网存在，并且是通过读取验证的；写入路径在这台主机上从未走过。`docs/first-contact-stackchan.md` 持有那个文件、它的哈希，以及在按下任何东西之前必须写下的选择。
+✅ **写入路径已经走通了; 它之后的启动还没有。** 2026-10-18，在手边的个体上: 原厂镜像被写入并逐位读回，然后当前快照被写在它上面，也同样读回。⛔ **仍然开着的是本节所点名的步骤的后半——*然后读回版本*: 恢复之后的启动，一次也没有被看到。** `docs/first-contact-stackchan.md` 持有那个文件、它的哈希、测到的差，以及这次作业证明什么、不证明什么。
 
 ⚠️ **这个目录里什么都不会响。** 这里没有 C++ 测试，也没有构建。`tests/test_stackchan_wire.py` 读取这些字面量，并在它们与契约不一致的那天变红——那是唯一的检查，**而它检查的是副本，不是机体。**
