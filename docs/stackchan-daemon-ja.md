@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.6.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.7.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
 # スタックチャンのデーモン — 起動と停止
 
-✅ **ループとソケットとクライアントは作られた——2026-10-18。** `projects/stackchan/daemon/` が純粋な中核（`room.py`）と縁（`__main__.py`）を持ち、`projects/stackchan/hook/` がフックの走らせるクライアントを持ち、`tests/test_stackchan_daemon.py` が前者について24の主張を、`tests/test_stackchan_hook_client.py` が後者について21の主張を持つ。✅ **そして同じ日に導入された**——launchd のユーザーエージェントがログイン時にデーモンを起動し、33のフック事象すべてがクライアントを呼ぶ。**導入は1つのホストの上の場所であり、リポジトリの性質ではない**（[導入の、いまの姿](#導入のいまの姿)を見よ）。
+✅ **ループとソケットとクライアントは作られた——2026-10-18。** `projects/stackchan/daemon/` が純粋な中核（`room.py`）と縁（`__main__.py`）を持ち、`projects/stackchan/hook/` がフックの走らせるクライアントを持ち、`tests/test_stackchan_daemon.py` が前者について26の主張を、`tests/test_stackchan_hook_client.py` が後者について21の主張を持つ。✅ **そして同じ日に導入された**——launchd のユーザーエージェントがログイン時にデーモンを起動し、33のフック事象すべてがクライアントを呼ぶ。**導入は1つのホストの上の場所であり、リポジトリの性質ではない**（[導入の、いまの姿](#導入のいまの姿)を見よ）。
 
 ⚠️ **何のために在るか。** Claude Code のフックは1事象につき1プロセスであり、`Focus` と `Companion` は事象と事象のあいだ生き続けなければならない1つの物体である。デーモンはその物体に、時計とソケットを足したものである。それは連鎖の中段——**フック → デーモン → 電線 → ファームウェア**——であり、ロボットを「開いている端末のもの」ではなく「部屋のもの」にする部品である。
 
@@ -102,9 +102,23 @@
 
 ## 機体は任意である
 
-✅ **デーモンは機体無しで走る**——そして最初にそう作られ、そう試される。電線は最初の決定のときに遅延して開かれる。
+✅ **デーモンは機体無しで走る**——そして最初にそう作られ、そう試される。**今日は電線を1本も開かない**: デーモンは枠を符号化して1行として書き（下を見よ）、遅延して開く道は設計であって、建てられていない。
 
 ⛔ **機体のエラーは記録して捨て、決して致命にしない。** `KeepAlive` の下では、機体の不在と致命的エラーが揃えばクラッシュループになる——**監督は、待つはずのものを殺し続けることになる。**
+
+## 枠を書き、送らない
+
+✅ **0.19.1 から、すべての決定が `projects/stackchan/outbound.py` を通り**、枠が `None` でないとき、デーモンはそれを1行として書く:
+
+```
+{"frame": "{\"face\":null,\"gesture\":null,\"light\":\"breathe\"}", "sent": false, "at": 6497.584270416, "session": "…"}
+```
+
+- **枠は、機体の見せるものが変わったときに書く**——顔か光——**か、身振りが選ばれたとき、か、そのプロセスの最初の決定であるとき。** ⛔ **最初の決定は必ず出す。その前の機体の状態が知られていないからである**; 顔は枠自身の状態から埋めるので、機体は自分が何を映していたかを憶えておかなくてよい。
+- ⛔ **事象の理由は状態の変化を仕切らない**ので、規則は理由ではなく状態を読む。`blocked` の中の `PostToolUse` は、理由 `OBSERVED` で `working` へ戻り、光は動かないことがある; 懸念は光を変え、段階を変えない。
+- ⚠️ **これは流れではない。** 観測された走りでは、最初の枠に続いた `PreToolUse` は2行目を書かなかった。
+- **その行は符号器のものである**——`engine/backend/protocol_stackchan.py`、`tests/test_stackchan_wire.py` が押さえるのと同じもの——だから**ログが `schemas/stackchan-command.schema.json` からずれることはない。**
+- ⛔ **何もプロセスの外へ出ない。** どの行でも `sent` は `false` であり、向こう側に伝送路も、レンダラも、LED のドライバも無い。**ログの1行は電線ではない**、そして ⛔ **運動の記録でもない**——その要件は `CLAUDE.md` にあり、形はまだ開いている。
 
 ## 決まったこと、決まっていないこと
 
@@ -121,7 +135,7 @@
 
 **ここで決まっていないこと:**
 
-- ✅ **枠は決まった（0.19.0）。そしてこの頁は、いまもそれを所有しない**——遷移ごとに ASCII の JSON 1行、`face` / `light` / `gesture`、`schemas/stackchan-command.schema.json` にあり、`engine/backend/protocol_stackchan.py` が符号化する。⛔ **決まっていないのは伝送路である**: その行がどう基板へ届くのか、誰が開くのか。**デーモンはそれを開かず**、`projects/stackchan-firmware/` は——ソースのみ、一度も建てられず、焼かれていない——すべての身振りを拒む;
+- ✅ **枠は決まった（0.19.0）。そしてこの頁は、いまもそれを所有しない**——ASCII の JSON 1行、`face` / `light` / `gesture`、`schemas/stackchan-command.schema.json` にあり、`engine/backend/protocol_stackchan.py` が符号化する。✅ **0.19.1 からデーモンはその符号器を呼び、渡すはずの行を `sent: false` 付きで書く。** ⛔ **決まっていないのは伝送路である**: その行がどう基板へ届くのか、誰が開くのか。**デーモンは1本も開かず**、`projects/stackchan-firmware/` は——ソースのみ、一度も建てられず、焼かれていない——すべての身振りを拒む;
 - 待機時と停止後にファームウェアが何をするか;
 - 2つ目の体——機体ごとの2つ目のデーモン——が何か違うものを要するか。
 
@@ -132,6 +146,7 @@
 - **ジョブ。** `~/Library/LaunchAgents/embodied-kinetic-loom.stackchan.plist` を `gui/501/embodied-kinetic-loom.stackchan` に bootstrap した。`RunAtLoad` と `KeepAlive` は真、インタプリタは絶対パス（`/opt/homebrew/bin/python3`）、`WorkingDirectory` はリポジトリのルートである。**`projects/stackchan/launchd/` の複製は同じファイルである。**
 - **ソケット。** `/tmp/ekl-stackchan-501.sock`、モード `0600`、利用者の所有。デーモンの最初のログ行は `{"daemon": "listening", …}`、`/tmp/ekl-stackchan-daemon.log` に。
 - **呼ぶ側。** `~/.claude/settings.json` が `hooks` の鍵を持つ: 33の事象名のそれぞれが1つのコマンドに写る——`cd "<リポジトリのルート>" && /opt/homebrew/bin/python3 -m projects.stackchan.hook`。⛔ **コマンドはこのホストのパスを名指しする**——plist と同じ限界である。⚠️ **あのファイルは利用者の認証情報も持つので、ここには複製しない**。この頁が記録するのは形であり、ファイルではない。
+- **枠の1行が、見られた（2026-10-18、0.19.1 のあと）。** デーモンは `launchctl kickstart -k` で新しいコードの上へ再起動され、本物のフック事象が届き、ログには枠の行がちょうど1つ増えた——`face: null`、`light: breathe` であり、`"sent": false` を運んでいた。**続く `PreToolUse` は2つ目の枠を書かなかった**、状態が変わっていなかったからである。⛔ **観測されたのはログの1行であり、運動ではない。**
 - **端から端までの1回、見られた。** 入れ子の `claude -p` のセッションが、デーモンのログに5行を残した: `SessionStart` → `greeting`; `UserPromptSubmit` → `working` で、体は1秒の床に押さえられ; `MessageDisplay` → `observed`; `Stop` → `closing`; `SessionEnd` → `resting` で `settle`。**どの行も `sent: false` を読んだ。** ⚠️ **これが連鎖の全体である**——本物のフック、1事象につき1プロセス、1つの部屋——**そしてロボットについては何も言わない**。電線が無いからである。
 - **止める。** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan` がジョブを止め、ソケットは消える。⚠️ **`SIGTERM` では止まらない**——`KeepAlive` が真だからである: launchd は再起動を予定し（`state = spawn scheduled`、`last exit code = 0`）、デーモンはおよそ10秒後に戻った。**止めるのは `bootout` であり、殺すのは再起動である。** ⚠️ **その絞りは聞こえない窓である**——その中に届いた事象は、クライアント自身の設計によって捨てられる。
 
@@ -147,7 +162,7 @@ rm -f /tmp/ekl-stackchan-501.sock /tmp/ekl-stackchan-daemon.log /tmp/ekl-stackch
 
 ## 何が鳴り、何が鳴らないか
 
-✅ **この頁の一部は鳴る。** 純粋な部分はソケット無しで検査される——要求のスキーマ、知らない鍵の拒否、与えられた `(session, event, at)` に対する決定——そしてソケットは本物のプロセスとして検査される: 答え、拒み、返した行をログに出し、`SIGTERM` できれいに終わる。**24の主張はすべて `tests/test_stackchan_daemon.py` に在る。** ✅ **さらに21がクライアントを押さえる**——入力のプロンプト・cwd・道具の入力が行に届かないこと、知らない事象がソケットの手前で捨てられること、パスの綴りが1つであること、そして決して答えない相手でも遅らせないこと——**`tests/test_stackchan_hook_client.py` に。**
+✅ **この頁の一部は鳴る。** 純粋な部分はソケット無しで検査される——要求のスキーマ、知らない鍵の拒否、与えられた `(session, event, at)` に対する決定——そしてソケットは本物のプロセスとして検査される: 答え、拒み、返した行をログに出し、`SIGTERM` できれいに終わる。**26の主張はすべて `tests/test_stackchan_daemon.py` に在る**——最後の2つは、挨拶が `sent: false` の枠の行を1つ書き、変わらない事象は書かないことである。 ✅ **さらに21がクライアントを押さえる**——入力のプロンプト・cwd・道具の入力が行に届かないこと、知らない事象がソケットの手前で捨てられること、パスの綴りが1つであること、そして決して答えない相手でも遅らせないこと——**`tests/test_stackchan_hook_client.py` に。**
 
 ⛔ **試験は導入を1つも検査しない。** launchd の `RunAtLoad` と `KeepAlive`、ログインとログアウト、plist、そして再起動後に現れる古いソケットは、OS の振る舞いであり、関数ではない。✅ **代わりに在るのは、上に書いた1つの観察である**: 2026-10-18、導入されたジョブが本物のフックの連鎖を端から端まで走らせ、手で止められ、再起動された。⚠️ **1つのホストでの観察は検査ではない**——二度と走らず、走るべきときに落ちもしない。`tools/check_i18n.py` は依然、3つの写しが一致することだけを確かめる。
 

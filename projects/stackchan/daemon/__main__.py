@@ -4,12 +4,14 @@
 ⛔ **時計・ソケット・合図は、このファイルにだけ在る。** 中核は `room.py` であり、
 そこは外の世界を読まない。⇒ **判定はソケット無しで試験できる。**
 
-⚠️ **launchd にもフックにも、まだ繋がっていない。** この入口は手で走らせる。
-設計と、繋いだ日に走らせる手順表は `docs/stackchan-daemon.md` に在る。
+⚠️ **launchd とフックに繋がっている**——2026-10-18 に設置された。設計と、外し方は
+`docs/stackchan-daemon.md` に在る。
 
 ⚠️ **起動は挨拶を送らない。** 最初の運動は最初の事象から来る。
 ⚠️ **停止は何も送らない。** 駐機も、最後の身振りも無い——**この機体に停止命令は無い。**
-⚠️ **機体への電線はまだ無い。** 判定の `sent` は、どの行でも `False` である。
+⚠️ **機体への伝送路はまだ無い。** この縁は、渡すはずの枠を**ログの1行として書く**——
+`{"frame": …}` がそれであり、**`sent` はどの行でも `False` である。**
+⛔ **書くことは、送ることではない。**
 """
 from __future__ import annotations
 
@@ -21,6 +23,9 @@ import signal
 import socket
 import sys
 import time
+
+from engine.backend import protocol_stackchan as wire
+from projects.stackchan.outbound import Frame, Outbound
 
 from .room import (
     CLIENT_TIMEOUT,
@@ -90,6 +95,17 @@ def emit(payload: dict) -> None:
     sys.stdout.flush()
 
 
+def frame_row(frame: Frame, at: float, session: str | None) -> dict:
+    """**機体へ渡るはずの1行を、ログの1行にする。** ⛔ **渡ってはいない。**
+
+    ⚠️ **符号化は `engine/backend/protocol_stackchan.py` に1つだけ在る。**
+    ここは値を渡すだけであり、綴りを写さない。
+    """
+    command = wire.Command(face=frame.face, light=frame.light, gesture=frame.gesture)
+    line = wire.encode(command).decode("ascii").rstrip("\n")
+    return {"frame": line, "sent": False, "at": at, "session": session}
+
+
 def reply(connection: socket.socket, payload: dict) -> None:
     line = json.dumps(payload, ensure_ascii=False) + "\n"
     try:
@@ -98,7 +114,7 @@ def reply(connection: socket.socket, payload: dict) -> None:
         pass
 
 
-def handle(connection: socket.socket, room: Room, at: float) -> None:
+def handle(connection: socket.socket, room: Room, outbound: Outbound, at: float) -> None:
     """**1つの接続を読む。** ⚠️ **行が届かなければ、待ち続けずに閉じる。**"""
     connection.settimeout(CLIENT_TIMEOUT)
     buffer = b""
@@ -133,10 +149,13 @@ def handle(connection: socket.socket, room: Room, at: float) -> None:
     decision = room.offer(session, event, at)
     payload = row(decision, at, session)
     emit(payload)
+    frame = outbound.frame(decision)
+    if frame is not None:
+        emit(frame_row(frame, at, session))
     reply(connection, payload)
 
 
-def serve(room: Room, listener: socket.socket, wake: int) -> None:
+def serve(room: Room, outbound: Outbound, listener: socket.socket, wake: int) -> None:
     """**ソケットか、次の期限か、合図まで待つ。** ⛔ **固定の刻みは無い。**"""
     while True:
         timeout = None
@@ -152,19 +171,22 @@ def serve(room: Room, listener: socket.socket, wake: int) -> None:
         decision = room.tick(now)
         if decision is not None:
             emit(row(decision, now, None))
+            frame = outbound.frame(decision)
+            if frame is not None:
+                emit(frame_row(frame, now, None))
 
         if listener in readable:
             connection, _ = listener.accept()
             with connection:
-                handle(connection, room, now)
+                handle(connection, room, outbound, now)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python3 -m projects.stackchan.daemon",
         description=(
-            "One room, one neck. Listens on a socket and decides; it sends nothing "
-            "to a device (the wire does not exist yet)."
+            "One room, one neck. Listens on a socket and decides; it logs the frame "
+            "it would send and sends nothing (there is no transport yet)."
         ),
     )
     parser.add_argument("--socket", default=default_socket(), metavar="PATH",
@@ -200,9 +222,10 @@ def main(argv: list[str] | None = None) -> int:
     signal.signal(signal.SIGINT, stop)
 
     room = Room(motion=args.motion == "on", sound=args.sound == "on")
+    outbound = Outbound()
     emit({"daemon": "listening", "socket": args.socket})
     try:
-        serve(room, listener, wake_r)
+        serve(room, outbound, listener, wake_r)
     finally:
         listener.close()
         try:

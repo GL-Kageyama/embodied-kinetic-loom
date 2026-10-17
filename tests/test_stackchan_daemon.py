@@ -6,7 +6,7 @@
 **プロセスを1つ起こして、行を送り、合図で止める。**
 
 ⛔ **このファイルが確かめないこと:** launchd、ログインとログアウト、
-機体への送信。**デーモンはまだ何も送らない**（`sent` は `False`）。
+機体への送信。**デーモンは枠を書くが、送らない**（枠の行の `sent` は `False`）。
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ import time
 
 import pytest
 
+from engine.backend import protocol_stackchan as wire
 from projects.stackchan.behaviors import (
     ACTED,
     DISTANT,
@@ -230,6 +231,17 @@ class Daemon:
                 rows.append(payload)
         return rows
 
+    def frames(self) -> list[dict]:
+        """**機体へ渡るはずの枠の行。** ⛔ **渡ってはいない。**"""
+        frames = []
+        for line in self.out.splitlines():
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            if "frame" in payload:
+                frames.append(payload)
+        return frames
+
     def stop(self) -> tuple[int, str, str]:
         if self._stopped:
             return self.code or 0, self.out, self.err
@@ -334,3 +346,42 @@ def test_a_line_over_the_bound_is_refused(sock):
     with Daemon(path) as daemon:
         answer = daemon.send("x" * (MAX_LINE + 1))
         assert answer == {"ok": False, "error": "too-long"}
+
+
+# ---------------------------------------------------------------------------
+# 外向きの枠。⚠️ 書くが、送らない。
+# ---------------------------------------------------------------------------
+
+
+def test_the_daemon_logs_the_frame_it_would_send(sock):
+    """✅ **挨拶は、判定の行のほかに、枠の行を1つ残す。**
+
+    ⛔ **それは機体へ渡っていない。** 行が言うのは「渡すはずだった」であり、
+    `sent` は `False` である。
+    """
+    path = sock
+    with Daemon(path) as daemon:
+        answer = daemon.send({"session": "main", "event": "SessionStart"})
+        assert answer["sent"] is False
+
+    frames = daemon.frames()
+    assert len(frames) == 1
+    assert frames[0]["sent"] is False
+    assert frames[0]["session"] == "main"
+
+    command = wire.decode(frames[0]["frame"].encode("ascii"))
+    assert command == wire.Command(face="greeting", light="warm", gesture="perk")
+
+
+def test_an_unchanged_event_logs_no_second_frame(sock):
+    """⚠️ **同じ状態の事象は、枠を増やさない。** ⛔ これは流れではない。"""
+    path = sock
+    with Daemon(path) as daemon:
+        daemon.send({"session": "main", "event": "PreToolUse"})
+        daemon.send({"session": "main", "event": "PostToolUse"})
+
+    frames = daemon.frames()
+    assert len(frames) == 1
+    command = wire.decode(frames[0]["frame"].encode("ascii"))
+    assert command.light == "breathe"
+    assert command.face is None

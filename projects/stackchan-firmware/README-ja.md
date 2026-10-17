@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.1.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -12,7 +12,7 @@
 
 ## 枠が運ぶもの
 
-**1コマンドにつき JSON 1行**、そしてコマンドは段階の遷移のときだけ届く——流れではない。契約は `schemas/stackchan-command.schema.json` であり、両端がそれを読む。
+**1コマンドにつき JSON 1行**、そしてコマンドは、機体の見せるものが変わったときだけ届く——段階・顔・光・選ばれた身振りのどれかであり、流れではない。⚠️ **首が動くのは遷移のときだけである**: 身振りはそこでだけ選ばれる。契約は `schemas/stackchan-command.schema.json` であり、両端がそれを読む。
 
 | 欄 | 値 | 意味 |
 |---|---|---|

@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.1.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -12,7 +12,7 @@
 
 ## 帧携带什么
 
-**每条命令一行 JSON**，而命令只在阶段转换时到达——不是流。契约是 `schemas/stackchan-command.schema.json`，两端都读它。
+**每条命令一行 JSON**，而命令在机体该显示的东西发生变化时到达——阶段、脸、光或选中的身势；这不是流。⚠️ **脖子只在阶段转换时动**: 身势只在那里被选中。契约是 `schemas/stackchan-command.schema.json`，两端都读它。
 
 | 栏 | 值 | 含义 |
 |---|---|---|

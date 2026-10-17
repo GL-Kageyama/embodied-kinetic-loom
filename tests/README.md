@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.14.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.15.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Twenty-six files, three hundred and eighty-five tests, all green — measured 2026-10-18.**
+**Twenty-seven files, three hundred and ninety-seven tests, all green — measured 2026-10-18.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -193,7 +193,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The check that arrived before the second wire (2026-10-18)
 
-**`projects/stackchan/` arrived, and with it the layer above the wire — events to phases, faces and lights, with no numbers for machine 2.** Thirty-four tests were added; the count moved from 281 to 315 — **then twenty-four more with the daemon, twenty-one with its client, and twenty-five with the wire to machine 2, moving it to 385.** **They are check 13, and it is of a sixth kind**: not a trajectory, not a drawing or a directory or a joint, not bookkeeping, not the boundary, not the words — **it is a check on a decision that is upstream of the `Motion Intent` and therefore has no trajectory to check.**
+**`projects/stackchan/` arrived, and with it the layer above the wire — events to phases, faces and lights, with no numbers for machine 2.** Thirty-four tests were added; the count moved from 281 to 315 — **then twenty-four more with the daemon, twenty-one with its client, and twenty-five with the wire to machine 2, moving it to 385** — **then ten more with the outbound frame and two more with the daemon that logs it, moving it to 397.** **They are check 13, and it is of a sixth kind**: not a trajectory, not a drawing or a directory or a joint, not bookkeeping, not the boundary, not the words — **it is a check on a decision that is upstream of the `Motion Intent` and therefore has no trajectory to check.**
 
 **What it holds:**
 
@@ -209,7 +209,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | no machine-1 name or number is in the package | `test_stackchan_behaviors.py` | over **AST identifiers and numeric constants**, not text — and it also asserts that no `motions/` directory exists |
 | the parser builds in three languages, and the help differs | `test_stackchan_behaviors.py` | the same assertion `test_strings.py` makes for the Pet's entry point |
 
-**Twenty-four more hold the daemon — the process that keeps the phase between hook processes:**
+**Twenty-six more hold the daemon — the process that keeps the phase between hook processes:**
 
 | the check | where | what it is for |
 |---|---|---|
@@ -218,6 +218,8 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | an unknown key, an unknown event and a malformed line are each refused with a code | `test_stackchan_daemon.py` | ⛔ **unknown is refused, not ignored** — otherwise `prompt` could ride along |
 | a prompt in the line never reaches the log | `test_stackchan_daemon.py` | privacy by construction, asserted end to end |
 | the next wake is the expression, then the idle clock; a silent client does not block the room | `test_stackchan_daemon.py` | no fixed tick; the deadline is a value |
+| **a greeting logs one frame row, and `sent` is `False`** | `test_stackchan_daemon.py` | ⛔ **the line says *would have sent*; nothing left the process** |
+| **an unchanged event logs no second frame** | `test_stackchan_daemon.py` | ⚠️ **the frame is not a stream** — the same state is one line, not one per event |
 
 **Twenty-one more hold the client — the process a hook would run:**
 
@@ -247,9 +249,20 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | the wire imports nothing but `json` and `dataclasses` | `test_stackchan_wire.py` | no clock, no socket, no environment — and ⛔ **no import of machine 1's protocol** |
 | the mock records and answers nothing; `send` returns `None` | `test_stackchan_wire.py` | ⚠️ **green means the protocol computes, not that anything moved** |
 
-⛔ **And the wire is not connected to anything.** The daemon still does not open it, no transport is chosen, and `projects/stackchan-firmware/` has never been built or flashed. **These twenty-five tests hold a frame and a contract; they hold no machine.**
+**Ten more hold the frame the room would send — the last seam before a wire that does not exist:**
 
-⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **The layer has been registered as a hook since 2026-10-18**, and the phase, the timers and the gaze live inside one process, so that registration is a client and a daemon rather than the CLI. **Both ends of that bridge exist, and both are installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client — **but this directory tests the two processes, not the installation.** ⛔ **Nothing here rings on the launchd job or on `settings.json`:** an installation is a place on one host, and it is recorded on `docs/stackchan-daemon.md`, not checked.
+| the check | where | what it is for |
+|---|---|---|
+| the first decision always emits, and it fills in a face the decision did not name | `test_stackchan_outbound.py` | ⚠️ **the machine's state before the first decision is unknown**, so the first frame establishes it |
+| a decision that changes nothing emits no frame | `test_stackchan_outbound.py` | ⛔ **a hundred evidence events produce one frame** — this is not a stream |
+| a change of light alone emits a frame carrying no face | `test_stackchan_outbound.py` | ⛔ **the reason does not partition state changes** — `PostToolUse` returns `blocked` to `working` with reason `OBSERVED` |
+| a gesture alone emits a frame | `test_stackchan_outbound.py` | the neck is the one channel that is not part of the state |
+| every emitted frame parses against the contract, and round-trips on the wire | `test_stackchan_outbound.py` | the frame is a `Frame`, not a sentence, and the codec is the only spelling of it |
+| **no number crosses** | `test_stackchan_outbound.py` | ⛔ **every field is a word from a closed table or `null`** |
+
+⛔ **And the wire is not connected to anything.** The daemon opens the codec and writes the line it would send, but **it opens no transport** — no socket to a device, no serial port, no board. **These thirty-seven tests** (twenty-five on the wire, ten on the frame, two on the daemon's frame row) **hold a frame and a contract; they hold no machine.**
+
+⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **The layer has been registered as a hook since 2026-10-18**, and the phase, the timers and the gaze live inside one process, so that registration is a client and a daemon rather than the CLI. **Both ends of that bridge exist, and both are installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client — **but this directory tests the two processes, not the installation.** ⛔ **Nothing here rings on the launchd job or on `settings.json`:** an installation is a place on one host, and it is recorded on `docs/stackchan-daemon.md`, not checked. ✅ **And since 2026-10-18 the installed daemon writes the frame row as well** — the line it would send, with `sent` false — **and that was observed on a real hook event.** ⛔ **What was observed is a line in a log, not a movement.**
 
 ## The rule that holds this directory — applied to us
 

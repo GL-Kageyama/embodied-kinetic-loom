@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.1.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -12,7 +12,7 @@
 
 ## What the frame carries
 
-**One line of JSON per command**, and commands arrive only at a phase transition — this is not a stream. The contract is `schemas/stackchan-command.schema.json`, and both ends read it.
+**One line of JSON per command**, and a command arrives when what the machine should show changes — a phase, a face, a light, or a chosen gesture. This is not a stream. ⚠️ **The neck moves only at a transition**: a gesture is chosen there and nowhere else. The contract is `schemas/stackchan-command.schema.json`, and both ends read it.
 
 | field | values | meaning |
 |---|---|---|

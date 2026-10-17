@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.7.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.8.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -143,7 +143,17 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ⚠️ **And the device path is missing too:** a renderer for the display, a driver for the LEDs, a sound, and **a transport**. **This layer's output is a `Decision`; nothing consumes it but the terminal and the daemon's log.**
 
-✅ **Since 2026-10-18 the frame it would be sent in exists as source** — `engine/backend/protocol_stackchan.py` encodes and decodes one ASCII line per transition, `schemas/stackchan-command.schema.json` is the contract both ends read, and `projects/stackchan-firmware/` parses that line and **refuses every gesture**. ⛔ **None of it is connected to the daemon, the transport has not been chosen, and the firmware has never been built or flashed.** ⚠️ **The wire carries symbols only; the first number for this machine is written after the unit is measured, not before.**
+✅ **Since 2026-10-18 the frame it would be sent in exists as source** — `engine/backend/protocol_stackchan.py` encodes and decodes one ASCII line, `schemas/stackchan-command.schema.json` is the contract both ends read, and `projects/stackchan-firmware/` parses that line and **refuses every gesture**. ⛔ **The transport has not been chosen, and the firmware has never been built or flashed.** ⚠️ **The wire carries symbols only; the first number for this machine is written after the unit is measured, not before.**
+
+## What leaves the room
+
+✅ **`projects/stackchan/outbound.py` turns a `Decision` into a `Frame`** — a face (or `null`), a light, and a gesture (or `null`). **It is pure, it holds no clock, and it names no machine.**
+
+- **A frame is emitted when what the machine should show changes** — a face, a light — **or a gesture was chosen, or it is the process's first decision.** ⛔ **The first decision is always emitted, because the machine's state before it is unknown**; a face the decision does not name is filled in from the frame's own state, so the machine never has to remember what it was showing.
+- ⛔ **The event's reason does not partition state changes.** A `PostToolUse` inside `blocked` returns the phase to `working` with reason `OBSERVED`, and the light may not move; a concern changes the light and not the phase. **Counting frames by event kind would have emitted frames that carried no change and missed changes that carried no transition.** So the rule reads the state, not the reason.
+- ⚠️ **This is not a stream.** A hundred evidence events inside one phase produce one frame.
+- **The daemon writes the frame as a row** — `{"frame": "<one ASCII line>", "sent": false, "at": …, "session": …}` — and the line is produced by the same codec the wire tests hold, **so the log cannot drift from the contract.**
+- ⛔ **Nothing is sent.** The row says *would have sent*; there is no transport, no renderer and no LED driver on the other side. ✅ **On 2026-10-18 the installed daemon wrote its first frame row on a real hook event** — and ⛔ **what was observed is a line, not a movement.**
 
 ## The process that holds the room (2026-10-18)
 
@@ -161,7 +171,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ## What is checked
 
-**`tests/test_stackchan_behaviors.py` holds thirty-four claims, `tests/test_stackchan_daemon.py` holds twenty-four, `tests/test_stackchan_hook_client.py` holds twenty-one, and `tests/test_stackchan_wire.py` holds twenty-five**, and they run with the rest of the suite:
+**`tests/test_stackchan_behaviors.py` holds thirty-four claims, `tests/test_stackchan_daemon.py` holds twenty-six, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds twenty-five, and `tests/test_stackchan_outbound.py` holds ten**, and they run with the rest of the suite:
 
 - the list is 33 and none is repeated; every event has exactly one of three kinds, and the kinds partition it;
 - every event carries a reason code — **there is no blank**;
@@ -186,7 +196,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - the parser builds in three languages, and the help differs;
 - **no machine-1 name, number or module is in the package** — the AST is walked for `DofRealityWire`, `Envelope`, the counts 190, 512 and 833, and any import from `engine` — and there is no `motions/` directory.
 
-**The daemon adds twenty-four more:**
+**The daemon adds twenty-six more:**
 
 - the socket answers, and the logged row is the same row the client received;
 - a second instance exits with 3 and leaves the first answering;
@@ -195,7 +205,9 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - **the prompt never reaches the log** — the secret is absent from everything the daemon printed;
 - a client that sends nothing is closed, and the next request still gets through;
 - a clean exit removes the socket;
-- the next wake is the expression first, then the idle clock, and `blocked` and `resting` have no deadline.
+- the next wake is the expression first, then the idle clock, and `blocked` and `resting` have no deadline;
+- **a greeting logs one frame row, and `sent` is `False` in it** — the row is decoded back into `Command(face="greeting", light="warm", gesture="perk")`;
+- **an unchanged event logs no second frame.**
 
 **The client adds twenty-one more:**
 
@@ -219,12 +231,20 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - the wire imports only `json` and `dataclasses`, and **imports nothing from machine 1's `protocol`**;
 - the mock records what would have been sent and answers nothing.
 
+**The outbound frame adds ten more** — what the room decides to put in front of the machine, before there is a wire:
+
+- the first decision always emits, and fills in a face it did not name;
+- a decision that changes nothing emits no frame — **a hundred evidence events produce one**;
+- a change of light alone emits a frame with `face: null`, and a gesture alone emits a frame;
+- every emitted frame parses against the contract and round-trips on the codec;
+- **no field of a frame is a number.**
+
 ⚠️ **Not one of these claims is about the machine.** A green run says the layer computes what it was told to compute — **the same sentence `CLAUDE.md` requires for the five checks.**
 
 ## What is not here
 
 - **No counts for machine 2.** The five gestures are candidate words, not rows in the vocabulary; a row is written the day a word becomes numbers on that machine. `projects/pet/motions/greeting.json` is machine 1's counts, and borrowing it would make this layer claim motion that will not happen.
-- **No transport, and no firmware on the board.** The frame is decided and tested; **the path to the board is not chosen**, and `projects/stackchan-firmware/` is source only — never built, never flashed. See `docs/first-contact-stackchan.md`.
+- **No transport, and no firmware on the board.** The frame is decided and tested, and the daemon logs the line it would send — ⛔ **a line in a log is not a transport.** **The path to the board is not chosen**, and `projects/stackchan-firmware/` is source only — never built, never flashed. See `docs/first-contact-stackchan.md`.
 - **No LED driver and no display renderer.** The light is a meaning; nothing turns it into pixels.
 - **No sound.** `--sound on` names a channel that does not exist, and the speaker has never been verified on this unit.
 - **No head-touch input.** The sensor works on this unit (observed in AI.AGENT, 2026-10-18), but it is machine input, and a firmware would have to read it. **A hook is not a head.**
