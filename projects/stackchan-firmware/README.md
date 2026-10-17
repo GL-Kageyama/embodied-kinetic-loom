@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.2.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.3.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -31,6 +31,6 @@
 
 ## What must happen before the first flash
 
-✅ **The write path has been exercised; the boot after it has not.** On 2026-10-18, on the unit in hand: the stock image was written and read back bit-for-bit, and the current snapshot was written over it and read back the same way. ⛔ **What is still open is the second half of the step this section names — *and then the version read back*: no boot after a restore has been observed.** `docs/first-contact-stackchan.md` holds the file, its hashes, the measured diff, and what the exercise does and does not prove.
+✅ **The restore was written, read back, and watched booting.** On 2026-10-18, on the unit in hand: the stock image was written and read back bit-for-bit, **it booted — its own USB log showed the launcher opening and every app being created** — then the current snapshot was written back, read back the same way, and **that booted too.** ⛔ **What this section still gates is the image this directory would produce: none of it has been built, and none of it has been flashed.** `docs/first-contact-stackchan.md` holds the files, their hashes, the measured diff, and the exact boot observations.
 
 ⚠️ **Nothing rings on this directory.** There is no C++ test here, and no build. `tests/test_stackchan_wire.py` reads these literals and refuses the day they disagree with the schema — that is the only check, and it checks a copy, not the machine.

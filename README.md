@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.18.0 | canonical: README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.19.0 | canonical: README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -81,7 +81,7 @@ install.sh          installs the skill (--local writes .claude/skills/, which is
 
 1. **The serial layer** — the one step that reaches the wire. ⛔ **Gated on the machine**: confirm which generation of control box is in hand before trusting any protocol document, including this repository's.
 2. **A second motion** — the vocabulary starts from five verbs. ⚠️ **Three of them name a translation machine 1 does not have, so not one row has yet crossed the difference column** — and how that column behaves has never been exercised.
-3. **The transport to machine 2, and one gesture actually arriving** — ⛔ **after an inventory restore and a version read back** (`docs/first-contact-stackchan.md`). ⚠️ **The frame is ready; the first angle is not**, and it is written only after that one unit is measured.
+3. **The transport to machine 2, and one gesture actually arriving** — ✅ **both conditions this step waited on are now met on the unit in hand: the stock image was restored, read back, and watched booting** (`docs/first-contact-stackchan.md`). ⛔ **What is still missing is the two things the boot could not give: a transport, and a `gesture → angle` table** — ⚠️ **the frame is ready; the first angle is not**, and it is written only after that one unit is measured.
 
 ⚠️ **Step 1 is the only one the machine gates; steps 2 and 3 are waiting on work and on a measurement.** **And finishing any of them says nothing about whether anything is *there*.**
 

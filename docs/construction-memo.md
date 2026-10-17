@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.9.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.10.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
 
 **Language:** [English](construction-memo.md) | [日本語](construction-memo-ja.md) | [中文](construction-memo-zh.md)
 
@@ -49,7 +49,7 @@
 
 ⚠️ **2026-10-18: one more point version, and it is not a rung either.** 0.19.1 sits between 0.19.0 and 0.20.0 **without a rung number**: `projects/stackchan/outbound.py` diffs the visible state into a `Frame`, and the daemon writes the frame it would send as one line — `{"frame": …, "sent": false}`. ⛔ **That line is not a wire**, and ⛔ **it is not a record of motion** — the frame is what the program would have emitted, and the record's requirement says that alone cannot be the record. **The transport is still not chosen, and 0.20.0 has not started.**
 
-⚠️ **2026-10-18: and 0.19.2, also not a rung — the first write, and none of it is code in this repository.** The unit in hand was identified by its MAC, and through esptool the stock image was written and read back bit-for-bit, then the same day's snapshot was written over it and read back the same way. ⛔ **The boot after a restore was not observed**, so the net is proven to hold a write and not yet to hold a machine. ⇒ **The rungs are unchanged; what changed is one document's claim** — `docs/first-contact-stackchan.md`. ⛔ **Nothing of this repository's was flashed, no transport is chosen, and `sent` is still `False`.**
+⚠️ **2026-10-18: and 0.19.2, also not a rung — the first write, and none of it is code in this repository.** The unit in hand was identified by its MAC, and through esptool the stock image was written and read back bit-for-bit, then the same day's snapshot was written over it and read back the same way. ⛔ **The boot after that first restore was not observed**, so that pass proved the net holds a write and not yet that it holds a machine. ✅ **0.19.3, the same day, closed the second half**: the stock image was watched booting from its own USB log — the launcher opening, every app created — and so was the snapshot written back. ⇒ **The rungs are unchanged; what changed is one document's claim** — `docs/first-contact-stackchan.md`. ⛔ **Nothing of this repository's was flashed, no transport is chosen, and `sent` is still `False`.**
 
 ## The traps
 

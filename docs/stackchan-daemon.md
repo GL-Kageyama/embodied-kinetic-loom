@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.8.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.9.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -18,7 +18,7 @@
 
 **What the device-side design would buy:** no resident process at all — no launchd, no socket, no lock; state that survives the Mac restarting; one body fed by several hosts; and **behavior that runs with this repository absent from the disk**.
 
-**What it would cost, today:** a custom firmware — the most gated step in this workshop, where the restore path has been written and read back but never watched booting, and the NVS zero positions have already moved once; **a second implementation of the same rules in C++, which this repository's tests cannot reach** — in a repository that calls a duplicated list a defect; a reflash for every behavior change; and debugging over a wire that does not exist yet.
+**What it would cost, today:** a custom firmware — the most gated step in this workshop, where the restore path has now been written, read back and watched booting, though the NVS zero positions have already moved once; **a second implementation of the same rules in C++, which this repository's tests cannot reach** — in a repository that calls a duplicated list a defect; a reflash for every behavior change; and debugging over a wire that does not exist yet.
 
 ⚠️ **What the device-side design is often assumed to buy, and does not:** a robot that keeps working when the host disappears. **A dead daemon is already not a runaway robot** — nothing streams, and the firmware owns the idle. The robot returns to its own behavior either way. What is genuinely lost with the state on the host is narrower: **the repository must exist on disk**, and **the phase does not survive a daemon restart**.
 

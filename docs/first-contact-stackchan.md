@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.1.0 | canonical: docs/first-contact-stackchan.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.2.0 | canonical: docs/first-contact-stackchan.md | translated: 2026-10-18 -->
 
 **Language:** [English](first-contact-stackchan.md) | [日本語](first-contact-stackchan-ja.md) | [中文](first-contact-stackchan-zh.md)
 
@@ -23,7 +23,7 @@
 
 ⛔ **The path does not exist on the unit in hand, and this is the finding that shaped the whole route.** It is not switched off — **it was never there:**
 
-- **The UART console is off.** `help`, `?` and a bare newline get no response at all.
+- **The UART console is off for input.** `help`, `?` and a bare newline get no response at all. ⚠️ **But since 2026-10-18 the same port is known to emit output**: at 115200 it streams the app's own log — see the boot observation below. ⛔ **A log is not a shell.**
 - **There is no local API.** All ports 1–65535 were scanned; **every one is closed.**
 - **The device is not a server.** It connects **as a client** to `ws://47.113.125.164:12800`, so the MCP tools (`self.robot.set_head_angles` and the rest) are reachable only through the vendor's cloud, not over the LAN.
 - The launcher's apps — Launcher / AI.AGENT / AVATAR / ESPNOW.REMOTE / APP.CENTER / EZDATA / DANCE / SETUP — offer no way out to a host.
@@ -34,7 +34,7 @@
 
 ## The one check that gates the firmware
 
-**Can the stock image be written back?** ✅ **On 2026-10-18 it was written and read back bit-for-bit — see below.** ⛔ **Whether it boots is still unanswered.** **Ask this before anything else**, because ⛔ **a flash is the one act on this page that nothing you send afterwards can undo.**
+**Can the stock image be written back?** ✅ **On 2026-10-18 it was written, read back bit-for-bit, and observed booting — see below.** **Ask this before anything else**, because ⛔ **a flash is the one act on this page that nothing you send afterwards can undo.**
 
 The safety net exists, and it is verified:
 
@@ -60,7 +60,7 @@ eFuse, measured: **`SECURE_BOOT_EN` False**, **`SPI_BOOT_CRYPT_CNT` Disable**, *
 | 3 | `write-flash 0 stackchan-current-2026-10-18.bin` — 16,777,216 bytes, 36.6 s | ✅ *Hash of data verified* |
 | 4 | `verify-flash 0 stackchan-current-2026-10-18.bin`, then `read-mac` | ✅ *Verification successful (digest matched)*; MAC `80:45:6b:54:6d:b0` |
 
-⇒ **The net holds in the sense it was built to hold: the stock image goes onto this device and reads back bit-for-bit, and the device still identifies as itself afterwards.** ⛔ **And in the sense below it does not hold yet.**
+⇒ **The net holds in the sense it was built to hold: the stock image goes onto this device and reads back bit-for-bit, and the device still identifies as itself afterwards.** ⛔ **In the first pass it did not yet hold in the sense below; the second pass closed that.**
 
 **What was measured about the two images.** The snapshot taken before the exercise, and its diff against stock:
 
@@ -71,13 +71,30 @@ eFuse, measured: **`SECURE_BOOT_EN` False**, **`SPI_BOOT_CRYPT_CNT` Disable**, *
 | SHA256 | `80c9dcafb558fc97b2bebd17182b0445cbc8f949c001253f04c1f2b5a3e6f963` |
 | differs from stock | **477 bytes, in 39 runs, all inside `0x9000`–`0xB000`** — ⚠️ **the NVS partition; zero differing bytes outside it** |
 
-⇒ **The app is byte-identical to stock.** The only thing separating the unit as it stood from the vendor's image is the NVS partition — **which is exactly where the servo zeros live.** ⚠️ **Byte-identity is not a reading of those zeros**: the image was restored bit-for-bit, and **whether the unit reads 460 / 620 back has not been observed** — that takes the wizard, and it was not run.
+⇒ **The app is byte-identical to stock.** The only thing separating the unit as it stood from the vendor's image is the NVS partition — **which is exactly where the servo zeros live.** ⚠️ **Byte-identity is not a reading of those zeros** — ⚠️ **but they have since been read, from the boot log, below.**
 
-⛔ **What the exercise still does not prove.** The step this page asked for was *write the stock image, let it boot, read the version back* — and **the boot was not observed and no version was read back.** The stock image was written, verified against its file, and the current snapshot was written over it. ⇒ **What is proven is the write path: cable, chip, driver, offset, hash.** **What is not proven is that this stock image boots on this unit.** The device answered from its ROM bootloader, which it does whether or not an app runs. ⚠️ **Those are two different claims, and the second is the one a safety net is for.**
+⛔ **In that first pass the boot was not observed.** The stock image was written, verified against its file, and the current snapshot was written over it — ⇒ **the write path was proven (cable, chip, driver, offset, hash), and whether the stock image boots was not.** The device answered from its ROM bootloader, which it does whether or not an app runs. ⚠️ **Those are two different claims, and the second is the one a safety net is for.**
 
-⇒ **The step still open before a custom image: restore stock once and watch it boot** — the launcher on the screen is the observation. ⛔ **A write that reads back is a proven write; it is not yet a proven machine.**
+✅ **So it was run again, and in the second pass the boot was observed.** The stock image was written; then the USB Serial/JTAG port was opened **at 115200** and the chip reset by a DTR/RTS pulse with the boot pin left high — **no download mode, no esptool**: just the port, and what the device printed. **The log is the app coming up:**
 
-⚠️ **And the choice this page demanded before anything was pressed was made — and it was the third of the three.** A full-image restore returns the zeros to 455 / 603; a partition-only restore returns something else again; **what was done was to write back the 16 MiB snapshot taken the same day, entire.** ⇒ **The unit is in the state it was in, NVS included, and the zeros were never asked to move.** ⛔ **It is recorded here because it was decided here — before the write, not after.**
+- `[HAL-IOE] init`, `[HAL-RTC] init`, `[HAL-IMU] init`, `[HAL-Servo] init`, `[HAL] lvgl init`
+- `[Launcher] on open`, then `[AI.AGENT]`, `[AVATAR]`, `[ESPNOW.REMOTE]`, `[APP.CENTER]`, `[EZDATA]`, `[DANCE]`, `[SETUP]` — each `on create`
+- the banner `@author Forairaaaaa`, `@version 2.3.3`, `@build at 10:38:47 Jul 31 2026`
+- three logs were captured, 8,312 / 8,373 / 8,374 bytes, at `~/stackchan/bootlog-{current,stock,restored}.txt` — ⚠️ **outside this repository**
+
+Then the current snapshot was written back, verified against its digest, and observed booting the same way. ⇒ **Both images boot on this unit, and the NVS choice is visible in the log:**
+
+| watched booting | zeros read from NVS | timezone read from NVS |
+|---|---|---|
+| the image in hand, before the exercise | 460 / 620 | `JST-9` |
+| **the stock image** | **455 / 603** | `GMT0` |
+| **the snapshot written back** | **460 / 620** | `JST-9` |
+
+⇒ **A full-image restore does return the zeros to 455 / 603, exactly as this page predicted — and writing the snapshot back returns them to 460 / 620.** ⚠️ **What the zeros being read proves is an NVS read, and the log itself says so** — the servo was not commanded. ⛔ **And nobody looked at the screen**: the observation is the device's own log stream, not an eye on the launcher. ⛔ **A boot log is not motion** — it holds what the device printed, and this page's own warning about green logs still stands.
+
+⇒ **The write-and-boot half of the gate is now closed.** ⛔ **The rest of the route is not: no transport is chosen, no custom firmware is built, and no gesture has arrived.**
+
+⚠️ **And the choice this page demanded before anything was pressed was made — and it was the third of the three.** A full-image restore returns the zeros to 455 / 603; a partition-only restore returns something else again; **what was done was to write back the 16 MiB snapshot taken the same day, entire.** ⇒ **The unit ended in the state it began in, NVS included — and the log of the final boot reads 460 / 620 again.** ⛔ **It is recorded here because it was decided here — before the write, not after.**
 
 ## ⛔ One trap that will cost you an hour, and it looks like a dead board
 
