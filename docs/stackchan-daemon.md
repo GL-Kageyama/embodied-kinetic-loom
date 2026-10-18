@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.18.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.19.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-19 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -154,6 +154,7 @@ frame: gesture perk refused — no gesture -> angle table exists
 - ⚠️ **The path is not an identity.** On one board it read `/dev/cu.usbmodem1101` before a hang and `/dev/cu.usbmodem101` after one replug, sixteen minutes apart. The installed plist names the second; **a replug may name a third, and the daemon will log `sent: false` and carry on.** ⇒ **the plist's port is the one thing about this installation that a cable can invalidate.**
 - ⛔ **Nothing here queues a line, and that is also the limit**: a frame written while another program holds the port is logged as unsent, and a stream that cannot write stops rather than waits. **The room answers the event either way.**
 - ⚠️ **A reader that asserts DTR and RTS is a reset.** A `pyserial` open of this console reset the board mid-boot, and the ROM stopped answering until the cable went out and back in; **the daemon's own `os.open` path, run alone, did neither.** To watch this console, use `os.open` and raw `termios`.
+- ⛔ **Two writers can merge, and the board sees one line.** Measured 2026-10-19 while the installed daemon was running: a `bench scan` written from a second `os.open` produced `frame: refused (malformed)` on the console and no scan at all; the same command 0.3 s later scanned normally. ⚠️ **The mechanism is not established** — neither write reported an error — **but the only line the board refuses as malformed is one that begins with `{`**, and the only writer of such a line is the daemon. ⇒ **the console is shared time, not shared safely: an out-of-band query can split a frame, and the frame is lost without either side noticing.** ⛔ **The daemon's own `bench pos` avoids this by using the fd it is about to stream on, not by taking a lock.**
 
 ⚠️ **What no check covers:** the seven port tests open a *regular file*, not a device. ⛔ **No test opens a port**, a missing path is tested as `sent: false` and not as a device error, and the measured delivery above is one observation on one host.
 
