@@ -32,6 +32,20 @@ constexpr int kServoPowerPin = 0;
 constexpr int kLedDataPin = 13;
 constexpr int kLedCount = 12;
 
+// --- the display (vendor: hal/board/stackchan.cc, InitializeSpi and
+//     InitializeIli9342Display; panel read off the unit's own boot log on
+//     2026-10-18: `CIPHER:0x64 / FIRMID:0x10 / VENDID:0x11, panel:ILI9342C`) ---
+constexpr int kDisplayMosi = 37;    // GPIO 37
+constexpr int kDisplaySclk = 36;    // GPIO 36
+constexpr int kDisplayCs = 3;       // GPIO 3
+constexpr int kDisplayDc = 35;      // GPIO 35
+constexpr int kDisplayWidth = 320;
+constexpr int kDisplayHeight = 240;
+
+// --- the two other devices on the I2C bus (vendor: stackchan.cc) ---
+constexpr int kAw9523Address = 0x58;    // the display's reset line
+constexpr int kAxp2101Address = 0x34;   // the backlight rail (DLDO1)
+
 // --- the scale (vendor: hal_servo.cpp, `set_angle_impl`) ---
 //   raw = zero + angle * 16 / 5 / 10,  with angle in 0.1 degree
 //   => one servo count is 0.3125 degree

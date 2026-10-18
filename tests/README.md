@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.20.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.21.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Thirty files, four hundred and ninety-three tests, all green — measured 2026-10-18.**
+**Thirty-one files, five hundred and two tests, all green — measured 2026-10-18.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -320,6 +320,22 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | the edge names exactly one destination, and refuses a pose the line cannot carry | `test_stackchan_neck.py` | `--port` or `--dry-run`, never both, never neither; beyond 1800 is a refusal |
 
 ⛔ **What it does not cover, and the two things that were found on the machine the same day.** The stream is only as good as its timing: **the servo follows at about 40°/s at `kPoseSpeed = 100`**, and min-jerk's peak is 1.875× its average, so **a duration shorter than about `degrees / 21` runs ahead of the head**. A 0.6 s move over 47° did exactly that — the board applied every line (73, 0 refused, 0 clamped) and the head was still travelling when the torque released. **No test here can see that**, because no test here has a servo. ⚠️ **And the durations used on 2026-10-18 were computed from a speed measured on the yaw shaft**, not on pitch under gravity. **The author's judgement of the motion is the next word, and it is not in this file.**
+
+## The face, drawn and checked — and the defect no check here could see (0.19.12)
+
+✅ **`tests/test_stackchan_face.py` arrived with the screen.** Nine tests; the count moved from 493 to 502. Like the parser test, it compiles a C++ file on the host — `face_bitmap.cpp`, which carries no IDF — and runs it.
+
+| the check | where | what it is for |
+|---|---|---|
+| none of the five faces is blank, and `kNone` draws nothing | `test_stackchan_face.py` | ⚠️ **a blank screen is not one of the five faces**; `none` is what the wire calls *no expression* |
+| the mouth is 90 × 6, in the same place for every emotion | `test_stackchan_face.py` | ⛔ **the vendor's `DefaultMouth` has no `setEmotion`** — a mouth that moved per emotion would be an invention, not a copy |
+| the two eyes are mirror images about `x = 160` | `test_stackchan_face.py` | the vendor negates the right eye's rotation; and ⚠️ **the mirror of pixel `x` is `319 - x`, not `320 - x`** — the off-by-one that put the eyes half a pixel off the mouth |
+| nothing is lit outside the eyes and the mouth | `test_stackchan_face.py` | the background is the vendor's `secondaryColor` |
+| **the edges carry intermediate values** | `test_stackchan_face.py` | ⛔ **this is the anti-aliasing, asserted**, because a 1-bit circle is a staircase and the author saw it |
+| the sleepy eyes are the most closed, and the lid follows the vendor's integer weights | `test_stackchan_face.py` | `-map_range(weight, 0, 100, 0, 20)` in `int` arithmetic: weight 72 lifts the lid by 14, not 14.4 |
+| `happy` and `greeting` are one drawing, and the other four are distinct | `test_stackchan_face.py` | the host decided two words share a face; the screen does not quietly disagree |
+
+⛔ **What it cannot see is where the defect was.** `display.cpp` — the SPI driver, the panel's init sequence, the two I2C rails, and the DMA — **is compiled by no check.** `idf.py build` is run by hand, and on 2026-10-18 a tear lived in it for four rounds of reporting while this directory stayed green: the eight-row chunk buffer was refilled before the DMA had finished reading it, so *every shape on the screen had a thinner copy of itself below it*, and the copy sat further below the lower the shape was. **The drawing was right the whole time; what was wrong was the wire underneath it.** ⇒ **A `-2` row shift was briefly written into `face_bitmap.cpp` on the strength of the symptom, and removed again** — the comment where it stood records why it must not come back. ⛔ **And these tests did not catch it, because they were moved with it**: the row boxes were re-pinned to the shifted drawing and the suite stayed green. **A test written from the same belief as the code cannot be the check on that belief** — what caught it was one photograph, on the glass.
 
 ## The rule that holds this directory — applied to us
 

@@ -4,6 +4,7 @@
 #    does not depend on CMake's handling of a bare `../`.
 idf_component_register(
     SRCS "main.cpp" "servo.cpp" "leds.cpp" "zeros.cpp"
+         "i2c_bus.cpp" "display.cpp" "face_bitmap.cpp"
          "${CMAKE_CURRENT_LIST_DIR}/../command_frame.cpp"
     INCLUDE_DIRS "." ".."
 )

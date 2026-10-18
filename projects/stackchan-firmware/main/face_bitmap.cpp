@@ -1,0 +1,179 @@
+#include "face_bitmap.h"
+
+#include <cmath>
+#include <cstring>
+
+namespace {
+
+// ⛔ The drawing is the vendor's default skin, not one of ours. Every number
+//    below is lifted from `vendor-src/StackChan/firmware/main/stackchan/avatar/
+//    skins/default/` (M5Stack, MIT, git 1b57655): `eyes.cpp` and `mouth.cpp`.
+//    The vendor draws it with LVGL containers; this file draws the same shapes
+//    with a rasterizer, because this firmware carries no LVGL.
+//
+//    ⚠️ What is copied: the two eye centres, the eye size for `setSize(0)`, the
+//    mouth size for `setWeight(0)`, and the six emotion pairs (weight, rotation)
+//    from `DefaultEyes::setEmotion`. ⛔ What is not: the eyelid's *animation*,
+//    the blink, the breath, and the mouth's speech motion — none of those is
+//    here, and none of them is a face.
+//
+//    ⚠️ LVGL anti-aliases its circles; a 1-bit renderer did not, and the first
+//    face on the screen was a staircase the author could see. The coverage of
+//    each pixel is sampled 8 x 8 below, which is how the smoothness comes back
+//    without the library.
+
+// `_eye_pos = Vector2i(-70, -16)` — offsets from the panel's centre (320x240).
+constexpr int kEyeOffsetX = 70;
+constexpr int kEyeOffsetY = -16;
+
+// `_mouth_pos = Vector2i(0, 26)`.
+constexpr int kMouthOffsetY = 26;
+
+// `setSize(0)` maps -100..100 to 8..32: 0 lands on 20 px.
+constexpr int kEyeSize = 20;
+
+// `setWeight(0)` maps 0..100 to 90..60 wide and 6..50 high, radius 0..16:
+// weight 0 is a flat bar 90 x 6, radius 0. That is the default mouth.
+constexpr int kMouthWidth = 90;
+constexpr int kMouthHeight = 6;
+
+// Samples per axis, per pixel. 8 x 8 gives 65 grey levels — enough that the
+// staircase is gone, and cheap because only the eyes carry edges.
+constexpr int kSamples = 8;
+
+// ⛔ **There is no vertical adjustment here, and the reason it was proposed is
+//    recorded.** On 2026-10-18 the author reported the whole drawing sitting two
+//    rows low, and a `-2` was written here on their word. The photograph they
+//    then sent showed why that reading was wrong: the panel was receiving each
+//    eight-row chunk of the frame while the DMA was still reading the previous
+//    one, so *every shape had a copy eight rows below it* — a mouth drawn as two
+//    lines, and a stray line under each eye. ⚠️ The two rows were a piece of that
+//    tear, not a placement. The tear is fixed in `display.cpp`; this file draws
+//    the vendor's rows exactly (eyes 94..113, mouth 143..148). ⛔ Do not add an
+//    offset here to chase a symptom that belongs to the wire.
+
+
+
+// The eyelid is a square of the eye's own size, aligned centre and pushed up by
+// `weight` percent of that size. Weight 100 lifts it clear; weight 0 covers the
+// eye completely. ⚠️ The vendor computes this in `DefaultEyes::setWeight`.
+struct Style {
+  int weight;      // 0..100 — how much of the eye the lid leaves open
+  int rotation;    // tenths of a degree, as LVGL takes it
+};
+
+// `DefaultEyes::setEmotion`, verbatim: Neutral (100, 0), Happy (72, 1550),
+// Angry (70, 450), Sad (70, -400), Doubt (75, 0), Sleepy (35, -50).
+// ⚠️ The five words of this repository map onto those six as below. `greeting`
+//    and `happy` are the same drawing on purpose — that is the host's decision,
+//    and this file does not split it.
+Style StyleFor(Face face) {
+  switch (face) {
+    case Face::kHappy:
+    case Face::kGreeting:
+      return {72, 1550};
+    case Face::kAngry:
+      return {70, 450};
+    case Face::kCurious:
+      return {75, 0};
+    case Face::kSleepy:
+      return {35, -50};
+    case Face::kNone:
+      break;
+  }
+  return {100, 0};
+}
+
+constexpr float kDegreesToRadians = 3.14159265f / 180.0f;
+
+// One eye: a white disc, with the black lid cut out of it. ⚠️ The lid is part of
+// the container LVGL rotates, so it is the *inverse-rotated* sample that is
+// tested against an axis-aligned square.
+void DrawEye(uint8_t* grey, int cx, int cy, const Style& style, int sign) {
+  const float angle =
+      static_cast<float>(sign * style.rotation) * 0.1f * kDegreesToRadians;
+  const float c = std::cos(angle);
+  const float s = std::sin(angle);
+
+  const float radius = kEyeSize / 2.0f;
+  const float half = kEyeSize / 2.0f;
+  // ⚠️ Integer, like the vendor: `DefaultEyes::setWeight` computes
+  //    `-map_range(weight, 0, 100, 0, height)` with `int` arithmetic, so weight
+  //    72 lifts the lid by 14, not 14.4. A fractional lid here is a lid the
+  //    vendor does not have.
+  const float lid_offset =
+      -static_cast<float>(style.weight * kEyeSize / 100);
+
+  // The disc's radius bounds every white pixel; the box only needs a margin.
+  const int reach = kEyeSize / 2 + 1;
+  constexpr float kStep = 1.0f / kSamples;
+
+  for (int y = cy - reach; y <= cy + reach; ++y) {
+    if (y < 0 || y >= face_bitmap::kHeight) {
+      continue;
+    }
+    for (int x = cx - reach; x <= cx + reach; ++x) {
+      if (x < 0 || x >= face_bitmap::kWidth) {
+        continue;
+      }
+      int covered = 0;
+      // ⚠️ Pixel `x` covers `[x, x+1)`, not `[x-0.5, x+0.5)`. The mouth fills
+      //    integer indices directly, and the eyes did not — so the eyes sat half
+      //    a pixel right and down of the mouth, and the author saw a shift
+      //    rather than a stair. Same convention, both shapes.
+      for (int sy = 0; sy < kSamples; ++sy) {
+        const float fy = static_cast<float>(y) + (sy + 0.5f) * kStep;
+        for (int sx = 0; sx < kSamples; ++sx) {
+          const float fx = static_cast<float>(x) + (sx + 0.5f) * kStep;
+          const float dx = fx - static_cast<float>(cx);
+          const float dy = fy - static_cast<float>(cy);
+          const float qx = c * dx + s * dy;
+          const float qy = -s * dx + c * dy;
+
+          const bool in_disc = qx * qx + qy * qy <= radius * radius;
+          const bool in_lid = qx >= -half && qx <= half &&
+                              qy >= lid_offset - half && qy <= lid_offset + half;
+          if (in_disc && !in_lid) {
+            ++covered;
+          }
+        }
+      }
+      grey[y * face_bitmap::kWidth + x] =
+          static_cast<uint8_t>(covered * 255 / (kSamples * kSamples));
+    }
+  }
+}
+
+// ⚠️ The vendor's mouth is a container with radius 0 at weight 0: a crisp
+//    rectangle, where LVGL itself draws no anti-aliased edge. Its corners and
+//    sides land on pixel boundaries, so it is filled solid.
+void DrawMouth(uint8_t* grey) {
+  const int cx = face_bitmap::kWidth / 2;
+  const int cy = face_bitmap::kHeight / 2 + kMouthOffsetY;
+  const int left = cx - kMouthWidth / 2;
+  const int top = cy - kMouthHeight / 2;
+  for (int y = top; y < top + kMouthHeight; ++y) {
+    if (y < 0 || y >= face_bitmap::kHeight) {
+      continue;
+    }
+    std::memset(grey + y * face_bitmap::kWidth + left, 255, kMouthWidth);
+  }
+}
+
+}  // namespace
+
+void face_bitmap::render(Face face, uint8_t* grey) {
+  std::memset(grey, 0, kBytes);
+  if (face == Face::kNone) {
+    return;
+  }
+
+  const Style style = StyleFor(face);
+  const int cx = kWidth / 2;
+  const int cy = kHeight / 2 + kEyeOffsetY;
+  // ⚠️ The vendor's `apply_style` negates the rotation for the right eye:
+  //    `_is_left_eye ? rotation : -rotation`.
+  DrawEye(grey, cx - kEyeOffsetX, cy, style, +1);
+  DrawEye(grey, cx + kEyeOffsetX, cy, style, -1);
+  DrawMouth(grey);
+}

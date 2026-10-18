@@ -1,0 +1,315 @@
+#include "display.h"
+
+#include <cstdio>
+#include <cstring>
+
+#include "driver/i2c_master.h"
+#include "driver/spi_master.h"
+#include "esp_lcd_panel_io.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "freertos/task.h"
+
+#include "board.h"
+#include "face_bitmap.h"
+#include "i2c_bus.h"
+
+namespace {
+
+i2c_master_dev_handle_t g_aw9523 = nullptr;
+i2c_master_dev_handle_t g_axp2101 = nullptr;
+esp_lcd_panel_io_handle_t g_io = nullptr;
+SemaphoreHandle_t g_flushed = nullptr;
+
+uint8_t g_grey[face_bitmap::kBytes] = {};
+uint16_t g_line[board::kDisplayWidth * 8] = {};
+
+// ⛔ **`tx_color` queues a DMA transfer and returns; the buffer belongs to the
+//    DMA until this callback fires.** `esp_lcd_panel_io.h` says so in the one
+//    sentence that mattered here: *"The caller should take care of the lifecycle
+//    of the `color` buffer. Recycling of color buffer should be done in the
+//    callback `on_color_trans_done()`."* ⚠️ The first version of this file
+//    filled `g_line` with the next eight rows immediately, so the tail of every
+//    chunk was read after it had been overwritten with the head of the next one.
+//    On the screen that looked like a copy of every shape eight rows below it —
+//    a mouth drawn as two lines — and it was read as "jagged", then as "shifted
+//    by two rows", for a day. ⇒ One buffer, one transfer at a time.
+bool OnColorTransDone(esp_lcd_panel_io_handle_t, esp_lcd_panel_io_event_data_t*,
+                      void*) {
+  BaseType_t woken = pdFALSE;
+  if (g_flushed != nullptr) {
+    xSemaphoreGiveFromISR(g_flushed, &woken);
+  }
+  return woken == pdTRUE;
+}
+
+bool AddDevice(int address, i2c_master_dev_handle_t* out) {
+  i2c_device_config_t config = {};
+  config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+  config.device_address = static_cast<uint16_t>(address);
+  config.scl_speed_hz = 100000;
+  return i2c_master_bus_add_device(i2c_bus::handle(), &config, out) == ESP_OK;
+}
+
+bool WriteReg(i2c_master_dev_handle_t device, uint8_t reg, uint8_t value) {
+  const uint8_t buffer[2] = {reg, value};
+  return i2c_master_transmit(device, buffer, sizeof(buffer), 100) == ESP_OK;
+}
+
+bool ReadReg(i2c_master_dev_handle_t device, uint8_t reg, uint8_t* out) {
+  return i2c_master_transmit_receive(device, &reg, 1, out, 1, 100) == ESP_OK;
+}
+
+// --- the panel's two rails, and its reset line -----------------------------
+// ⚠️ The vendor's own boot sequence (stackchan.cc: Aw9523 constructor and
+//    ResetIli9342; Pmic constructor). ⛔ Not one of these values was measured
+//    here, and the record says so.
+
+bool BringUpAw9523() {
+  const uint8_t setup[][2] = {
+      {0x02, 0b00000111},
+      {0x03, 0b10001111},
+      {0x04, 0b00011000},
+      {0x05, 0b00001100},
+      {0x11, 0b00010000},
+      {0x12, 0b11111111},
+      {0x13, 0b11111111},
+  };
+  for (const auto& pair : setup) {
+    if (!WriteReg(g_aw9523, pair[0], pair[1])) {
+      return false;
+    }
+  }
+
+  // Reset the LCD: P1.7 low for 20 ms, then high.
+  if (!WriteReg(g_aw9523, 0x03, 0b10000001)) {
+    return false;
+  }
+  vTaskDelay(pdMS_TO_TICKS(20));
+  return WriteReg(g_aw9523, 0x03, 0b10000011);
+}
+
+bool BringUpAxp2101() {
+  uint8_t value = 0;
+  if (!ReadReg(g_axp2101, 0x90, &value)) {
+    return false;
+  }
+  const uint8_t rails[][2] = {
+      {0x90, static_cast<uint8_t>(value | 0b10110100)},
+      {0x97, 28},
+      {0x69, 0b00110101},
+      {0x30, 0b00111111},
+      {0x90, 0xBF},
+      {0x94, 28},
+      {0x95, 28},
+      {0x27, 0x00},
+      // The backlight is DLDO1 on the AXP2101: its voltage register is 0x99,
+      // mapped by the vendor as 20 + brightness * 8 / 100. 26 is 75 %.
+      {0x99, 26},
+  };
+  for (const auto& pair : rails) {
+    if (!WriteReg(g_axp2101, pair[0], pair[1])) {
+      return false;
+    }
+  }
+  return ReadReg(g_axp2101, 0x62, &value) &&
+         WriteReg(g_axp2101, 0x62, (value & 0xE0) | 0x06);
+}
+
+// --- the panel -------------------------------------------------------------
+
+struct InitCommand {
+  uint8_t command;
+  const uint8_t* data;
+  size_t size;
+  uint16_t delay_ms;
+};
+
+// ⚠️ The ILI9342C init sequence esp_lcd_ili9341 v1.2.0 sends — the version the
+//    unit's own boot log names (`LCD panel create success, version: 1.2.0`).
+//    This file sends it through the core panel-IO API instead of that component,
+//    so the repository gains no vendored tree. ⛔ MADCTL (0x36) carries BGR only:
+//    the vendor's panel is created with `rgb_ele_order = BGR`, no mirror and no
+//    swap.
+constexpr uint8_t kCf[] = {0x00, 0xC1, 0x30};
+constexpr uint8_t kEd[] = {0x64, 0x03, 0x12, 0x81};
+constexpr uint8_t kE8[] = {0x85, 0x00, 0x78};
+constexpr uint8_t kCb[] = {0x39, 0x2C, 0x00, 0x34, 0x02};
+constexpr uint8_t kF7[] = {0x20};
+constexpr uint8_t kEa[] = {0x00, 0x00};
+constexpr uint8_t kC0[] = {0x23};
+constexpr uint8_t kC1[] = {0x10};
+constexpr uint8_t kC5[] = {0x3E, 0x28};
+constexpr uint8_t kC7[] = {0x86};
+constexpr uint8_t kMadctl[] = {0x08};
+constexpr uint8_t kPixelFormat[] = {0x55};
+constexpr uint8_t kB1[] = {0x00, 0x18};
+constexpr uint8_t kB6[] = {0x08, 0x82, 0x27};
+constexpr uint8_t kF2[] = {0x00};
+constexpr uint8_t k26[] = {0x01};
+constexpr uint8_t kPositive[] = {0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E, 0xF1,
+                                 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00};
+constexpr uint8_t kNegative[] = {0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, 0x31, 0xC1,
+                                 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F};
+
+constexpr InitCommand kInit[] = {
+    {0xCF, kCf, sizeof(kCf), 0},   {0xED, kEd, sizeof(kEd), 0},
+    {0xE8, kE8, sizeof(kE8), 0},   {0xCB, kCb, sizeof(kCb), 0},
+    {0xF7, kF7, sizeof(kF7), 0},   {0xEA, kEa, sizeof(kEa), 0},
+    {0xC0, kC0, sizeof(kC0), 0},   {0xC1, kC1, sizeof(kC1), 0},
+    {0xC5, kC5, sizeof(kC5), 0},   {0xC7, kC7, sizeof(kC7), 0},
+    {0x36, kMadctl, sizeof(kMadctl), 0},
+    {0x3A, kPixelFormat, sizeof(kPixelFormat), 0},
+    {0xB1, kB1, sizeof(kB1), 0},   {0xB6, kB6, sizeof(kB6), 0},
+    {0xF2, kF2, sizeof(kF2), 0},   {0x26, k26, sizeof(k26), 0},
+    {0xE0, kPositive, sizeof(kPositive), 0},
+    {0xE1, kNegative, sizeof(kNegative), 0},
+    // Invert on (0x21), sleep out (0x11) and display on (0x29).
+    {0x21, nullptr, 0, 0},
+    {0x11, nullptr, 0, 120},
+    {0x29, nullptr, 0, 120},
+};
+
+bool BringUpPanel() {
+  spi_bus_config_t bus = {};
+  bus.mosi_io_num = board::kDisplayMosi;
+  bus.miso_io_num = -1;
+  bus.sclk_io_num = board::kDisplaySclk;
+  bus.quadwp_io_num = -1;
+  bus.quadhd_io_num = -1;
+  bus.max_transfer_sz = sizeof(g_line);
+
+  if (spi_bus_initialize(SPI3_HOST, &bus, SPI_DMA_CH_AUTO) != ESP_OK) {
+    return false;
+  }
+
+  esp_lcd_panel_io_spi_config_t io_config = {};
+  io_config.cs_gpio_num = board::kDisplayCs;
+  io_config.dc_gpio_num = board::kDisplayDc;
+  io_config.spi_mode = 2;
+  io_config.pclk_hz = 40 * 1000 * 1000;
+  io_config.trans_queue_depth = 10;
+  io_config.lcd_cmd_bits = 8;
+  io_config.lcd_param_bits = 8;
+
+  if (esp_lcd_new_panel_io_spi(SPI3_HOST, &io_config, &g_io) != ESP_OK) {
+    return false;
+  }
+
+  g_flushed = xSemaphoreCreateBinary();
+  if (g_flushed == nullptr) {
+    return false;
+  }
+  const esp_lcd_panel_io_callbacks_t callbacks = {
+      .on_color_trans_done = OnColorTransDone,
+  };
+  if (esp_lcd_panel_io_register_event_callbacks(g_io, &callbacks, nullptr) != ESP_OK) {
+    return false;
+  }
+
+  for (const auto& init : kInit) {
+    if (esp_lcd_panel_io_tx_param(g_io, init.command, init.data, init.size) != ESP_OK) {
+      return false;
+    }
+    if (init.delay_ms != 0) {
+      vTaskDelay(pdMS_TO_TICKS(init.delay_ms));
+    }
+  }
+  return true;
+}
+
+bool SetWindow() {
+  const uint8_t columns[4] = {0x00, 0x00,
+                              static_cast<uint8_t>((board::kDisplayWidth - 1) >> 8),
+                              static_cast<uint8_t>((board::kDisplayWidth - 1) & 0xFF)};
+  const uint8_t rows[4] = {0x00, 0x00,
+                           static_cast<uint8_t>((board::kDisplayHeight - 1) >> 8),
+                           static_cast<uint8_t>((board::kDisplayHeight - 1) & 0xFF)};
+  return esp_lcd_panel_io_tx_param(g_io, 0x2A, columns, sizeof(columns)) == ESP_OK &&
+         esp_lcd_panel_io_tx_param(g_io, 0x2B, rows, sizeof(rows)) == ESP_OK &&
+         esp_lcd_panel_io_tx_param(g_io, 0x2C, nullptr, 0) == ESP_OK;
+}
+
+bool Push() {
+  if (g_io == nullptr || !SetWindow()) {
+    return false;
+  }
+  constexpr int kRowsPerChunk = 8;
+  constexpr TickType_t kTransferTimeout = pdMS_TO_TICKS(200);
+  for (int y0 = 0; y0 < board::kDisplayHeight; y0 += kRowsPerChunk) {
+    int rows = board::kDisplayHeight - y0;
+    if (rows > kRowsPerChunk) {
+      rows = kRowsPerChunk;
+    }
+    const int pixels = rows * board::kDisplayWidth;
+    for (int i = 0; i < pixels; ++i) {
+      const int y = y0 + i / board::kDisplayWidth;
+      const int x = i % board::kDisplayWidth;
+      // ⚠️ One byte of coverage -> a grey RGB565 word, **byte-swapped**.
+      //    The panel reads colour big-endian; the ESP32 writes it little-endian.
+      //    0xFFFF and 0x0000 are the same either way, which is why the first two
+      //    faces looked right and every grey edge was invisible: 0x8410 arrived
+      //    as 0x1084 — near black — so the anti-aliasing was sent and not shown.
+      const uint8_t value = g_grey[y * board::kDisplayWidth + x];
+      const uint16_t colour = static_cast<uint16_t>(
+          ((value >> 3) << 11) | ((value >> 2) << 5) | (value >> 3));
+      g_line[i] = static_cast<uint16_t>((colour >> 8) | (colour << 8));
+    }
+    if (esp_lcd_panel_io_tx_color(g_io, -1, g_line,
+                                  static_cast<size_t>(pixels) * sizeof(uint16_t)) != ESP_OK) {
+      return false;
+    }
+    // ⛔ Wait for *this* chunk before touching `g_line` again. The wait is about
+    //    a millisecond per chunk at 40 MHz, so a whole frame costs some 30 ms —
+    //    which is the price of not tearing, and a face changes on an event.
+    if (xSemaphoreTake(g_flushed, kTransferTimeout) != pdTRUE) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
+bool display::begin() {
+  if (g_io != nullptr) {
+    return true;
+  }
+  if (!i2c_bus::begin()) {
+    std::printf("display: no I2C bus\n");
+    return false;
+  }
+  if (!AddDevice(board::kAw9523Address, &g_aw9523) ||
+      !AddDevice(board::kAxp2101Address, &g_axp2101)) {
+    std::printf("display: the AW9523 or the AXP2101 did not answer on the bus\n");
+    return false;
+  }
+  if (!BringUpAw9523()) {
+    std::printf("display: the AW9523 did not take its setup\n");
+    return false;
+  }
+  if (!BringUpAxp2101()) {
+    std::printf("display: the AXP2101 did not take its setup\n");
+    return false;
+  }
+  if (!BringUpPanel()) {
+    std::printf("display: the panel did not take its init sequence\n");
+    return false;
+  }
+
+  std::memset(g_grey, 0, sizeof(g_grey));
+  if (!Push()) {
+    std::printf("display: the first frame did not go out\n");
+    return false;
+  }
+  std::printf("display: ILI9342C up, backlight on — 320x240, five faces\n");
+  return true;
+}
+
+void display::show(Face face) {
+  if (g_io == nullptr) {
+    return;
+  }
+  face_bitmap::render(face, g_grey);
+  Push();
+}

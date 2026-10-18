@@ -1,7 +1,9 @@
 // Stack-chan — the device end of the wire, on the unit in hand.
 //
 // ⛔ What this firmware does NOT do:
-//   - it has no display renderer, so a `face` is logged as a meaning, not drawn;
+//   - it does not run the vendor's avatar. The screen carries the default
+//     skin's face — two eyes and a mouth bar, the vendor's numbers, this
+//     repository's rasterizer — and nothing else;
 //   - it does not move at boot, and it does not move unless a line arrives.
 //
 // ✅ What it does:
@@ -33,6 +35,7 @@
 
 #include "board.h"
 #include "command_frame.h"
+#include "display.h"
 #include "leds.h"
 #include "servo.h"
 #include "zeros.h"
@@ -933,8 +936,8 @@ void HandleFrame(const char* line, int length) {
   }
 
   leds::set_light(command.light);
-  printf("frame: light=%s face=%s%s\n", LightName(command.light), FaceName(command.face),
-         command.face == Face::kNone ? "" : " (no renderer yet)");
+  display::show(command.face);
+  printf("frame: light=%s face=%s\n", LightName(command.light), FaceName(command.face));
 
   if (command.gesture != Gesture::kNone) {
     PlayGesture(command.gesture);
@@ -1060,6 +1063,10 @@ extern "C" void app_main() {
   } else {
     leds::set_light(Light::kDim);
   }
+
+  // ⚠️ Not fatal. The screen failing must not take the neck with it; a face
+  //    that is only logged is still a face the console reports.
+  display::begin();
 
   if (!zeros::read(&g_yaw_zero, &g_pitch_zero, &g_zeros_from_nvs)) {
     printf("zeros: NO ANSWER FROM NVS — using the vendor's defaults %d / %d\n",
