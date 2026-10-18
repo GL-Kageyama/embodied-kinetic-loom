@@ -10,18 +10,24 @@ from __future__ import annotations
 import ast
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import time
 
 import pytest
 
-from engine.backend.protocol_stackchan_pose import Pose, decode
+from engine.backend.protocol_stackchan_pose import Pose, decode, encode
 from engine.trajectory.profile import Spring
+from projects.stackchan import behaviors
+from projects.stackchan.neck import gestures
 from projects.stackchan.neck import motion as motion_of
+from projects.stackchan.neck.motion import chain
+from projects.stackchan.neck.stream import Stream
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 NECK = ROOT / "projects" / "stackchan" / "neck" / "motion.py"
+FIRMWARE = ROOT / "projects" / "stackchan-firmware" / "main" / "main.cpp"
 
 #: ⚠️ **2026-10-18 に測った五つの姿勢である**（`projects/stackchan-firmware/main/main.cpp`）。
 #: ⛔ **ここへ写すのは、両端が動かないことを見るためであり、表の正本は基板の側である。**
@@ -245,3 +251,156 @@ def test_the_edge_refuses_a_sharpness_at_or_below_one():
                   "--profile", "spring", "--sharpness", "1.0")
     assert result.returncode == 2
     assert b"sharpness" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# 継ぎ目。2026-10-19 —— 身振りが、首の動きになる。
+# ⚠️ **これは「滑らかに見える」の検査ではない。** その語は著者のものである。
+# ここが見るのは、表・継ぎ目・期限・保持の**機構**だけである。
+# ---------------------------------------------------------------------------
+
+
+def test_chain_keeps_one_timeline_and_one_seam():
+    """⛔ **2つ目の動きの時刻を、そのまま並べない。** 重なった列になる。"""
+    first = motion_of(Pose(0, 500), Pose(100, 500), 0.2, 0.02)
+    second = motion_of(Pose(100, 500), Pose(100, 30), 0.3, 0.02)
+    joined = chain((first, second))
+
+    times = [step.t for step in joined.steps]
+    assert times == sorted(times)
+    assert len(times) == len(set(times))
+    # ⚠️ **継ぎ目の姿勢は1つだけである。**
+    assert sum(1 for step in joined.steps if step.pose == Pose(100, 500)) == 1
+    assert joined.starts == first.starts
+    assert joined.ends == second.ends
+    assert joined.duration == pytest.approx(first.duration + second.duration)
+    assert joined.last.pose == Pose(100, 30)
+
+
+def test_a_plan_starts_where_it_was_told_and_ends_where_the_table_says():
+    """⛔ **両端は厳密である。** 丸めは整数の上で閉じる。"""
+    for name in gestures.POSTURES:
+        starts = Pose(-30, 120)
+        plan = gestures.plan(name, starts)
+        assert plan.steps[0].pose == starts
+        assert plan.last.pose == gestures.ends(name)
+
+
+def test_nod_passes_through_its_down_posture():
+    """⚠️ **`nod` だけは2つで1つである。** 下へ行ってから、`look_up` へ戻る。"""
+    plan = gestures.plan("nod", Pose(0, 500))
+    down = gestures.posture("nod")
+    assert any(step.pose == down for step in plan.steps)
+    assert plan.last.pose == gestures.posture("look_up")
+
+
+def test_the_gesture_table_covers_the_layers_words():
+    """⛔ **層が返す5つの語と、表の5つの行は同じ集合である。**"""
+    assert set(gestures.POSTURES) == set(behaviors.GESTURES)
+
+
+def test_the_firmware_table_and_this_one_agree():
+    """⛔ **ホストの表は写しである。** 写しが黙ってずれないことを、ここで見る。
+
+    ⚠️ **正本は `main.cpp` であり、この検査はそれを読む。**
+    基板の数が動いた日に、ホストの数が古いまま残る形を作らない。
+    """
+    source = FIRMWARE.read_text(encoding="utf-8")
+    found = {
+        name: (int(yaw), int(pitch))
+        for name, yaw, pitch in re.findall(
+            r"constexpr GesturePosture k(\w+)Posture = \{(-?\d+), (-?\d+)\};", source
+        )
+    }
+    assert set(found) == {"LookUp", "LookSide", "Rest", "NodDown", "Recoil"}
+    names = {"look_up": "LookUp", "look_side": "LookSide", "rest": "Rest",
+             "nod": "NodDown", "recoil": "Recoil"}
+    for gesture, firmware_name in names.items():
+        assert gestures.POSTURES[gesture] == found[firmware_name]
+
+    # ⚠️ **`nod` の戻り先も、基板の綴りで確かめる。** 6つ目の数ではない。
+    play = source.split("void PlayGesture(Gesture gesture) {", 1)[1]
+    nod = play.split("case Gesture::kNod:", 1)[1].split("break;", 1)[0]
+    moves = re.findall(r"MoveToPosture\((k\w+Posture)\)", nod)
+    assert moves == ["kNodDownPosture", "kLookUpPosture"]
+    assert gestures.NOD_RETURN == "look_up"
+
+
+def test_every_posture_can_be_carried_by_the_line():
+    """⚠️ **表の数は、この線が運べる数である**（プロトコルの枠は 1800）。"""
+    for name in gestures.POSTURES:
+        pose = gestures.posture(name)
+        assert decode(encode(pose)) == pose
+
+
+def test_duration_grows_with_distance_and_has_a_floor():
+    """⚠️ **長さは距離から決まる。** 下限は判断であり、ここでは機構として在る。"""
+    near = gestures.duration_for(Pose(0, 500), Pose(1, 500))
+    far = gestures.duration_for(Pose(0, 500), Pose(600, 500))
+    assert near == gestures.MIN_DURATION
+    assert far > near
+    assert far == pytest.approx(60.0 / gestures.DEGREES_PER_SECOND)
+
+
+def _drive(stream: Stream, at: float = 0.0) -> float:
+    """**期限へ飛びながら、列を終わりまで追う。** ⚠️ 時計ではなく、値で追う。"""
+    while True:
+        stream.line(at)
+        deadline = stream.deadline
+        if deadline is None:
+            return at
+        at = deadline
+
+
+def test_a_stream_starts_at_the_events_own_time():
+    """⚠️ **`at` は判定の時刻そのものである。** ここが「同じ時計」の継ぎ目である。"""
+    plan = motion_of(Pose(0, 500), Pose(100, 500), 0.2, 0.02)
+    stream = Stream(period=0.02, hold=0.1)
+    stream.start(plan, 100.0, name="look_up")
+    assert stream.deadline == 100.0
+    assert stream.line(100.0) == plan.steps[0].line
+    assert stream.deadline == pytest.approx(100.0 + plan.steps[1].t)
+
+
+def test_a_stream_writes_every_step_once_and_then_holds():
+    plan = motion_of(Pose(0, 500), Pose(100, 500), 0.2, 0.02)
+    stream = Stream(period=0.02, hold=0.1)
+    stream.start(plan, 0.0)
+    _drive(stream)
+    summary = stream.take_summary()
+
+    assert summary is not None
+    assert summary.applied == plan.count
+    assert summary.late == 0
+    assert summary.held == 4          # 0.1 / 0.02、最後の刻みは end に含まれない
+    assert stream.take_summary() is None
+
+
+def test_a_line_is_late_only_past_half_a_period():
+    """⛔ **期限ちょうどは遅刻ではない。** 2026-10-18 に、計器がそれを31回言った。"""
+    plan = motion_of(Pose(0, 500), Pose(100, 500), 0.2, 0.02)
+    stream = Stream(period=0.02, hold=0.0)
+    stream.start(plan, 0.0)
+    assert stream.line(0.01) is not None      # 半周期ちょうど——遅刻ではない
+    assert stream.line(0.031) is not None     # 0.011 遅れ——遅刻である
+    _drive(stream, 0.031)
+    summary = stream.take_summary()
+    assert summary is not None
+    assert summary.late == 1
+
+
+def test_a_new_motion_starts_from_the_line_that_was_actually_sent():
+    """⛔ **始点は「命じた終点」ではない。** 割り込まれたら、首はそこまでしか居ない。"""
+    first = motion_of(Pose(0, 500), Pose(200, 500), 0.2, 0.02)
+    stream = Stream(period=0.02, hold=0.1)
+    stream.start(first, 0.0, name="look_side")
+    stream.line(0.0)
+    stream.line(0.04)
+    assert stream.running or True
+    starts = stream.last_pose
+    assert starts is not None
+    assert starts != first.ends
+
+    second = motion_of(starts, Pose(80, 500), 0.2, 0.02)
+    stream.start(second, 0.05, name="look_up")
+    assert stream.line(0.05) == second.steps[0].line

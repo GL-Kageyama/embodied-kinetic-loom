@@ -23,11 +23,13 @@ import time
 import pytest
 
 from engine.backend import protocol_stackchan as wire
+from engine.backend.protocol_stackchan_pose import decode
 from projects.stackchan.behaviors import (
     ACTED,
     DISTANT,
     EXPRESSION_SECONDS,
     IDLE_SECONDS,
+    MIN_BODY_INTERVAL,
     SETTLED,
     SLEPT,
 )
@@ -452,3 +454,65 @@ def test_a_line_that_cannot_be_written_is_not_sent(tmp_path):
     target.write_text("", encoding="ascii")
     assert edge.send_line(str(target), "x\n") is True
     assert target.read_text(encoding="ascii") == "x\n"
+
+
+# ---------------------------------------------------------------------------
+# 継ぎ目。2026-10-19 —— 1つの事象が、枠と姿勢の行に分かれる。
+# ---------------------------------------------------------------------------
+
+
+def test_the_second_gesture_is_streamed_and_the_frame_carries_none(sock):
+    """✅ **1つの事象が、顔と光を枠で、首を姿勢の行で動かす。**
+
+    ⛔ **枠が身振りも運べば、基板は2度動く**——`PlayGesture` はメインループを数秒塞ぎ、
+    その間の姿勢の行は遅れて適用される。⇒ **流すとき、枠の `gesture` は `None` である。**
+    ⚠️ **最初の1回だけは基板が演じる**（このホストは首の位置を読まない）——
+    だからこの検査は、**2つ目の事象**で見る。
+    """
+    port = sock.parent / "console"
+    port.touch()
+    with Daemon(sock, port=port) as daemon:
+        first = daemon.send({"session": "main", "event": "SessionStart"})
+        # ⚠️ **体の下限を越える。** 近すぎる身振りは、並べずに捨てられる。
+        time.sleep(MIN_BODY_INTERVAL + 0.05)
+        second = daemon.send({"session": "main", "event": "PermissionRequest"})
+        assert first["gesture"] == "look_up"
+        assert second["gesture"] == "look_side"
+        time.sleep(0.3)
+
+    lines = port.read_text(encoding="ascii").splitlines()
+    frames = [json.loads(line) for line in lines if line.startswith("{")]
+    poses = [line for line in lines if line.startswith("pose ")]
+
+    assert len(frames) == 2
+    assert frames[0]["gesture"] == "look_up"     # 最初の1回は、基板が演じる
+    assert frames[1]["gesture"] is None          # 2回目からは、首が姿勢の行で動く
+    assert len(poses) >= 5, "姿勢の行が流れていない——この検査は何も見ていない"
+    for line in poses:
+        decode(line.encode("ascii") + b"\n")
+
+    rows = [json.loads(line) for line in daemon.out.splitlines() if line.strip()]
+    necks = [row for row in rows if "neck" in row]
+    assert necks, "首の行が1つも出ていない"
+    assert necks[0]["neck"] == "look_side"
+    assert necks[0]["poses"] >= 5
+    assert necks[0]["from"] == [80, 500]         # look_up の姿勢から
+    assert necks[0]["to"] == [350, 500]          # look_side の姿勢へ
+
+
+def test_the_first_gesture_is_not_streamed(sock):
+    """⚠️ **最初の1回は、基板に任せる。** このホストは首の位置を読まない。
+
+    ⛔ **知らない位置を始点にすれば、1行目は「その位置への移動」になる。**
+    """
+    port = sock.parent / "console"
+    port.touch()
+    with Daemon(sock, port=port) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    lines = port.read_text(encoding="ascii").splitlines()
+    assert [line for line in lines if line.startswith("pose ")] == []
+    assert json.loads(lines[0])["gesture"] == "look_up"
+
+    rows = [json.loads(line) for line in daemon.out.splitlines() if line.strip()]
+    assert [row for row in rows if "neck" in row] == []

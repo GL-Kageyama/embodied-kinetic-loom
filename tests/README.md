@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.21.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.22.0 | canonical: tests/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Thirty-one files, five hundred and two tests, all green — measured 2026-10-18.**
+**Thirty-one files, five hundred and twenty-six tests, all green — measured 2026-10-19.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -210,7 +210,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | no machine-1 name or number is in the package | `test_stackchan_behaviors.py` | over **AST identifiers and numeric constants**, not text — and it also asserts that no `motions/` directory exists |
 | the parser builds in three languages, and the help differs | `test_stackchan_behaviors.py` | the same assertion `test_strings.py` makes for the Pet's entry point |
 
-**Thirty more hold the daemon — the process that keeps the phase between hook processes:**
+**Thirty-two more hold the daemon — the process that keeps the phase between hook processes:**
 
 | the check | where | what it is for |
 |---|---|---|
@@ -225,6 +225,8 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | a missing port is `sent: false`, not a refusal | `test_stackchan_daemon.py` | ⛔ **a replug can rename the console**; a missing path must not be fatal under `KeepAlive` |
 | without a port, nothing is written anywhere | `test_stackchan_daemon.py` | the device is optional, and that is still the default |
 | a write that returns short is not `sent` | `test_stackchan_daemon.py` | ⛔ **`sent` is the host's tty taking the whole line — not the board receiving it** |
+| **the second transition streams the pose line, and its frame carries `gesture: null`** | `test_stackchan_daemon.py` | ⛔ **`PlayGesture` blocks the main loop for seconds, and the poses written meanwhile are applied late** — one happening must not move the head twice |
+| **the first transition after a start is not streamed** | `test_stackchan_daemon.py` | ⚠️ **this host does not read the head's position**; a first line naming an unknown start is a flight to that position |
 
 **Twenty-one more hold the client — the process a hook would run:**
 
@@ -308,7 +310,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The engine's trajectory, streamed to the machine (0.19.10)
 
-✅ **`projects/stackchan/neck/` arrived** — the first host in this repository that writes the pose line. **`motion.py` is the pure half**: two poses and a duration go in, and the samples `engine/trajectory/plan.py` produces come out, encoded by `protocol_stackchan_pose.encode` so there is one spelling of a line and not two. **`__main__.py` is the edge**: it follows each sample's own time with absolute deadlines and writes one line per tick with `os.open`/`os.write`/`os.close`, the daemon's path. **Twenty-nine tests now hold it: 0.19.11 added ten — seven in `test_profile.py` for the spring family, three here — and the count moved from 483 to 493.**
+✅ **`projects/stackchan/neck/` arrived** — the first host in this repository that writes the pose line. **`motion.py` is the pure half**: two poses and a duration go in, and the samples `engine/trajectory/plan.py` produces come out, encoded by `protocol_stackchan_pose.encode` so there is one spelling of a line and not two. **`__main__.py` is the edge**: it follows each sample's own time with absolute deadlines and writes one line per tick with `os.open`/`os.write`/`os.close`, the daemon's path. **Forty tests now hold it: 0.19.11 added ten — seven in `test_profile.py` for the spring family, three here — and the count moved from 483 to 493; 0.19.14 added eleven here, when the gesture table and the stream rule arrived.**
 
 | the check | where | what it is for |
 |---|---|---|
@@ -323,8 +325,20 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | a dry run writes every line and nothing else | `test_stackchan_neck.py` | the lines can be inspected without a machine |
 | waiting returns the overshoot, not a verdict | `test_stackchan_neck.py` | ⛔ **the first version could only say "late", and it said it 31 times out of 31** — a check that always answers the same thing is not a check |
 | the edge names exactly one destination, and refuses a pose the line cannot carry | `test_stackchan_neck.py` | `--port` or `--dry-run`, never both, never neither; beyond 1800 is a refusal |
+| **the five postures here are the five in `main/main.cpp`** | `test_stackchan_neck.py` | ⛔ **the table is a copy, and the board's is the source** — the check reads the C++ and compares tenths of a degree, so a table that moves turns this red |
+| a plan starts where it was told and ends where the table says | `test_stackchan_neck.py` | the caller's start is the head's last pose, not the table's idea of where it should be |
+| `nod` passes through its down posture and comes back | `test_stackchan_neck.py` | it is two segments, chained |
+| `chain` keeps one timeline and one seam | `test_stackchan_neck.py` | ⛔ **two samples at the seam would stop the head for one tick**, and that is what the author called 「動きが硬い」 |
+| every posture the layer can choose can be carried by the line | `test_stackchan_neck.py` | the table and the protocol's bounds agree |
+| the duration grows with distance and has a floor | `test_stackchan_neck.py` | ⚠️ **a number chosen here, not measured**; below the floor a short move becomes a snap |
+| a stream starts at the event's own time | `test_stackchan_neck.py` | no warm-up, no first tick at `period` |
+| a stream writes every step once, then holds | `test_stackchan_neck.py` | ✅ **the board releases torque after 500 ms of silence**, so the last pose is repeated |
+| a line is late only past half a period | `test_stackchan_neck.py` | ⚠️ **a fixed tick would call every line late or none** — the rule is a value, not a verdict |
+| a new motion starts from the line that was actually sent | `test_stackchan_neck.py` | ⚠️ **an interrupted plan's end is not where the head is** |
 
-⛔ **What it does not cover, and the two things that were found on the machine the same day.** The stream is only as good as its timing: **the servo follows at about 40°/s at `kPoseSpeed = 100`**, and min-jerk's peak is 1.875× its average, so **a duration shorter than about `degrees / 21` runs ahead of the head**. A 0.6 s move over 47° did exactly that — the board applied every line (73, 0 refused, 0 clamped) and the head was still travelling when the torque released. **No test here can see that**, because no test here has a servo. ⚠️ **And the durations used on 2026-10-18 were computed from a speed measured on the yaw shaft**, not on pitch under gravity. **The author's judgement of the motion is the next word, and it is not in this file.**
+⛔ **What it does not cover, and what only the machine could say.** The stream is only as good as its timing: **min-jerk's peak is 1.875× its average**, so a duration too short for the servo runs ahead of the head — a 0.6 s move over 47° did exactly that, applied every line (73, 0 refused, 0 clamped) and was still travelling when the torque released. ⚠️ **The first reading of that was wrong**: the 40°/s it was blamed on was `kPoseSpeed = 100`, a cap this repository's own firmware was writing, not the servo's ceiling; the stock's call (about 175°/s measured) is what the firmware writes now, and the plan's durations are about `degrees / 60`. **No test here can see any of it**, because no test here has a servo. **The author's judgement of the motion is the next word, and it is not in this file.**
+
+✅ **Since 0.19.14 the same rule follows the plan inside the daemon** — `stream.py` — so the CLI edge and the daemon cannot drift apart: one implementation of *which line is due, which one is late, and how long the last one is held*. ⛔ **That is a claim about one implementation, not about a motion.**
 
 ## The face, drawn and checked — and the defect no check here could see (0.19.12)
 

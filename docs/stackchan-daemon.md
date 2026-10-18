@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.13.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.14.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-19 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
 # The Stack-chan daemon — start and stop
 
-✅ **The loop, the socket and the client are built — 2026-10-18.** `projects/stackchan/daemon/` holds a pure core (`room.py`) and the edge (`__main__.py`), `projects/stackchan/hook/` holds the client a hook runs, and `tests/test_stackchan_daemon.py` holds thirty claims about the first while `tests/test_stackchan_hook_client.py` holds twenty-one about the second. ✅ **And since the same day it is installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client. **The installation is a place on one host, not a property of the repository** (see [The installation, as it stands](#the-installation-as-it-stands)).
+✅ **The loop, the socket and the client are built — 2026-10-18.** `projects/stackchan/daemon/` holds a pure core (`room.py`) and the edge (`__main__.py`), `projects/stackchan/hook/` holds the client a hook runs, and `tests/test_stackchan_daemon.py` holds thirty-two claims about the first while `tests/test_stackchan_hook_client.py` holds twenty-one about the second. ✅ **And since the same day it is installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client. **The installation is a place on one host, not a property of the repository** (see [The installation, as it stands](#the-installation-as-it-stands)).
 
 ⚠️ **What it is for.** A Claude Code hook is one process per event; `Focus` and `Companion` are one object that must live between events. The daemon is that object, plus a clock, plus a socket. It is the middle of the chain — **hooks → daemon → wire → firmware** — and it is the piece that makes the robot belong to the room rather than to a terminal that is open.
 
@@ -91,6 +91,17 @@
 ⚠️ **One event at a time, in the order the accept loop takes them.** There is no queue and no reordering. A connection that does not deliver its line within the same 100 ms is closed; **one number, named once, used at both ends.**
 
 ⚠️ **The clock is monotonic.** The scripted times in the CLI are a different domain — seconds from a script — and the layer's contract is the same in both: `offer(session, event, at)` receives a value and never reads a clock.
+
+## The neck, in the same loop (0.19.14)
+
+✅ **A transition that chooses a gesture now moves the neck too, and the daemon is what writes the pose line.** It holds **one `Stream`** — the pure rule in `projects/stackchan/neck/stream.py`, the same one the CLI edge follows — and the wait is on **the earlier of the room's deadline and the neck's next sample**.
+
+- ⛔ **No child process and no second clock.** The pose line comes out of the same loop that answers the socket, from the same monotonic time that stamped the event. **The author chose this shape on 2026-10-19** (「デーモンが自前のループで流す（推奨）」).
+- ⛔ **The frame carries `gesture: null` while a gesture is streamed.** The board's `PlayGesture` blocks its main loop for seconds, and the pose lines written meanwhile are applied late — **one happening must not move the head twice.** ⚠️ **The log row and the client's reply still name the gesture**; the field that disappears is the one on the wire.
+- ⚠️ **The first transition after a start is not streamed.** This host does not read the head's position, and the machine reports nothing back — so the first line naming an unknown start would be a flight to that position. **That one gesture is left to the frame, and the host remembers the table's end pose.**
+- ⚠️ **Every later gesture starts from the last pose actually written** — the plan's end when the plan finished, and wherever the head had got to when it was interrupted. ⛔ **The planned end is not evidence that the head arrived there.**
+- ⛔ **A short write stops the stream** and logs `sent: false`. The next gesture starts again from the last pose that was written.
+- ⚠️ **Nothing is sent back.** The board prints, and no code here listens — so *the poses were written to the console* is the whole of what the log can say. ⛔ **Whether the head moved is an observation, and it has not been made through this path.**
 
 ## Stop, and what the body does
 
@@ -183,7 +194,7 @@ and remove the `hooks` key from `~/.claude/settings.json`. ⚠️ **Nothing else
 
 ## What rings, and what does not
 
-✅ **Part of this page rings.** The pure parts are checked with no socket at all — the request schema, the refusal of an unknown key, and the decision for a given `(session, event, at)` — and the socket is checked as a real process: it answers, refuses, logs the row it returned, and exits cleanly on `SIGTERM`. **All thirty claims are in `tests/test_stackchan_daemon.py`** — the last two being that a greeting writes one frame row with `sent: false`, and that an unchanged event writes none; **four of them are about the port** — that the configured path receives the logged line, that a missing path is `sent: false` and not a refusal, that with no port nothing is written, and that a write returning short is not `sent`. ⛔ **Those four open a regular file, not a device.** ✅ **Twenty-one more hold the client** — that a payload's prompt, cwd and tool input never reach the line, that an unknown event is dropped before the socket, that the path is spelled once, and that a listener which never answers does not delay it — **in `tests/test_stackchan_hook_client.py`.**
+✅ **Part of this page rings.** The pure parts are checked with no socket at all — the request schema, the refusal of an unknown key, and the decision for a given `(session, event, at)` — and the socket is checked as a real process: it answers, refuses, logs the row it returned, and exits cleanly on `SIGTERM`. **All thirty-two claims are in `tests/test_stackchan_daemon.py`** — two being that a greeting writes one frame row with `sent: false`, and that an unchanged event writes none; **four of them are about the port** — that the configured path receives the logged line, that a missing path is `sent: false` and not a refusal, that with no port nothing is written, and that a write returning short is not `sent`; **and two are about the neck** — that the second transition streams poses from where the first one ended while its frame carries `gesture: null`, and that the first transition streams nothing at all. ⛔ **Those four open a regular file, not a device.** ✅ **Twenty-one more hold the client** — that a payload's prompt, cwd and tool input never reach the line, that an unknown event is dropped before the socket, that the path is spelled once, and that a listener which never answers does not delay it — **in `tests/test_stackchan_hook_client.py`.**
 
 ⛔ **No test checks the installation.** launchd's `RunAtLoad` and `KeepAlive`, login and logout, the plist, and the stale socket as it appears after a reboot are the operating system's behavior, not a function. ✅ **What exists instead is one observation, written above**: on 2026-10-18 the installed job ran a real hook chain end to end and was stopped and restarted by hand. ⚠️ **An observation on one host is not a check** — it does not run again, and it does not fail when it should. `tools/check_i18n.py` still only confirms that the three mirrors agree.
 

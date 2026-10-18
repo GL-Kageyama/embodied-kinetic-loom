@@ -32,22 +32,14 @@ from engine.backend.protocol_stackchan import FrameRefused
 from engine.backend.protocol_stackchan_pose import Pose
 from engine.trajectory.profile import Spring
 
+from .gestures import (
+    DEFAULT_DURATION,
+    DEFAULT_HOLD,
+    DEFAULT_PERIOD,
+    DEFAULT_SHARPNESS,
+)
 from .motion import Motion, motion
-
-#: ⚠️ **純正ファームウェアのばねの、写した形である**（`servo.cpp` を読んだ、2026-10-18）。
-#: 山は `u = 1/a`——`a = 5` なら動きの20%地点。**長さは `--duration` が決める。**
-#: ⛔ **この数は機体の数ではない。** 著者の目が決めるまで、暫定である。
-DEFAULT_SHARPNESS = 5.0
-
-#: ⚠️ **この基板が受け取った刻みである**——2026-10-18、20 ms × 678 姿勢、断られたもの0。
-#: ⛔ **機体の数ではない。** 変えてよいが、変えたことは測り直すまで主張にならない。
-DEFAULT_PERIOD = 0.02
-
-#: ⚠️ **暫定である。** 最初に詰めるのはこの数であり、著者の目が決める。
-DEFAULT_DURATION = 0.6
-
-#: ⚠️ **基板の 500 ms より長いこと。** 短いと、動きの終わりでトルクが落ちる。
-DEFAULT_HOLD = 0.6
+from .stream import Stream
 
 
 def _wait_until(deadline: float) -> float:
@@ -78,42 +70,38 @@ def _write(path: str, line: bytes) -> bool:
 
 
 def _stream(port: str, plan: Motion, hold: float) -> int:
-    """**標本の時刻を追って書き、最後の姿勢を `hold` 秒だけ保つ。**"""
-    start = time.monotonic()
-    late = 0
-    for step in plan.steps:
-        # ⚠️ **半周期を超えて遅れた行だけを数える**——期限ちょうどは遅刻ではない。
-        if _wait_until(start + step.t) > plan.period / 2.0:
-            late += 1
-        try:
-            ok = _write(port, step.line)
-        except OSError as exc:
-            print(f"neck: {port}: {exc.strerror}", file=sys.stderr)
-            return 1
-        if not ok:
-            print(f"neck: {port}: short write", file=sys.stderr)
-            return 1
+    """**標本の時刻を追って書き、最後の姿勢を `hold` 秒だけ保つ。**
 
-    last = plan.last.line
-    end = start + plan.duration + hold
-    held = 0
+    ⚠️ **列を追う規則は `stream.py` に1つだけ在る。** デーモンも同じ規則で追う——
+    **ここに2つ目の規則を書かない。**
+    """
+    stream = Stream(period=plan.period, hold=hold)
+    stream.start(plan, time.monotonic())
     while True:
-        now = time.monotonic()
-        if now >= end:
-            break
-        try:
-            if not _write(port, last):
-                print(f"neck: {port}: short write", file=sys.stderr)
+        line = stream.line(time.monotonic())
+        if line is not None:
+            try:
+                ok = _write(port, line)
+            except OSError as exc:
+                print(f"neck: {port}: {exc.strerror}", file=sys.stderr)
+                stream.stop(time.monotonic())
                 return 1
-        except OSError as exc:
-            print(f"neck: {port}: {exc.strerror}", file=sys.stderr)
-            return 1
-        held += 1
-        _wait_until(now + plan.period)
+            if not ok:
+                print(f"neck: {port}: short write", file=sys.stderr)
+                stream.stop(time.monotonic())
+                return 1
+            continue
 
+        deadline = stream.deadline
+        if deadline is None:
+            break
+        _wait_until(deadline)
+
+    summary = stream.take_summary()
+    assert summary is not None
     print(
-        f"neck: {plan.count} poses over {plan.duration:.2f} s,"
-        f" then {held} held ({hold:.2f} s), {late} late, to {port}",
+        f"neck: {summary.applied} poses over {plan.duration:.2f} s,"
+        f" then {summary.held} held ({hold:.2f} s), {summary.late} late, to {port}",
         file=sys.stderr,
     )
     return 0

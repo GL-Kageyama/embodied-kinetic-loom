@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from engine.backend.protocol_stackchan_pose import Pose, encode
 from engine.trajectory.plan import plan
 
-__all__ = ["Motion", "Step", "motion"]
+__all__ = ["Motion", "Step", "motion", "chain"]
 
 
 @dataclass(frozen=True)
@@ -107,5 +107,33 @@ def motion(starts: Pose, ends: Pose, duration: float, period: float,
         period=period,
         starts=starts,
         ends=ends,
+        steps=tuple(steps),
+    )
+
+
+def chain(parts: tuple[Motion, ...]) -> Motion:
+    """**いくつかの動きを、1つの列にする。**
+
+    ⛔ **時刻は数え直す。** 2つ目の `Step.t` は**自分の動きの始まりから**の秒なので、
+    そのまま並べると、2つ目が時刻0へ戻る——**続く列ではなく、重なった列**になる。
+
+    ⚠️ **継ぎ目の姿勢は1つだけ残す。** 前の動きの最後の標本と、次の動きの最初の標本は
+    同じ姿勢である——両方書けば、同じ瞬間に同じ行が2つ出る。
+    ⇒ **次の動きの1つ目の標本を捨て、残りを前の長さだけずらす。**
+    """
+    motions = tuple(parts)
+    if not motions:
+        raise ValueError("chain には1つ以上の Motion が要る")
+    steps: list[Step] = []
+    offset = 0.0
+    for index, part in enumerate(motions):
+        for step in (part.steps if index == 0 else part.steps[1:]):
+            steps.append(Step(t=offset + step.t, pose=step.pose, line=step.line))
+        offset += part.duration
+    return Motion(
+        duration=offset,
+        period=motions[0].period,
+        starts=motions[0].starts,
+        ends=motions[-1].ends,
         steps=tuple(steps),
     )

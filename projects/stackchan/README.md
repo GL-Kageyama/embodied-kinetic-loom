@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.11.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.12.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -145,7 +145,19 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ⚠️ **The duration is a real constraint, but the number changed on 0.19.11.** Until then this paragraph said the servo follows at about 40°/s — that was `speed=100`, **a cap the firmware was writing, not the servo's ceiling.** **Measured against the stock's own call (`time=20, speed=0`) on 2026-10-18: 112 counts (35°) in under 200 ms, about 175°/s.** ✅ **The firmware now writes the stock's call, and a reference may peak up to the servo's own limit — about `degrees / 93`.** The seven segments below were replayed at about `degrees / 60` (peak ≈112°/s). ⛔ **No test here can see any of it** — the tests have no servo.
 
-✅ **Measured on the unit the same day: seven segments, 822 poses applied, 0 refused, 0 clamped**, a 47° move ending one count from its target. ✅ **And after the firmware's write changed, the same seven segments at one-third the length: 228 poses, 0 late, 410 applied on the board (228 plus 182 held), 0 refused, 0 clamped — and the author's judgement is 「かなり良い。これでOKだと思う。」** (`projects/stackchan-firmware/records/2026-10-18-the-neck.md`). What is tested is the mechanism: `tests/test_stackchan_neck.py`, twenty-nine tests.
+✅ **Measured on the unit the same day: seven segments, 822 poses applied, 0 refused, 0 clamped**, a 47° move ending one count from its target. ✅ **And after the firmware's write changed, the same seven segments at one-third the length: 228 poses, 0 late, 410 applied on the board (228 plus 182 held), 0 refused, 0 clamped — and the author's judgement is 「かなり良い。これでOKだと思う。」** (`projects/stackchan-firmware/records/2026-10-18-the-neck.md`). What is tested is the mechanism: `tests/test_stackchan_neck.py`, forty tests.
+
+### The join, since 0.19.14 — one event moves all of it
+
+✅ **A hook transition now moves the face, the lights and the neck.** The daemon holds **one `Stream` inside its own `select` loop** — no child process, no second clock — and streams the pose line for the same event from the same `at` that the frame was stamped with. ⛔ **The frame that event emits carries `gesture: null`**: the board's `PlayGesture` blocks its main loop for seconds, and the poses written meanwhile are applied late — **one happening must not move the head twice.** ⚠️ **The log row and the client's reply still name the gesture the layer chose**; what is gone is the field on the wire.
+
+- **The five postures are a copy of the board's table** (`neck/gestures.py`), and the copy is held by a check that reads `main/main.cpp`: a table that moves turns the test red. ⛔ **The order of the source of truth did not change** — the machine is the source, this is the copy.
+- **`nod` is two segments chained on one timeline.** ⛔ **Two samples at the seam would stop the head for one tick**, and that is the shape the author called 「動きが硬い」.
+- **The first transition after a daemon start is not streamed.** This host does not read the head's position — the machine reports nothing — so a first line naming an unknown start would be a flight to that position. **That one gesture is left to the board**, and the host remembers the table's end pose. ⚠️ **That is an assumption, named as one**: whether the board finished is not observed.
+- **Every later motion starts from the last pose actually written**, not from the previous plan's end — an interrupted plan ends somewhere other than where it aimed.
+- ⛔ **A short write stops the stream**, and the row says `sent: false`. The next gesture starts again from the last pose that was written.
+
+⚠️ **This is the mechanism, and the machine has not been observed through it yet.** The tests write to a regular file; the board's application of a streamed gesture is the next observation — **and it takes an eye, because a record's spine is what was observed** (`CLAUDE.md`).
 
 ## What the hook still needs
 
@@ -169,7 +181,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - ⛔ **The event's reason does not partition state changes.** A `PostToolUse` inside `blocked` returns the phase to `working` with reason `OBSERVED`, and the light may not move; a concern changes the light and not the phase. **Counting frames by event kind would have emitted frames that carried no change and missed changes that carried no transition.** So the rule reads the state, not the reason.
 - ⚠️ **This is not a stream.** A hundred evidence events inside one phase produce one frame.
 - **The daemon writes the frame as a row** — `{"frame": "<one ASCII line>", "sent": false, "at": …, "session": …}` — and the line is produced by the same codec the wire tests hold, **so the log cannot drift from the contract.**
-- ✅ **It is sent whenever the job names a port** — the same line is written to the port, and `sent` says whether the host's tty took it. ⛔ **`sent: true` is about the host's tty, not about the board receiving it**: delivery was proven once, by the board's own console printing the frame. **A renderer for the display still does not exist on the other side.** ✅ **On 2026-10-18 the installed daemon wrote its first frame row on a real hook event** — and ⛔ **what was observed is a line, not a movement.**
+- ✅ **It is sent whenever the job names a port** — the same line is written to the port, and `sent` says whether the host's tty took it. ⛔ **`sent: true` is about the host's tty, not about the board receiving it**: delivery was proven once, by the board's own console printing the frame. ✅ **The display has had a renderer on the other side since 0.19.12** — the board draws the vendor's face from the frame's word — and ⛔ **what is still true is that this layer never paints it.** ✅ **On 2026-10-18 the installed daemon wrote its first frame row on a real hook event** — and ⛔ **what was observed is a line, not a movement.**
 
 ## The process that holds the room (2026-10-18)
 
@@ -187,7 +199,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ## What is checked
 
-**`tests/test_stackchan_behaviors.py` holds thirty-five claims, `tests/test_stackchan_daemon.py` holds twenty-six, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds twenty-eight, and `tests/test_stackchan_outbound.py` holds thirteen**, and they run with the rest of the suite:
+**`tests/test_stackchan_behaviors.py` holds thirty-five claims, `tests/test_stackchan_daemon.py` holds thirty-two, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds twenty-eight, `tests/test_stackchan_outbound.py` holds thirteen, and `tests/test_stackchan_neck.py` holds forty**, and they run with the rest of the suite:
 
 - the list is 33 and none is repeated; every event has exactly one of three kinds, and the kinds partition it;
 - every event carries a reason code — **there is no blank**;
@@ -213,7 +225,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - the parser builds in three languages, and the help differs;
 - **no machine-1 name, number or module is in the package** — the AST is walked for `DofRealityWire`, `Envelope`, the counts 190, 512 and 833, and any import from `engine` — and there is no `motions/` directory.
 
-**The daemon adds twenty-six more:**
+**The daemon adds thirty-two more:**
 
 - the socket answers, and the logged row is the same row the client received;
 - a second instance exits with 3 and leaves the first answering;
@@ -224,7 +236,9 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - a clean exit removes the socket;
 - the next wake is the expression first, then the idle clock, and `blocked` and `resting` have no deadline;
 - **a greeting logs one frame row, and `sent` is `False` in it** — the row is decoded back into `Command(face="greeting", light="warm", gesture="look_up")`;
-- **an unchanged event logs no second frame.**
+- **an unchanged event logs no second frame**;
+- **the second transition streams the pose line from the pose the first one ended at, and the frames carry `look_up` then `null`** — every written pose line decodes, and the log's `neck` row names `look_side` with at least five poses;
+- **the first transition is not streamed**, and its frame carries the gesture.
 
 **The client adds twenty-one more:**
 
@@ -265,7 +279,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 - **No counts for machine 2.** The five gestures are words; the counts they become live with the machine (`projects/stackchan-firmware/main/main.cpp`, measured 2026-10-18), never in this package. `projects/pet/motions/greeting.json` is machine 1's counts, and borrowing it would make this layer claim motion that will not happen. ⚠️ **`neck/` receives two poses as arguments** — the caller names them, and the package stores none.
 - **No frame carrying a number.** ✅ **The transport exists and the board acts on a frame**, but what crosses is words — a face, a light, a gesture. **No count from the layer above the wire reaches it.** ⚠️ **The pose line does carry numbers, and since 0.19.10 `neck/` writes it** — with both endpoints supplied by the caller, never chosen here.
-- **No display renderer, and no LED driver in this package.** ✅ **The twelve LEDs have a driver, and it is the firmware's** (`projects/stackchan-firmware/main/leds.cpp`) — this layer sends the word `warm` and never a pixel. **The display has none**: the face is still a meaning, and nothing in this package paints it.
+- **No display renderer, and no LED driver in this package.** ✅ **The twelve LEDs have a driver, and it is the firmware's** (`projects/stackchan-firmware/main/leds.cpp`) — this layer sends the word `warm` and never a pixel. ✅ **The display has one since 0.19.12, and it is the firmware's** (`display.cpp`, `face_bitmap.cpp`): this package sends the word, and never a pixel.
 - **No frequency and no tone table.** ✅ **The speaker exists since 0.19.13** — `--sound on` lets the layer name one of four words, and the firmware's `sound.cpp` turns a word into tones. ⛔ **The tones are choices, not measurements**, and the word-to-tone mapping is the board's: this package selects a word and never a waveform.
 - **No head-touch input.** The sensor works on this unit (observed in AI.AGENT, 2026-10-18), but it is machine input, and a firmware would have to read it. **A hook is not a head.**
 - **No live installation in this directory.** The plist here is a copy, and `settings.json` is not in the repository at all; both are recorded in `docs/stackchan-daemon.md`.
