@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.29.0 | canonical: CLAUDE.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.30.0 | canonical: CLAUDE.md | translated: 2026-10-19 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -22,6 +22,8 @@
 **Where the machine is met — `docs/first-contact.md`, and its second page `docs/first-contact-stackchan.md`.** ⚠️ **Not an argument; a checklist**, and it carries no claim of its own. ⛔ **Nothing rings on either one** — the reason no checker was written is stated on each page, together with what that costs. ⚠️ **And the two pages face opposite ways:** the first was written while no machine existed, so **not one of its items has been done**; the second was written after two units had been measured, so **most of its items already have answers** — **and every line names the unit the answer came from.**
 
 ⚠️ **Where the construction stands — `docs/construction-memo.md`.** ⛔ **The only page here that duplicates other pages on purpose**, and it says so in its first line, with the rule that follows: **every line of it is derivable from somewhere else, so when a source changes, the memo is the one that is wrong.** **Read it as a map, never as a record.** ⚠️ **It exists because three things are scattered and one is written nowhere** — **the order the five checks are run in.**
+
+⚠️ **Where the climb toward a coding agent's body stands — `docs/stackchan-progress.md`.** Eight questions, each with a state, a measurement and one source. ⛔ **It is a map and must not be read as a percentage** — the rows are questions, not weights, and the question below the table has no instrument at all.
 
 ## Fixed Policy (do not change)
 
