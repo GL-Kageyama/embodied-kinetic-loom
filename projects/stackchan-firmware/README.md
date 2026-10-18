@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.10.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.11.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -220,7 +220,26 @@
 
 ⚠️ **Two more answers came the same day, and neither closes the rail.** `bench pmu` reads the AXP2101: `0x00=0x38`, `0x01=0x32`, **`vbat=4624 mV`**, direction 1 (charging), charge state 2 — **a battery is present and charging.** ⛔ **That is the PMIC's register, not the rail's voltage.** `bench level` reads pin 0's pad twice: **as an input with a pull-up it reads LOW** — something external holds the line down, which is what an enable line whose default is off normally looks like — and **as an output driving high it still reads LOW**, ⛔ **which is either a register that does not mirror an output or a pad that is heavily loaded; the two are not separated here.** ⇒ **The supply exists at the battery; the power switch, the VM path and the rail's actual volts are still unmeasured** — the switch is the next thing a person can test, and a meter closes the rest.
 
-⛔ **The remaining questions are physical**: the servo rail's voltage, the cable and connector, the servo itself. **Nothing in this repository can answer them.**
+### The switch was the rail's own power — 2026-10-19
+
+⛔ **The remaining questions were physical, and the first of them was answered by cutting the power.** `bench power off`, three seconds, `bench power on`, then `bench scan`: **2 id(s) answered.** ⇒ **The rail, the switch, the VM path, the expander's pin and the wiring were never what was wrong.** (The author had already closed the power-switch question from the outside: USB unplugged, the screen stayed on — **the unit runs from its battery.**)
+
+✅ **`bench state <id>` was added the same day** — one read of registers 56–63, which the SCSCL table puts at position, speed, load, voltage and temperature. At the moment the bus came back:
+
+| id | raw | volts | °C | load | status |
+|---|---|---|---|---|---|
+| 1 | 469 | **5.1 V** | 32 | 0 | `0x00` |
+| 2 | 776 | **5.1 V** | 31 | 0 | `0x00` |
+
+⚠️ **Those volts are the servo's own reading, not a meter's** — the rail, as the servo sees it. ⛔ **They are not a measurement of current or of the load path**, and a servo that is dark says nothing.
+
+⛔ **So the silence is a state the servos hold.** It survives a reset of the ESP32 — a DTR/RTS pulse that rebooted the board left the bus silent — and only cutting the servos' power clears it. A bounded `bench move 0 60` then turned the head (yaw 474→460, pitch 767→812), and **the bus went silent again after that move**; another rail cycle returned it.
+
+✅ **Since 0.19.31 `app_main` throws the rail switch itself**, before the bus comes up: `servo_power(false)`, 300 ms, `servo_power(true)`, 300 ms, then `scs::begin()`. ⚠️ **No torque is on that early, so nothing can move because of it** — but a head that was being held when the chip reset will droop for those 300 ms.
+
+⚠️ **`bench raw <id>` was added the same day**, because `read_position` calls a non-zero status byte "no answer" — **a servo that refuses and a servo that is absent were the same word.** It prints every byte, names the status by bit, and refuses nothing.
+
+⛔ **What is still not answered**: what puts the servos into that state. It followed a bounded move once and was absent for many minutes at other times, so the trigger is not yet named — **and a boot that cycles the rail is a recovery, not a diagnosis.**
 
 **Through the stream's own call.** Thirty `pose 350 500*<checksum>` lines at 40 ms, which the board applied with `time=20 speed=0` — the call the daemon uses. Goal raw yaw 572, held 565: **−7, leftward** — the same landing as `bench set` at speed 80. Pitch goal 780, held 781: +1.
 

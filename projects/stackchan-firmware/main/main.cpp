@@ -162,6 +162,8 @@ void PrintHelp() {
   printf("  bench pos                 present positions\n");
   printf("  bench scan                which servo ids answer, 1..12\n");
   printf("  bench read <id>           raw position of one id\n");
+  printf("  bench raw <id>            the same read, every byte and the status named\n");
+  printf("  bench state <id>          position, load, volts and temperature, as the servo reads them\n");
   printf("  bench zeros               the zeros this boot used, and where they came from\n");
   printf("  bench move <yaw_deg> [pitch_deg]   slow: about 1 degree per second\n");
   printf("  bench set <yaw_deg> <pitch_deg> [speed]   one goal to both axes, then held\n");
@@ -707,6 +709,26 @@ void HandleBench(const char* args) {
     BenchRead(static_cast<int>(id));
     return;
   }
+  if (std::strncmp(args, "raw", 3) == 0) {
+    char* end = nullptr;
+    const long id = std::strtol(args + 3, &end, 10);
+    if (end == args + 3) {
+      printf("bench: raw needs an id\n");
+      return;
+    }
+    scs::diagnose_position(static_cast<int>(id));
+    return;
+  }
+  if (std::strncmp(args, "state", 5) == 0) {
+    char* end = nullptr;
+    const long id = std::strtol(args + 5, &end, 10);
+    if (end == args + 5) {
+      printf("bench: state needs an id\n");
+      return;
+    }
+    scs::diagnose_state(static_cast<int>(id));
+    return;
+  }
   if (std::strncmp(args, "hold", 4) == 0) {
     BenchHold();
     return;
@@ -1214,6 +1236,18 @@ extern "C" void app_main() {
   } else {
     printf("zeros: yaw=%d pitch=%d, from this unit's NVS\n", g_yaw_zero, g_pitch_zero);
   }
+
+  // ⚠️ Measured on this unit on 2026-10-19: after a reset of this chip the
+  //    servo bus could be silent while the expander still held the rail on —
+  //    `bench scan` found 0 id(s) — and one power cycle of the rail brought
+  //    both ids back, reporting 5.1 V and status 0. ⛔ The servos keep that
+  //    state across a reset of this chip, and the rail is the only switch that
+  //    clears it, so boot throws that switch itself. It costs 600 ms, and no
+  //    torque is on this early, so nothing can move because of it.
+  leds::servo_power(false);
+  vTaskDelay(pdMS_TO_TICKS(300));
+  leds::servo_power(true);
+  vTaskDelay(pdMS_TO_TICKS(300));
 
   if (!scs::begin()) {
     printf("servo: the UART did not come up\n");

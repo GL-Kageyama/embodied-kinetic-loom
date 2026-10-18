@@ -176,6 +176,123 @@ bool scs::read_position(int id, int* out_raw) {
   return true;
 }
 
+void scs::diagnose_position(int id) {
+  Guard guard;
+
+  unsigned char request[8];
+  request[0] = 0xFF;
+  request[1] = 0xFF;
+  request[2] = static_cast<unsigned char>(id);
+  request[3] = 4;
+  request[4] = kInstRead;
+  request[5] = kPresentPositionL;
+  request[6] = 2;
+  request[7] = Checksum(request + 2, 5);
+
+  uart_flush_input(Port());
+  if (uart_write_bytes(Port(), request, sizeof(request)) !=
+      static_cast<int>(sizeof(request))) {
+    printf("raw: the request did not leave\n");
+    return;
+  }
+  uart_wait_tx_done(Port(), pdMS_TO_TICKS(100));
+
+  unsigned char reply[16];
+  const int read = uart_read_bytes(Port(), reply, sizeof(reply), pdMS_TO_TICKS(100));
+  printf("raw: %d byte(s):", read);
+  for (int i = 0; i < read; ++i) {
+    printf(" %02X", reply[i]);
+  }
+  printf("\n");
+  if (read < 7) {
+    printf("raw: short or absent — nothing parsed\n");
+    return;
+  }
+
+  int start = -1;
+  for (int i = 0; i + 1 < read; ++i) {
+    if (reply[i] == 0xFF && reply[i + 1] == 0xFF) {
+      start = i;
+      break;
+    }
+  }
+  if (start < 0 || start + 7 > read) {
+    printf("raw: no header in the reply\n");
+    return;
+  }
+  const unsigned char* packet = reply + start + 2;
+  printf("raw: id=%d len=%d status=0x%02X d0=0x%02X d1=0x%02X cs=0x%02X sum=0x%02X\n",
+         packet[0], packet[1], packet[2], packet[3], packet[4], packet[5],
+         Checksum(packet, 5));
+  if (packet[2] != 0) {
+    printf("raw: the servo reports an error:");
+    if (packet[2] & 0x01) printf(" voltage");
+    if (packet[2] & 0x02) printf(" angle-sensor");
+    if (packet[2] & 0x04) printf(" overheat");
+    if (packet[2] & 0x08) printf(" overcurrent");
+    if (packet[2] & 0x20) printf(" overload");
+    printf(" (bits as the SCSCL driver names them; this unit's manual is not here)\n");
+  }
+}
+
+void scs::diagnose_state(int id) {
+  Guard guard;
+
+  constexpr unsigned char kPresentBytes = 56;  // position L, through temperature
+  constexpr unsigned char kStateLength = 8;    // 56..63 inclusive
+
+  unsigned char request[8];
+  request[0] = 0xFF;
+  request[1] = 0xFF;
+  request[2] = static_cast<unsigned char>(id);
+  request[3] = 4;
+  request[4] = kInstRead;
+  request[5] = kPresentBytes;
+  request[6] = kStateLength;
+  request[7] = Checksum(request + 2, 5);
+
+  uart_flush_input(Port());
+  if (uart_write_bytes(Port(), request, sizeof(request)) !=
+      static_cast<int>(sizeof(request))) {
+    printf("state: the request did not leave\n");
+    return;
+  }
+  uart_wait_tx_done(Port(), pdMS_TO_TICKS(100));
+
+  unsigned char reply[24];
+  const int read = uart_read_bytes(Port(), reply, sizeof(reply), pdMS_TO_TICKS(120));
+  int start = -1;
+  for (int i = 0; i + 1 < read; ++i) {
+    if (reply[i] == 0xFF && reply[i + 1] == 0xFF) {
+      start = i;
+      break;
+    }
+  }
+  // Two header bytes, then ID + LEN + ERR + eight data bytes + the checksum.
+  if (start < 0 || start + 14 > read) {
+    printf("state: %d byte(s), no complete reply\n", read);
+    return;
+  }
+  const unsigned char* packet = reply + start + 2;
+  if (packet[0] != static_cast<unsigned char>(id) ||
+      packet[1] != kStateLength + 2) {
+    printf("state: id=%d len=%d — not the reply asked for\n", packet[0], packet[1]);
+    return;
+  }
+  if (packet[packet[1] + 1] != Checksum(packet, packet[1] + 1)) {
+    printf("state: checksum did not match\n");
+    return;
+  }
+  const int position = (packet[3] << 8) | packet[4];
+  const int speed = (packet[5] << 8) | packet[6];
+  const int load = (packet[7] << 8) | packet[8];
+  const int volts = packet[9];
+  const int celsius = packet[10];
+  printf("state: id=%d status=0x%02X raw=%d speed=%d load=%d volts=%d.%d C=%d\n",
+         id, packet[2], position, speed, load, volts / 10, volts % 10, celsius);
+  printf("state: volts are the servo's own reading — the rail, at the servo\n");
+}
+
 bool scs::set_torque(int id, bool enabled) {
   Guard guard;
   unsigned char packet[8];
