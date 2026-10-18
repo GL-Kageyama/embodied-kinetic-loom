@@ -163,3 +163,54 @@
 ⚠️ **`i2s_channel_write` returns when the DMA buffers have taken the samples, not when the note has finished** — so the board's `playing` → `done` lines are not note lengths, and must not be read as any.
 
 ⛔ **`main/sound.cpp` is compiled by no check.** `idf.py build` is run by hand; a test builds `command_frame.cpp` and `face_bitmap.cpp`, and nothing here builds the I²S channel or the amplifier's bring-up.
+
+## The landing — 2026-10-19
+
+⛔ **This section is not a record.** Every file in `records/` has a person's observation as its spine; this one has the board's own read-back and no eye. **It answers where the head stopped, not whether anything moved** — and it is here, in the document that holds this machine's numbers, rather than in the records vessel.
+
+`records/2026-10-18-the-neck.md` closed with a sentence it could not resolve: *every segment landed six to eight counts short of its goal — 452 against 460, 517 against 524, 404 against 396 — the same fixed offset every trial shows, and not yet separated from backlash.* **The construction memo asked for it to be closed once, after stage 3, so that the record does not stay wrong.** Stage 3 closed on 2026-10-19; this is that once.
+
+**What was counted.** One unit, both axes: nine yaw landings and four pitch landings under `bench set` at speed 80, and one posture driven through the real pose line — thirty lines at 40 ms, `time=20 speed=0`, the call the daemon streams with. **What was not counted:** any other unit, the servo's deadband register, the load, the temperature, and the cause.
+
+**Yaw**, both goals at pitch 50.0°, `bench set <yaw> 50.0 80`. The travel column is the direction the head moved to reach the goal, read from the position before the write.
+
+| goal raw | held raw | held − goal | travel |
+|---|---|---|---|
+| 396 | 404 | +8 | leftward |
+| 435 | 442 | +7 | leftward |
+| 460 | 467 | +7 | leftward |
+| 485 | 478 | −7 | rightward |
+| 485 | 497 | +12 | leftward |
+| 524 | 516 | −8 | rightward |
+| 572 | 566 | −6 | rightward |
+| 524 | 534 | +10 | leftward |
+| 485 | 491 | +6 | leftward |
+
+**Pitch**, yaw held at 8.0°.
+
+| goal raw | held raw | held − goal | travel |
+|---|---|---|---|
+| 629 | 630 | +1 | downward |
+| 716 | 714 | −2 | upward |
+| 844 | 841 | −3 | upward |
+| 780 | 781 | +1 | downward |
+
+**Through the stream's own call.** Thirty `pose 350 500*<checksum>` lines at 40 ms, which the board applied with `time=20 speed=0` — the call the daemon uses. Goal raw yaw 572, held 565: **−7, leftward** — the same landing as `bench set` at speed 80. Pitch goal 780, held 781: +1.
+
+⚠️ **The offset is not a constant and not a scale error: it is short in the direction of travel.** Every yaw landing moving left sits above its goal; every landing moving right sits below it. The pitch axis does the same, smaller.
+
+⚠️ **The size differs by axis.** Yaw: 6–8 counts on eight of the nine landings, with two readings of 10 and 12. Pitch: 1–3 counts. One count is 0.3125° by the vendor's scale, so the yaw error is about 1.9–3.8° and the pitch error about 0.3–0.9°. **A deadband register is per servo, but it is not the whole story here**: the axis that carries the head's weight loses more than the axis beside it.
+
+⚠️ **The servo knows it is short.** The position read back is the servo's own present position, not a host estimate — so what stopped short is the servo itself, not a gear train the sensor cannot see. ⚠️ **The cause is not separated further**: the control deadband and friction under torque both fit these numbers, and this console can read position only — it cannot read the deadband register, and there is no gauge on this bench to separate lost motion from a servo that is not driving the last counts.
+
+⚠️ **Speed is not the explanation.** The stream's own call — `time=20 speed=0`, thirty poses at 40 ms — landed seven counts short, exactly as the slow bench call did.
+
+⚠️ **One reading of +12 did not stay at +12.** After `bench set 8.0`, the head was declared held at 497. When the same goal was written again, it moved to 491 and stayed there. ⛔ **Whether that was creep or the re-issued goal is not separated here** — the repeat from a different approach landed at 491 and did not move over the five seconds it was watched.
+
+✅ **The sentence in the neck record is now answered as far as this bench can answer it**: the landing offset's size and sign are measured, on both axes, and the direction of travel is what decides the sign. ⛔ **The cause is narrowed, not named** — deadband against friction is still open, and it stays open honestly rather than being assigned.
+
+⛔ **Nothing was compensated.** A constant bias would be wrong half the time, because the sign follows the travel direction; a directional bias would be a new machine-specific number written into the host or the firmware. **Whether to write one, and where, is a decision not taken here.**
+
+⚠️ **What it means for the join**: the daemon plans each gesture from the last pose it wrote, and the head sits six to eight counts short of that pose. The next plan's first sample is near the same place, so the discrepancy is bounded by the offset rather than accumulating across gestures — **but the jump between two gestures has not been measured**, and the daemon still reads nothing back.
+
+⚠️ **The head was left at yaw 8.0°, pitch 50.0°** — raw yaw 491, pitch 781, torque on. **That is the posture the daemon believes the head is in**, so the next streamed gesture starts within the offset of where the daemon thinks it starts.

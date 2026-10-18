@@ -77,6 +77,8 @@
 
 ✅ **2026-10-19, the same day and a few minutes later: the join was seen.** With the installed daemon running, the author said 「さっき首が動いていたよ」 — a hook event had moved the neck. **The record is `projects/stackchan-firmware/records/2026-10-19-the-join.md`**: its spine is the eye, and the two streamed gestures from those minutes are quoted inside it. ⛔ **Which of the two the eye caught is not established by it**, and ⛔ **the 19 late poses are not yet separated from smoothness.**
 
+✅ **2026-10-19: and 0.19.17, still not a rung — the landing offset closed, and it is not a constant.** The neck record's last open sentence — six to eight counts short of every goal, *not yet separated from backlash* — was measured once, as this memo asked: nine yaw landings and four pitch landings on the board's own read-back, plus one posture through the real pose line. **Every landing is short in the direction of travel**: yaw by six to eight counts (two readings of 10 and 12), pitch by one to three. **The servo's own position is what reads short, so a gear train is not hiding it**, and the stream's fast call landed exactly as the slow bench call did — **so speed is not the explanation**. ⛔ **The cause — control deadband against friction under torque — is narrowed and not named**, and **nothing was compensated**: a constant bias would be wrong half the time, and a directional one is a decision not taken here. ⚠️ **It lives in `projects/stackchan-firmware/README.md` and not in `records/`**: every record in the vessel has a person's observation as its spine, and this measurement has no eye. ⛔ **0.20.0 has not started.**
+
 ## The remaining work — the product, not the wire
 
 ⚠️ **The ladder above ends at 0.20.0, and the Pet does not.** The ladder is about opening a port; the product is a face, a voice and a body that move together when something happens. **The order below is the author's ruling of 2026-10-18 (「推奨で進めよう」), and it is the only thing in this section that is not derivable from another page.**
@@ -90,7 +92,7 @@
 
 **The order is 1 → 4** — 2 and 3 are finished, and the ruling of 2026-10-18 had them in the order 3 → 1 → 4, with the done parts struck. ✅ **The observation that sat between them is written down** — the join, seen on the machine once, on 2026-10-19 (`records/2026-10-19-the-join.md`). ⚠️ **What that proves is the join, not the motion's quality**: no one has judged whether the 19 late poses read as hesitation.
 
-⛔ **The fine numbers wait for the product to move.** The landing's six to eight counts, `Spring(sharpness=5.0)` and `kPoseTimeMs` do not change whether anything moves; ⚠️ **the landing offset is the one of the three written down as unexplained** (`projects/stackchan-firmware/records/2026-10-18-the-neck.md`), so it is closed once, after stage 3, so that the record does not stay wrong.
+⛔ **The fine numbers wait for the product to move.** The landing's six to eight counts, `Spring(sharpness=5.0)` and `kPoseTimeMs` do not change whether anything moves; ✅ **the landing offset — the one of the three written down as unexplained** (`projects/stackchan-firmware/records/2026-10-18-the-neck.md`) — **was closed on 2026-10-19, after stage 3** (`projects/stackchan-firmware/README.md`, *The landing — 2026-10-19*): measured on both axes, six to eight counts on yaw and one to three on pitch, **short in the direction of travel — not a constant**. ⛔ **The cause is narrowed and not named** (deadband against friction), and nothing was compensated.
 
 ## The traps
 
