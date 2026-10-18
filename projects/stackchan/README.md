@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.12.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.13.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -156,8 +156,9 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - **The first transition after a daemon start is not streamed.** This host does not read the head's position — the machine reports nothing — so a first line naming an unknown start would be a flight to that position. **That one gesture is left to the board**, and the host remembers the table's end pose. ⚠️ **That is an assumption, named as one**: whether the board finished is not observed.
 - **Every later motion starts from the last pose actually written**, not from the previous plan's end — an interrupted plan ends somewhere other than where it aimed.
 - ⛔ **A short write stops the stream**, and the row says `sent: false`. The next gesture starts again from the last pose that was written.
+- ⛔ **The stream holds the port for one gesture, not for one pose** (0.19.15). A frame is still one `os.open`/`os.write`/`os.close` with nothing held between frames; **a stream opens the port once, writes each pose under a `PORT_WAIT = 0.5` bound, and closes it at the summary.** ⚠️ **The first shape was measured to wedge the daemon**: at 50 Hz, open/write/close blocked inside `open()` at the fourth or fifth attempt, where no signal could reach it. **A port that takes nothing ends the stream; a port that cannot be opened leaves the gesture in the frame for the board.**
 
-⚠️ **This is the mechanism, and the machine has not been observed through it yet.** The tests write to a regular file; the board's application of a streamed gesture is the next observation — **and it takes an eye, because a record's spine is what was observed** (`CLAUDE.md`).
+⚠️ **The mechanism is measured once on the unit; the eye is not in it yet.** On 2026-10-19 the stream was replayed live with a reader attached to the console. The board printed `pose: stream started — goals on the present positions (yaw 504, pitch 780), torque on`, then after the silence `pose: stream lost after 500 ms — torque released` and `pose: 23 applied, 0 refused, 0 clamped`; the daemon's summary for that gesture was `{"neck": "look_side", "applied": 23, "late": 19, "held": 29}`. ⛔ **19 of the 23 were applied late** — the board's main loop still held the previous gesture. ⛔ **Whether the head visibly moved is not written down yet**, and that takes an eye, because a record's spine is what was observed (`CLAUDE.md`).
 
 ## What the hook still needs
 
@@ -199,7 +200,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ## What is checked
 
-**`tests/test_stackchan_behaviors.py` holds thirty-five claims, `tests/test_stackchan_daemon.py` holds thirty-two, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds twenty-eight, `tests/test_stackchan_outbound.py` holds thirteen, and `tests/test_stackchan_neck.py` holds forty**, and they run with the rest of the suite:
+**`tests/test_stackchan_behaviors.py` holds thirty-five claims, `tests/test_stackchan_daemon.py` holds thirty-five, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds twenty-eight, `tests/test_stackchan_outbound.py` holds thirteen, and `tests/test_stackchan_neck.py` holds forty**, and they run with the rest of the suite:
 
 - the list is 33 and none is repeated; every event has exactly one of three kinds, and the kinds partition it;
 - every event carries a reason code — **there is no blank**;
@@ -225,7 +226,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - the parser builds in three languages, and the help differs;
 - **no machine-1 name, number or module is in the package** — the AST is walked for `DofRealityWire`, `Envelope`, the counts 190, 512 and 833, and any import from `engine` — and there is no `motions/` directory.
 
-**The daemon adds thirty-two more:**
+**The daemon adds thirty-five more:**
 
 - the socket answers, and the logged row is the same row the client received;
 - a second instance exits with 3 and leaves the first answering;
@@ -238,7 +239,10 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - **a greeting logs one frame row, and `sent` is `False` in it** — the row is decoded back into `Command(face="greeting", light="warm", gesture="look_up")`;
 - **an unchanged event logs no second frame**;
 - **the second transition streams the pose line from the pose the first one ended at, and the frames carry `look_up` then `null`** — every written pose line decodes, and the log's `neck` row names `look_side` with at least five poses;
-- **the first transition is not streamed**, and its frame carries the gesture.
+- **the first transition is not streamed**, and its frame carries the gesture;
+- **one stream opens the port once**, not once per pose;
+- **a port that takes nothing ends the stream** instead of waiting, and the row says `sent: false`;
+- **a port that cannot be opened leaves the gesture in the frame**, for the board to play.
 
 **The client adds twenty-one more:**
 

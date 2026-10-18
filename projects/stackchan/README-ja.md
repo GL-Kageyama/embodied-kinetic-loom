@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.12.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.13.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -156,8 +156,9 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - **デーモン起動後の最初の遷移は流さない。** このホストは頭の位置を読まない——機体は何も報告しない——ので、知らない始点を名指す最初の行はその位置への移動になる。**その1回の身振りは基板に任せ**、ホストは表の終わりの姿勢を覚える。⚠️ **それは推測であり、そう名乗る**: 基板が演じ切ったかは観察されない。
 - **それ以降のどの運動も、実際に書いた最後の姿勢から始まる**——前の計画の終わりではない。割り込まれた計画は、目指した場所とは違うところで終わる。
 - ⛔ **短い書き込みは流れを止め**、行は `sent: false` になる。次の身振りは、書いた最後の姿勢から始め直す。
+- ⛔ **流れは1つの身振りのあいだポートを保持し、姿勢ごとには開かない**（0.19.15）。枠はいまも `os.open`/`os.write`/`os.close` を1回ずつで、枠と枠のあいだは何も持たない; **流れはポートを1度開き、各姿勢を `PORT_WAIT = 0.5` の上限の下で書き、要約で閉じる。** ⚠️ **最初の形がデーモンを固まらせることが測られた**: 50 Hz で open/write/close を繰り返すと4度目か5度目で `open()` の中で塞がり、そこへ信号は届かない。**何も受け取らないポートは流れを終わらせ、開けないポートは身振りを枠に残して基板に委ねる。**
 
-⚠️ **これは機構であり、機体はまだこの経路で観察されていない。** テストは普通のファイルへ書く; 流した身振りを基板がどう適用するかが次の観察であり、**それは目を要する**——記録の背骨は観察されたことである（`CLAUDE.md`）。
+⚠️ **機構は機体で1度測られたが、目はまだそこに無い。** 2026-10-19、コンソールに読み取り手を付けて、流れを生で再生した。基板は `pose: stream started — goals on the present positions (yaw 504, pitch 780), torque on` と印字し、沈黙の後に `pose: stream lost after 500 ms — torque released` と `pose: 23 applied, 0 refused, 0 clamped` と印字した; その身振りについてデーモンの要約は `{"neck": "look_side", "applied": 23, "late": 19, "held": 29}` だった。⛔ **23のうち19が遅れて適用された**——基板のメインループがまだ前の身振りを抱えていた。⛔ **首が目に見えて動いたかどうかは、まだ書かれていない**、そしてそれは目を要する——記録の背骨は観察されたことなので（`CLAUDE.md`）。
 
 ## フックにまだ要るもの
 
@@ -199,7 +200,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ## 何を検査しているか
 
-**`tests/test_stackchan_behaviors.py` が35の主張を持ち、`tests/test_stackchan_daemon.py` が32、`tests/test_stackchan_hook_client.py` が21、`tests/test_stackchan_wire.py` が28、`tests/test_stackchan_outbound.py` が13、`tests/test_stackchan_neck.py` が40を持つ。** 残りの検査と一緒に走る:
+**`tests/test_stackchan_behaviors.py` が35の主張を持ち、`tests/test_stackchan_daemon.py` が35、`tests/test_stackchan_hook_client.py` が21、`tests/test_stackchan_wire.py` が28、`tests/test_stackchan_outbound.py` が13、`tests/test_stackchan_neck.py` が40を持つ。** 残りの検査と一緒に走る:
 
 - 一覧は33で、重複が無い。すべての事象が3つの種類のどれか1つに属し、種類が一覧を分割する。
 - すべての事象が理由の符号を持つ——**空欄が無い。**
@@ -225,7 +226,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - parser は3言語すべてで建ち、ヘルプが違う。
 - **機体1の名前も数もモジュールも、このパッケージに無い**——AST を `DofRealityWire`、`Envelope`、数 190・512・833、そして `engine` からの import で歩く——そして `motions/` ディレクトリが無い。
 
-**デーモンが、さらに32を加える:**
+**デーモンが、さらに35を加える:**
 
 - ソケットが答え、ログの行はクライアントが受け取った行と同じである。
 - 2つ目のインスタンスは 3 で終わり、1つ目は答え続ける。
@@ -239,6 +240,9 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - **変わらない事象は、2つ目の枠を書かない。**
 - **2つ目の遷移は、1つ目が終わった姿勢から姿勢の行を流し、枠は `look_up` の次に `null` を運ぶ**——書かれた姿勢の行はすべて復号し、ログの `neck` の行は `look_side` と5つ以上の姿勢を名乗る。
 - **最初の遷移は流されず**、その枠が身振りを運ぶ。
+- **1つの流れはポートを1度だけ開く**、姿勢ごとではない。
+- **何も受け取らないポートは、待つのではなく流れを終わらせ**、行は `sent: false` になる。
+- **開けないポートは身振りを枠に残し**、基板に演じさせる。
 
 **クライアントが、さらに21を加える:**
 

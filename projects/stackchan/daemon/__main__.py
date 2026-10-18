@@ -157,8 +157,19 @@ def send_line(path: str, line: str | bytes) -> bool:
             pass
 
 
+#: **1行が、端末に受け取られるのを待つ上限（秒）。**
+#: ⛔ **待ちに上限が無いことが、2026-10-19 にデーモンを止めた。**
+PORT_WAIT = 0.5
+
+
 class Neck:
     """**首の縁。** ⚠️ **純粋な予定表（`Stream`）と、最後に命じた姿勢だけを持つ。**
+
+    ⚠️ **ポートは、1つの身振りの間だけ持つ。** ⛔ **行ごとに開かない。**
+    2026-10-19 に測った: 20 ms ごとの `open`/`write`/`close` は、基板が
+    コンソールを読まなくなった瞬間に **`open` が割り込み不能のまま返らず**、
+    デーモンごと止まる。**開くのは身振りに1回、閉じるのは終わりに1回**であり、
+    書くたびに `PORT_WAIT` を上限に待つ——⚠️ **基板が読まなければ、流れは止まる。**
 
     ⛔ **最初の1回は、基板に演じさせる。** このホストは首の位置を読まない——
     知らない位置を始点にすれば、1行目は「その位置への移動」になる。
@@ -173,10 +184,62 @@ class Neck:
         self._period = period
         self._stream = Stream(period=period, hold=hold)
         self._parked = None
+        self._fd: int | None = None
 
     @property
     def deadline(self) -> float | None:
-        return self._stream.deadline if self.port is not None else None
+        return self._stream.deadline if self._fd is not None else None
+
+    def _open(self) -> bool:
+        """**1つの身振りのために、1回だけ開く。** ⛔ 行ごとに開くと止まる。"""
+        self._close()
+        if self.port is None:
+            return False
+        try:
+            # ⚠️ **`O_APPEND` は tty には効かないが、普通のファイルでは効く。**
+            #    これが無いと、試験のファイルの先頭を姿勢の列が上書きする。
+            self._fd = os.open(self.port, os.O_WRONLY | os.O_NOCTTY
+                               | os.O_NONBLOCK | os.O_APPEND)
+        except OSError:
+            self._fd = None
+            return False
+        return True
+
+    def _close(self) -> None:
+        if self._fd is not None:
+            try:
+                os.close(self._fd)
+            except OSError:
+                pass
+            self._fd = None
+
+    def _write(self, payload: bytes) -> bool:
+        """**持っている fd へ1行。** ⛔ **待ちには上限がある。**
+
+        ⚠️ **短く書けた行は、続きを書く。** それでも `PORT_WAIT` を越えたら
+        失敗である——**読まない端末を、行の列で埋めない。**
+        """
+        deadline = time.monotonic() + PORT_WAIT
+        while True:
+            try:
+                written = os.write(self._fd, payload)
+            except BlockingIOError:
+                written = 0
+            except OSError:
+                return False
+            if written == len(payload):
+                return True
+            if written:
+                payload = payload[written:]
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.0:
+                return False
+            try:
+                _, writable, _ = select.select([], [self._fd], [], remaining)
+            except (OSError, ValueError):
+                return False
+            if not writable:
+                return False
 
     def take(self, decision: Decision, at: float) -> bool:
         """**身振りを引き受ける。** ⚠️ **流し始めたときだけ `True`。**
@@ -200,10 +263,17 @@ class Neck:
             # ⚠️ **割り込まれた動きも、送った数として残す。**
             self._stream.stop(at)
             summary = self._stream.take_summary()
+            self._close()
             if summary is not None:
                 emit({"neck": summary.name, "applied": summary.applied,
                       "late": summary.late, "held": summary.held,
                       "at": summary.at, "interrupted": True})
+
+        # ⛔ **開けなければ、流さない。** 枠が身振りを運び、基板が演じる——
+        #    開けない端末に、行だけを数えて「送った」と言わない。
+        if not self._open():
+            self._parked = gestures.ends(decision.gesture)
+            return False
 
         plan = gestures.plan(decision.gesture, starts, period=self._period)
         self._stream.start(plan, at, name=decision.gesture)
@@ -219,19 +289,21 @@ class Neck:
 
     def pump(self, at: float) -> None:
         """**期限の来た行を、すべて書く。** ⚠️ 終わったら、要約を1行だけ残す。"""
-        if self.port is None:
+        if self._fd is None:
             return
         while True:
             line = self._stream.line(at)
             if line is None:
                 break
-            if not send_line(self.port, line):
+            if not self._write(line):
                 # ⛔ **書けなかった列を、書いた列として続けない。**
                 emit({"neck": self._stream.name, "sent": False, "at": at})
                 self._stream.stop(at)
+                self._close()
                 break
         summary = self._stream.take_summary()
         if summary is not None:
+            self._close()
             emit({"neck": summary.name, "applied": summary.applied,
                   "late": summary.late, "held": summary.held, "at": summary.at})
 

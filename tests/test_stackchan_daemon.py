@@ -516,3 +516,107 @@ def test_the_first_gesture_is_not_streamed(sock):
 
     rows = [json.loads(line) for line in daemon.out.splitlines() if line.strip()]
     assert [row for row in rows if "neck" in row] == []
+
+
+# ---------------------------------------------------------------------------
+# 端末。⛔ **2026-10-19 に、行ごとの開閉がデーモンを止めた。** その縁を固定する。
+# ---------------------------------------------------------------------------
+
+
+def _park(neck: "edge.Neck", at: float = 0.0) -> None:
+    """**最初の身振りは基板に演じさせる。** その後、首は表の終わりを起点に持つ。"""
+    room = Room()
+    assert neck.take(room.offer("main", "SessionStart", at), at) is False
+
+
+def test_one_stream_opens_the_port_once(tmp_path, monkeypatch, capsys):
+    """✅ **開くのは、身振りに1回。** ⛔ **行ごとに開くと、基板が読まなくなった瞬間に止まる。**
+
+    ⚠️ **これは数える検査である**: `os.open` を数え、列の数と比べる。
+    **測ったこと**（2026-10-19）: 20 ms ごとの開閉は5行目あたりで `open` が返らず、
+    デーモンごと止まった。開くのは1回でなければならない。
+    """
+    port = tmp_path / "console"
+    port.touch()
+    neck = edge.Neck(str(port))
+    _park(neck)
+
+    at = 1.2
+    decision = Room().offer("main", "PermissionRequest", at)
+
+    opens: list[str] = []
+    real_open = edge.os.open
+
+    def counting_open(path, flags, *args, **kwargs):
+        opens.append(str(path))
+        return real_open(path, flags, *args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(edge.os, "open", counting_open)
+        assert neck.take(decision, at) is True
+
+    # ⚠️ **流れを終わらせる。** 呼ぶ側（select ループ）と同じく、期限ごとに起こす。
+    t = at
+    while neck.deadline is not None or neck._fd is not None:
+        neck.pump(t)
+        t += edge.gestures.DEFAULT_PERIOD
+        assert t < at + 30.0, "流れが終わらない"
+
+    assert opens == [str(port)], f"開いた回数が違う: {opens}"
+    assert neck._fd is None, "身振りが終わっても、ポートを持ち続けている"
+
+    written = [line for line in port.read_text(encoding="ascii").splitlines()
+               if line.startswith("pose ")]
+    assert len(written) >= 5
+    for line in written:
+        decode(line.encode("ascii") + b"\n")
+
+
+def test_a_port_that_takes_nothing_stops_the_stream(tmp_path, capsys):
+    """⛔ **読まない端末を、行の列で埋めない。** 待ちには上限があり、越えたら流れは止まる。
+
+    ⚠️ **パイプを満たして、書けない fd を作る。** 本物の基板が止まったときの形であり、
+    `PORT_WAIT` の後に `sent: false` の行が1つ出て、ポートが閉じる。
+    """
+    import os
+
+    port = tmp_path / "console"
+    port.touch()
+    neck = edge.Neck(str(port))
+    _park(neck)
+
+    at = 1.2
+    assert neck.take(Room().offer("main", "PermissionRequest", at), at) is True
+
+    read_end, write_end = os.pipe()
+    os.close(neck._fd)
+    os.set_blocking(write_end, False)
+    try:
+        while True:
+            os.write(write_end, b"x" * 4096)
+    except BlockingIOError:
+        pass
+    neck._fd = write_end
+
+    started = time.monotonic()
+    neck.pump(at + 0.02)
+    elapsed = time.monotonic() - started
+
+    assert elapsed < edge.PORT_WAIT + 1.0, "待ちに上限が無い"
+    assert neck._fd is None, "書けなかった後もポートを持っている"
+
+    rows = [json.loads(line) for line in capsys.readouterr().out.splitlines() if line.strip()]
+    assert any(row.get("sent") is False for row in rows), "止まったことが残っていない"
+    os.close(read_end)
+
+
+def test_a_port_that_cannot_be_opened_leaves_the_gesture_to_the_board(tmp_path):
+    """⚠️ **開けない端末に、行だけを数えて「送った」と言わない。**
+
+    開けなければ流さない——**枠が身振りを運び、基板が演じる。** `take` は `False` を返す。
+    """
+    neck = edge.Neck(str(tmp_path / "missing"))
+    room = Room()
+    assert neck.take(room.offer("main", "SessionStart", 0.0), 0.0) is False
+    assert neck.take(room.offer("main", "PermissionRequest", 1.2), 1.2) is False
+    assert neck._fd is None
