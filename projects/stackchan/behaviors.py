@@ -17,11 +17,11 @@
 | 段階 | 入る事象 | 顔 | 光 | 体 |
 |---|---|---|---|---|
 | `present`（在席） | 表情が尽きたとき／起きたとき | curious | breathe | 動かない |
-| `greeting`（挨拶） | `SessionStart` | greeting | warm | `perk` |
+| `greeting`（挨拶） | `SessionStart` | greeting | warm | `look_up` |
 | `working`（作業中） | `UserPromptSubmit` | curious | dim | **動かない** |
-| `blocked`（許可待ち） | `PermissionRequest` | curious | alert | `turn` |
-| `closing`（締め） | `Stop` / `StopFailure` | happy / angry | warm / error | `nod` / `flinch` |
-| `resting`（休息） | 無事象が続く／`SessionEnd` | sleepy | off | `settle`（去るときだけ） |
+| `blocked`（許可待ち） | `PermissionRequest` | curious | alert | `look_side` |
+| `closing`（締め） | `Stop` / `StopFailure` | happy / angry | warm / error | `nod` / `recoil` |
+| `resting`（休息） | 無事象が続く／`SessionEnd` | sleepy | off | `rest`（去るときだけ） |
 
 ⚠️ **`working` を支えるのは、反応しない25の事象である。** `PreToolUse` と `PostToolUse` は
 **体で表さないだけで、届いている**——**そのたびに idle の時計が戻る。**
@@ -91,7 +91,7 @@ class Light(Enum):
 
 
 #: ⛔ **候補語である。** 語彙表の行ではない——**数になった日に、行が書かれる。**
-GESTURES: tuple[str, ...] = ("perk", "nod", "turn", "settle", "flinch")
+GESTURES: tuple[str, ...] = ("look_up", "nod", "look_side", "rest", "recoil")
 
 #: ✅ **作者の決定、2026-10-18。** 運動は既定で入り、音は既定で出ない。
 DEFAULT_MOTION = True
@@ -330,7 +330,7 @@ class Companion:
             self._face = State.GREETING
             self._light = Light.WARM
             self._hold_until = at + EXPRESSION_SECONDS
-            gesture, body = self._body("perk", at)
+            gesture, body = self._body("look_up", at)
 
         elif event == "UserPromptSubmit":
             self._phase = Phase.WORKING
@@ -339,14 +339,14 @@ class Companion:
             self._turn_started = at
             self._failures = 0
             self._concerned = False
-            gesture, body = self._body("perk", at)
+            gesture, body = self._body("look_up", at)
 
         elif event == "PermissionRequest":
             # ⛔ **唯一の割り込みである。** 体が間に合わなくても、光は必ず出る。
             self._phase = Phase.BLOCKED
             self._face = State.CURIOUS
             self._light = Light.ALERT
-            gesture, body = self._body("turn", at)
+            gesture, body = self._body("look_side", at)
 
         elif event == "Stop":
             long_turn = (
@@ -371,14 +371,14 @@ class Companion:
             self._turn_started = None
             self._failures = 0
             self._concerned = False
-            gesture, body = self._body("flinch", at)
+            gesture, body = self._body("recoil", at)
 
         else:  # SessionEnd
             self._phase = Phase.RESTING
             self._face = State.SLEEPY
             self._light = Light.OFF
             self._turn_started = None
-            gesture, body = self._body("settle", at)
+            gesture, body = self._body("rest", at)
 
         return self._decision(
             event, face=self._face, light=self._light,

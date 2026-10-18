@@ -1,13 +1,15 @@
 // Stack-chan — the device end of the wire (0.19.0).
 //
-// ⛔ SOURCE ONLY. Never built, never flashed.
+// ✅ Built and flashed on 2026-10-18 — the app was written at 0x510000 and it runs.
 //
 // ⚠️ The parser is deliberately strict and deliberately small. It accepts the
 //    shape `{"face": <string|null>, "light": <string>, "gesture": <string|null>}`
 //    and nothing else. It does not allocate, and it does not depend on key order.
 //
-// ⛔ `apply_command` refuses every gesture. That is not a placeholder for a
-//    missing line — it is the line, until this unit has been measured.
+// ⛔ `apply_command` is the parser-side stub and it still does nothing: the
+//    measured gesture table lives in main/main.cpp, and the firmware's console
+//    dispatches a parsed frame there. This file stays free of angles so that the
+//    parser test can compile it alone.
 #include "command_frame.h"
 
 #include <cstring>
@@ -29,11 +31,11 @@ const char* const kLightWarm = "warm";
 const char* const kLightAlert = "alert";
 const char* const kLightError = "error";
 
-const char* const kGesturePerk = "perk";
+const char* const kGestureLookUp = "look_up";
 const char* const kGestureNod = "nod";
-const char* const kGestureTurn = "turn";
-const char* const kGestureSettle = "settle";
-const char* const kGestureFlinch = "flinch";
+const char* const kGestureLookSide = "look_side";
+const char* const kGestureRest = "rest";
+const char* const kGestureRecoil = "recoil";
 
 const char* const kKeyFace = "face";
 const char* const kKeyLight = "light";
@@ -114,11 +116,11 @@ ParseResult DecideLight(const char* text, int size, Light* out) {
 }
 
 ParseResult DecideGesture(const char* text, int size, Gesture* out) {
-  if (Equals(text, size, kGesturePerk)) { *out = Gesture::kPerk; return ParseResult::kOk; }
+  if (Equals(text, size, kGestureLookUp)) { *out = Gesture::kLookUp; return ParseResult::kOk; }
   if (Equals(text, size, kGestureNod)) { *out = Gesture::kNod; return ParseResult::kOk; }
-  if (Equals(text, size, kGestureTurn)) { *out = Gesture::kTurn; return ParseResult::kOk; }
-  if (Equals(text, size, kGestureSettle)) { *out = Gesture::kSettle; return ParseResult::kOk; }
-  if (Equals(text, size, kGestureFlinch)) { *out = Gesture::kFlinch; return ParseResult::kOk; }
+  if (Equals(text, size, kGestureLookSide)) { *out = Gesture::kLookSide; return ParseResult::kOk; }
+  if (Equals(text, size, kGestureRest)) { *out = Gesture::kRest; return ParseResult::kOk; }
+  if (Equals(text, size, kGestureRecoil)) { *out = Gesture::kRecoil; return ParseResult::kOk; }
   return ParseResult::kUnknownValue;
 }
 
@@ -223,12 +225,12 @@ ParseResult parse_command(const char* line, int length, Command* out) {
 }
 
 void apply_command(const Command& command) {
-  // ⛔ There is no gesture -> angle table here, and there will not be one until
-  //    the unit in hand has been measured. Every angle written today would be an
-  //    invention. So a gesture that arrives is refused, not guessed.
+  // ⛔ No angles here, by design. The five postures measured on 2026-10-18 live
+  //    in main/main.cpp, beside the record that says where each number came
+  //    from; this file is compiled on its own by tests/test_stackchan_frame_parser.py
+  //    and must stay free of anything the machine had to be measured for.
   //
   // ⚠️ The face and the light are meanings; nothing here turns them into pixels
-  //    or into twelve RGB values. The LED order and the colour order of this
-  //    unit are in no record either.
+  //    or into twelve RGB values. The LED and colour tables live in leds.cpp.
   (void)command;
 }

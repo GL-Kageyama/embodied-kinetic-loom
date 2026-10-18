@@ -1,12 +1,12 @@
 // Stack-chan — the device end of the wire (0.19.0).
 //
-// ⛔ SOURCE ONLY. This file has never been built, and has never been flashed.
-//    Nothing in this repository has ever written a byte to a machine.
+// ✅ Built and flashed on 2026-10-18: the app was written at 0x510000, and the
+//    board printed the frames a host wrote to its console.
 //
-// ⛔ NO NUMBER FOR MACHINE 2 IS IN THIS FILE, and none will be added until the
-//    unit in hand has been measured (docs/first-contact-stackchan.md). A gesture
-//    is a name. The table that would turn it into a servo angle is in no record,
-//    so `apply_command` refuses instead of guessing.
+// ⛔ NO NUMBER FOR MACHINE 2 IS IN THIS FILE. A gesture is a name here. The table
+//    that turns one into a servo angle was measured on the unit in hand on
+//    2026-10-18 and lives in main/main.cpp, beside the record that says where
+//    each number came from (records/2026-10-18-the-gestures.md).
 //
 // ⚠️ The wire carries a command only at a phase transition. It is not a stream.
 #pragma once
@@ -33,11 +33,11 @@ enum class Light : uint8_t {
 
 enum class Gesture : uint8_t {
   kNone,
-  kPerk,
+  kLookUp,
   kNod,
-  kTurn,
-  kSettle,
-  kFlinch,
+  kLookSide,
+  kRest,
+  kRecoil,
 };
 
 struct Command {

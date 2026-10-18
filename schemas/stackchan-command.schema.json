@@ -19,7 +19,7 @@
     "gesture": {
       "description": "The gesture the neck is asked to make, or null for 'the neck does not move in this frame'. ⛔ These five are candidate words, not rows in the vocabulary: a row is written the day a word becomes numbers on that machine, and that has not happened. ⚠️ A gesture is chosen only at a phase transition, and one that falls inside the body's floor is dropped rather than queued — so a late gesture never appears on this wire.",
       "type": ["string", "null"],
-      "enum": ["perk", "nod", "turn", "settle", "flinch", null]
+      "enum": ["look_up", "nod", "look_side", "rest", "recoil", null]
     }
   }
 }

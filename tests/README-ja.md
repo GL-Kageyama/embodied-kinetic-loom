@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.18.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.19.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -318,7 +318,7 @@
 |---|---|---|
 | 正しい形の枠が受理され、その欄が戻る | `test_stackchan_frame_parser.py` | ⛔ **0.19.8 まで、構文解析器は正しい形の枠をすべて拒んでいた**——閉じ括弧を跨ぐのに失敗していた——**そして `test_stackchan_wire.py` のリテラル比較はそれを通していた** |
 | 知らない鍵、知らない語、長すぎる行は、それぞれ拒まれる | `test_stackchan_frame_parser.py` | 基板は、ホストの復号器が拒むものを拒む |
-| すべての身振りが拒まれ、`no gesture -> angle table exists` と出る | `test_stackchan_frame_parser.py` | ⛔ **角度が測られるまで、その拒否がその行である** |
+| 契約が名指す身振りの語はすべて解析される——そしてここでは1つも演じられない | `test_stackchan_frame_parser.py` | ⛔ **`apply_command` は空であり、この試験は `main.cpp` を一度もコンパイルしない**ので、身振りを演じる測られた姿勢の表は、どの検査にも押さえられていない |
 | enum が、スキーマの名指す語と一致したままである | `test_stackchan_frame_parser.py` | 契約は3箇所の写しであり、ここはその2つ目が鳴る場所である |
 
 ⛔ **これはファームウェアをビルドしない。** `main.cpp`、`leds.cpp`、`servo.cpp` はここで一度もコンパイルされず、`idf.py build` は 2026-10-18 に手で走らせたきりで、どの検査も繰り返さない。**この検査が在る理由は、それが書かれた隙間である**: 写しを写しと照らす検査が緑のまま、唯一意味のある場所で、すべての枠が拒まれていた。

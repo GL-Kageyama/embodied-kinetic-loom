@@ -102,8 +102,8 @@ def test_the_enum_still_matches():
     "line, expected",
     [
         # ✅ **受理される形。** 閉じ括弧の後に改行が在っても、無くても。
-        ('{"face":"greeting","gesture":"perk","light":"warm"}', OK),
-        ('{"face":"greeting","gesture":"perk","light":"warm"}\n', OK),
+        ('{"face":"greeting","gesture":"look_up","light":"warm"}', OK),
+        ('{"face":"greeting","gesture":"look_up","light":"warm"}\n', OK),
         ('{"face":null,"gesture":null,"light":"breathe"}', OK),
         # ⚠️ **鍵の順は問わない**（パーサの docstring がそう言っている）。
         ('{"light":"dim","face":"curious","gesture":"nod"}', OK),

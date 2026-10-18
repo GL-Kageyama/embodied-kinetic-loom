@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.18.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.19.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -296,7 +296,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 |---|---|---|
 | a well-formed frame is accepted, and its fields come back | `test_stackchan_frame_parser.py` | ⛔ **until 0.19.8 the parser refused every well-formed frame** — it failed to step over the closing brace — **and the literal comparison in `test_stackchan_wire.py` passed it** |
 | an unknown key, an unknown word and an over-long line are each refused | `test_stackchan_frame_parser.py` | the board refuses what the host's decoder refuses |
-| every gesture is refused, with `no gesture -> angle table exists` | `test_stackchan_frame_parser.py` | ⛔ **the refusal is the line until an angle is measured** |
+| every gesture word the contract names parses — and none of them is played here | `test_stackchan_frame_parser.py` | ⛔ **`apply_command` is a stub and `main.cpp` is never compiled by this test**, so the measured posture table that plays a gesture is checked by no check at all |
 | the enum still matches the words the schema names | `test_stackchan_frame_parser.py` | the contract is a copy in three places, and this is the second place it rings |
 
 ⛔ **It does not build the firmware.** `main.cpp`, `leds.cpp` and `servo.cpp` are never compiled here; `idf.py build` was run by hand on 2026-10-18 and no check repeats it. **What this test is for is the gap it was written into**: a copy checked against a copy had passed while the parser refused every frame in the only place that mattered.

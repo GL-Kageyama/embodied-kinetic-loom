@@ -55,7 +55,12 @@ constexpr int kPitchZeroDefault = 620;
 
 // --- the bench envelope (this repository's choice, not a measurement) ---
 // ⚠️ Small on purpose: the first moves are meant to be watched.
-constexpr int kBenchYawMaxTenths = 200;  // +/- 20.0 degrees
+// ⚠️ Raised from 200 to 450 on 2026-10-18, while the gesture -> angle table was
+//    being measured: `perk` was judged at +8 and the next posture, +20, was
+//    judged too small for `turn`. Still a bench bound — a third of the vendor's
+//    +/-128.0 — and it is not a gesture's limit: the table names an angle, and
+//    a gesture may sit inside this envelope or not.
+constexpr int kBenchYawMaxTenths = 450;  // +/- 45.0 degrees
 
 // --- timing ---
 // ⚠️ The one recorded constraint on this machine: commands that involve

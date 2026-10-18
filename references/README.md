@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.3.0 | canonical: references/README.md | translated: 2026-10-15 -->
+<!-- i18n-version: 2.4.0 | canonical: references/README.md | translated: 2026-10-15 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -50,6 +50,14 @@
 - ⛔ **The amount is not a measurement.** `+40` counts is `552 − 512`, and both of those are choices — `demo_rig()` lists every number it supplies and what each one is not. **The words came from the concept document. The numbers did not come from anywhere.**
 - ⛔ **The machine column is the only one added after the row was written.** It holds the module that speaks for that machine — `engine/backend/protocol.py`, where machine 1's envelope and its wire both live. ⚠️ **What the checker does with it is ask whether the path exists, and nothing more** — ⛔ **whether that module is machine 1's is not something a path can say**, and the checker's own list of what it cannot catch says so.
 - ⛔ **The warning column is the decision of 2026-09-28 (D-12).** Of the five verbs the vocabulary starts from — 傾く / 倒れる / 沈む / 跳ねる / 後退 — **three name a translation machine 1 does not have. The verbs stay in the vocabulary, and this column carries the difference.**
+
+## ⚠️ The five words the wire carries for machine 2 are not rows
+
+**Since 2026-10-18, `projects/stackchan-firmware/main/main.cpp` holds five measured postures** — `look_up`, `nod`, `look_side`, `rest`, `recoil` — turned from words into servo counts on the unit in hand, judged by the author's eye (`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`). ⛔ **Not one of them is a row in the table above**, and the reason is written here rather than left as a gap:
+
+- **A row's words come from the concept document's §5, and these five did not.** They were chosen in a session for the wire, and then renamed for readability at the author's direction — ⛔ **a name chosen for a protocol is not a name chosen for the Pet**, and the table's first sentence is what makes that difference a rule.
+- **A row holds one degree of freedom; a posture holds two.** `small forward tilt` names `pitch` and nothing else. `look_side` is yaw **and** pitch at once — ⛔ **put into the table it would have to pick one, and the pick would be an invention.**
+- ⚠️ **What a checker can still say.** The seventh column names the machine a row was written on, and machine 2's is empty because no row has been written for it. ⇒ **The five words show that the machine can be measured; not one word of this vocabulary has reached it yet** — the column stays empty until a `Motion Intent` names a word that becomes numbers there.
 
 ## What is not here
 

@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.9.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.10.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -6,7 +6,7 @@
 
 **It decides what the robot is doing, which face it wears, what colour it glows, and which gesture it means. It does not decide how far anything moves.**
 
-⛔ **It holds no number for machine 2, and it borrows none of machine 2's.** The scale, the zero, the sign, the envelope, the velocity ceiling, the period and the settle of the unit in hand are in no record (`docs/first-contact-stackchan.md`). ⇒ **Every gesture it chooses is a symbol with no counts behind it, and `Decision.sent` is `False` on every line.** That is the finding, not a fault.
+⛔ **It holds no number for machine 2, and it borrows none of machine 2's.** The zero, the sign and the envelope of the unit in hand are not in this package. ⇒ **Every gesture it chooses is a word, and the counts a word becomes live with the machine** — `projects/stackchan-firmware/main/main.cpp`, measured on the unit on 2026-10-18 (`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`). `Decision.sent` is `True` only when a port is named and the host's tty took the whole line.
 
 ⚠️ **This is the part of the Stack-chan route that can be verified before a line of firmware is burned.** The mapping from events to phases needs no machine measurement; the motion does. **This layer is built on the side of that line where the checks can ring.**
 
@@ -16,7 +16,7 @@
 
 ✅ **It imports the Pet's `State`; it does not copy it.** The five expressions were drawn once (decision A, `projects/pet/expressions.py`), and a second set would be a second answer to the same question.
 
-⛔ **It is not joined to a machine.** No port, no wire, no firmware, no record. Its only consumers outside the tests are its own CLI and the daemon's log. ⚠️ **It was not joined to Claude Code until 2026-10-18.** ✅ **Since then it is** — every one of the thirty-three events in `~/.claude/settings.json` runs `projects/stackchan/hook/`, and a launchd user agent starts the daemon at login. ⛔ **This directory is the layer, not the installation**: the plist here is a copy, and the record is `docs/stackchan-daemon.md`.
+✅ **It is joined to a machine since 2026-10-18** — the daemon writes one line per frame to the board's console — **and it was not joined before that.** ⛔ **The join runs one way and carries one line**: this layer opens nothing itself, reads nothing back, and can confirm only that the host's tty took the whole line. Its consumers outside the tests are its own CLI, the daemon's log, and the port the daemon names. ⚠️ **It was not joined to Claude Code until 2026-10-18.** ✅ **Since then it is** — every one of the thirty-three events in `~/.claude/settings.json` runs `projects/stackchan/hook/`, and a launchd user agent starts the daemon at login. ⛔ **This directory is the layer, not the installation**: the plist here is a copy, and the record is `docs/stackchan-daemon.md`.
 
 ## The six phases
 
@@ -25,11 +25,11 @@
 | phase | entered by | face | light | body |
 |---|---|---|---|---|
 | `present` | an expression expiring, or waking | `curious` | `breathe` | still |
-| `greeting` | `SessionStart` | `greeting` | `warm` | `perk` |
+| `greeting` | `SessionStart` | `greeting` | `warm` | `look_up` |
 | `working` | `UserPromptSubmit` | `curious` | `dim` | **still** |
-| `blocked` | `PermissionRequest` | `curious` | `alert` | `turn` |
-| `closing` | `Stop` / `StopFailure` | `happy` / `angry` | `warm` / `error` | `nod` / `flinch` |
-| `resting` | no event for 90 s, or `SessionEnd` | `sleepy` | `off` | `settle` (on leaving) |
+| `blocked` | `PermissionRequest` | `curious` | `alert` | `look_side` |
+| `closing` | `Stop` / `StopFailure` | `happy` / `angry` | `warm` / `error` | `nod` / `recoil` |
+| `resting` | no event for 90 s, or `SessionEnd` | `sleepy` | `off` | `rest` (on leaving) |
 
 ⚠️ **`working` is held up by the twenty-five events it does not express.** `PreToolUse` and `PostToolUse` are **not shown by the body, but they are received** — every one of them resets the idle clock. ⛔ **That is why the robot does not doze off during a long build.**
 
@@ -90,7 +90,7 @@
 
 ## Density: transitions only
 
-⚠️ **A gesture is chosen only at a phase transition, and the rhythm is capped by the events themselves:** one `perk` when the turn opens, one `nod` when a long turn closes — **two rhythm gestures per turn.** A `PermissionRequest` is an interrupt, not a rhythm, and is exempt from that count; **but not from the body's own floor.**
+⚠️ **A gesture is chosen only at a phase transition, and the rhythm is capped by the events themselves:** one `look_up` when the turn opens, one `nod` when a long turn closes — **two rhythm gestures per turn.** A `PermissionRequest` is an interrupt, not a rhythm, and is exempt from that count; **but not from the body's own floor.**
 
 ⛔ **A gesture closer than one second to the previous one is dropped, not queued** — the body field says `cooldown`, and `Companion.dropped` counts it. Two reasons: a queue would make this layer choose the gap between commands, and **on the 10/04 unit a gap shorter than about one second stalled the servos and dropped the rail** (`MOVE_SETTLE = 1.0`). ⚠️ **That 1.0 s is the one borrowed number in this package** — it is a floor from another unit, not a measurement of this one. **It is borrowed on the safe side, it is named as borrowed, and it is replaced the day this unit is measured.**
 
@@ -141,9 +141,9 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ✅ **The client sends the event name and the window's name — and not the prompt.** The daemon stamps the time when the line arrives, so the client carries no clock and no state. The robot needs to know that a turn began, not what was said; it needs the window's name only because windows share one body. **Privacy by construction, not by policy.** ⚠️ **The start-and-stop design is `docs/stackchan-daemon.md`** — **the loop, the socket, the client, the launchd job and the registration in `settings.json` are all built and installed on this host.**
 
-⚠️ **And the device path is missing too:** a renderer for the display, a driver for the LEDs, a sound, and **a transport**. **This layer's output is a `Decision`; nothing consumes it but the terminal and the daemon's log.**
+⚠️ **And the device path is still mostly missing:** a renderer for the display, and a sound. ✅ **The LEDs have a driver and the transport is chosen** — both below. **This layer's output is a `Decision`; its consumers are the terminal, the daemon, and — through the daemon, one line per frame — the board.**
 
-✅ **Since 2026-10-18 the frame it would be sent in exists as source** — `engine/backend/protocol_stackchan.py` encodes and decodes one ASCII line, `schemas/stackchan-command.schema.json` is the contract both ends read, and `projects/stackchan-firmware/` parses that line and **refuses every gesture**. ⛔ **The transport has not been chosen, and the firmware has never been built or flashed.** ⚠️ **The wire carries symbols only; the first number for this machine is written after the unit is measured, not before.**
+✅ **Since 2026-10-18 the frame it would be sent in exists as source** — `engine/backend/protocol_stackchan.py` encodes and decodes one ASCII line, and `schemas/stackchan-command.schema.json` is the contract both ends read. ✅ **The transport is chosen and connected** — `--port`, one line per frame, the port named in the installed plist. ✅ **And the board acts on the gesture word**: `projects/stackchan-firmware/` carries five postures measured on the unit (`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`). ⛔ **The wire still carries no number from this layer** — the words go out, and the machine turns them into counts.
 
 ## What leaves the room
 
@@ -153,7 +153,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - ⛔ **The event's reason does not partition state changes.** A `PostToolUse` inside `blocked` returns the phase to `working` with reason `OBSERVED`, and the light may not move; a concern changes the light and not the phase. **Counting frames by event kind would have emitted frames that carried no change and missed changes that carried no transition.** So the rule reads the state, not the reason.
 - ⚠️ **This is not a stream.** A hundred evidence events inside one phase produce one frame.
 - **The daemon writes the frame as a row** — `{"frame": "<one ASCII line>", "sent": false, "at": …, "session": …}` — and the line is produced by the same codec the wire tests hold, **so the log cannot drift from the contract.**
-- ⛔ **Nothing is sent.** The row says *would have sent*; there is no transport, no renderer and no LED driver on the other side. ✅ **On 2026-10-18 the installed daemon wrote its first frame row on a real hook event** — and ⛔ **what was observed is a line, not a movement.**
+- ✅ **It is sent whenever the job names a port** — the same line is written to the port, and `sent` says whether the host's tty took it. ⛔ **`sent: true` is about the host's tty, not about the board receiving it**: delivery was proven once, by the board's own console printing the frame. **A renderer for the display still does not exist on the other side.** ✅ **On 2026-10-18 the installed daemon wrote its first frame row on a real hook event** — and ⛔ **what was observed is a line, not a movement.**
 
 ## The process that holds the room (2026-10-18)
 
@@ -163,7 +163,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - **One JSON line in, one JSON line out** — `{"session": …, "event": …}`. **An unknown key is refused**, so the prompt cannot ride along; an unknown event and a malformed line are refused with a code.
 - **The daemon stamps the time.** The client sends no clock.
 - **The loop waits on the socket or on the next deadline** — `min(hold_until, idle_until, quiet_until)` — and wakes to emit `settled` or `slept`. **No fixed tick.**
-- **`SIGTERM` stops it**, unlinks the socket and exits 0. **Nothing is sent to a device**, because there is still no device.
+- **`SIGTERM` stops it**, unlinks the socket and exits 0. ⛔ **Sending nothing is not a stop command**: a frame is one `os.open`/`os.write`/`os.close`, and what releases the board's torque is 500 ms of silence, not a word from here.
 
 **The client** is `projects/stackchan/hook/` — one process per event. It reads standard input (bounded at 1 MiB), **rebuilds exactly two fields**, sends, and closes without reading a reply. **A missing daemon is not a hook failure: exit 0, silent.** The rebuilding is `client.line_from`, which is pure and tested without a process.
 
@@ -206,7 +206,7 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 - a client that sends nothing is closed, and the next request still gets through;
 - a clean exit removes the socket;
 - the next wake is the expression first, then the idle clock, and `blocked` and `resting` have no deadline;
-- **a greeting logs one frame row, and `sent` is `False` in it** — the row is decoded back into `Command(face="greeting", light="warm", gesture="perk")`;
+- **a greeting logs one frame row, and `sent` is `False` in it** — the row is decoded back into `Command(face="greeting", light="warm", gesture="look_up")`;
 - **an unchanged event logs no second frame.**
 
 **The client adds twenty-one more:**
@@ -243,10 +243,10 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ## What is not here
 
-- **No counts for machine 2.** The five gestures are candidate words, not rows in the vocabulary; a row is written the day a word becomes numbers on that machine. `projects/pet/motions/greeting.json` is machine 1's counts, and borrowing it would make this layer claim motion that will not happen.
-- **No transport, and no frame on the board.** The frame is decided and tested, and the daemon logs the line it would send — ⛔ **a line in a log is not a transport.** **The path to the board is not chosen.** ✅ **Since 2026-10-18 there is firmware on the board** — `projects/stackchan-firmware/` was built, written, and seen to turn the head — ⛔ **but it moved under a bench command typed into its console, and every frame it receives is still refused.** See `docs/first-contact-stackchan.md` and `projects/stackchan-firmware/records/2026-10-18-first-arrival.md`.
-- **No LED driver and no display renderer.** The light is a meaning; nothing turns it into pixels.
+- **No counts for machine 2.** The five gestures are words; the counts they become live with the machine (`projects/stackchan-firmware/main/main.cpp`, measured 2026-10-18), never in this package. `projects/pet/motions/greeting.json` is machine 1's counts, and borrowing it would make this layer claim motion that will not happen.
+- **No frame carrying a number.** ✅ **The transport exists and the board acts on a frame**, but what crosses is words — a face, a light, a gesture. **No count from this layer reaches the wire.**
+- **No display renderer, and no LED driver in this package.** ✅ **The twelve LEDs have a driver, and it is the firmware's** (`projects/stackchan-firmware/main/leds.cpp`) — this layer sends the word `warm` and never a pixel. **The display has none**: the face is still a meaning, and nothing in this package paints it.
 - **No sound.** `--sound on` names a channel that does not exist, and the speaker has never been verified on this unit.
 - **No head-touch input.** The sensor works on this unit (observed in AI.AGENT, 2026-10-18), but it is machine input, and a firmware would have to read it. **A hook is not a head.**
 - **No live installation in this directory.** The plist here is a copy, and `settings.json` is not in the repository at all; both are recorded in `docs/stackchan-daemon.md`.
-- **No record.** `projects/` holds work; the record vessel is still empty, and this layer has never observed a machine.
+- **No record in this directory.** `projects/` holds work, and since 2026-10-18 it holds three records — all under `projects/stackchan-firmware/records/` — but **none of them is this layer observing a machine**: they record what a session saw while driving the firmware from its console.

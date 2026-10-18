@@ -1,14 +1,14 @@
-<!-- i18n-version: 2.3.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.4.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # projects/stackchan-firmware/ — the device end of the wire
 
-✅ **Built, flashed, and the head turned — 2026-10-18.** This directory produced `build/stackchan-vessel.bin`, wrote it at `0x510000`, verified it by hash, and ran it: the app printed `ready.`, both servos answered a ping, and `bench move 5` turned the head. ✅ **And later the same day, for the first time, a goal that came from a host:** 678 `pose` lines at 20 ms, none refused, and the author watching said 「動いた」. ✅ **And after that, the twelve LEDs lit and followed a word** — `warm` became orange, `alert` became yellow, `breathe` became a breath — **including when the word came from the installed daemon, through the transport, over the console.** ⛔ **The refusal below is unchanged** — no gesture has an angle, and a frame that carries one is still refused. **The records are `records/2026-10-18-first-arrival.md` and `records/2026-10-18-the-lights.md`, and the observation is the spine of both.**
+✅ **Built, flashed, and the head turned — 2026-10-18.** This directory produced `build/stackchan-vessel.bin`, wrote it at `0x510000`, verified it by hash, and ran it: the app printed `ready.`, both servos answered a ping, and `bench move 5` turned the head. ✅ **And later the same day, for the first time, a goal that came from a host:** 678 `pose` lines at 20 ms, none refused, and the author watching said 「動いた」. ✅ **And after that, the twelve LEDs lit and followed a word** — `warm` became orange, `alert` became yellow, `breathe` became a breath — **including when the word came from the installed daemon, through the transport, over the console.** ✅ **And after that, the five gestures were measured, named and played from frames** — a gesture no longer needs to invent an angle, and a frame that carries one moves the head. ⚠️ **The five words were renamed the same day, by the author's judgement**: `look_up`, `look_side`, `nod`, `rest`, `recoil`. **The records are `records/2026-10-18-first-arrival.md`, `records/2026-10-18-the-lights.md` and `records/2026-10-18-the-gestures.md`, and the observation is the spine of all three.**
 
-**What is here:** a parser for one command frame, and an `apply_command` that refuses every gesture. **What is not here:** an angle. ⛔ **The number that would turn `perk` into a servo position is in no record** — the vendor's source gives the **scale** between degrees and counts, and that is a different number from **which** angle a `perk` is.
+**What is here:** a parser for one command frame, and a gesture table — five postures measured on this unit with the author's eye. **What is not here:** interpolation. ⛔ **A gesture is one move at one speed and a stop; the author's word for it is 「動きが硬い」.** Smoothness is the engine's job, and **the engine has never run on this machine.**
 
-⚠️ **The refusal is not a placeholder for a line someone forgot to write.** It is the line, until the unit in hand has been measured (`docs/first-contact-stackchan.md`). **A guessed angle is indistinguishable from a measured one in the source**, which is why none is written.
+⚠️ **The table is not a guess.** Every number in it came from placing a posture with `bench set` and asking the author whether the head was showing that word (`records/2026-10-18-the-gestures.md`). **A guessed angle is indistinguishable from a measured one in the source**, which is why none was written before the measurement — and why the two postures that sit on the pitch floor say so.
 
 ## What the frame carries
 
@@ -18,7 +18,7 @@
 |---|---|---|
 | `face` | the Pet's five faces, or `null` | show this expression; `null` = do not change |
 | `light` | `off` / `dim` / `breathe` / `warm` / `alert` / `error` | always present, never `null` |
-| `gesture` | `perk` / `nod` / `turn` / `settle` / `flinch`, or `null` | move the neck; `null` = do not move |
+| `gesture` | `look_up` / `nod` / `look_side` / `rest` / `recoil`, or `null` | move the neck; `null` = do not move |
 
 ⛔ **There is no `sound` field.** The speaker is a channel that does not exist yet.
 
@@ -35,11 +35,23 @@
 | the zeros | NVS, namespace `servo`, keys `zero_pos_1` / `zero_pos_2` — ⚠️ **this is where this unit's measured zeros live** |
 | LEDs | 12, behind a PY32 IO expander at I²C `0x6F` (SDA GPIO 12, SCL GPIO 11); the same expander switches **servo power** on pin 0 |
 
-⛔ **What is still in no record is the table this directory refuses to invent: what angle a `perk` is.** The scale tells you how to send an angle. It does not tell you which angle.
+✅ **Since 2026-10-18 the angle exists** — five postures, measured on this unit (`records/2026-10-18-the-gestures.md`). The table is `main/main.cpp`, beside the comment that says where each number came from.
+
+| gesture | yaw | pitch | what it does |
+|---|---|---|---|
+| `look_up` | +8.0° | 50.0° | the face goes up |
+| `look_side` | +35.0° | 50.0° | the face goes to one side |
+| `rest` | 0.0° | 3.0° | the face comes down and stays |
+| `nod` | +8.0° | 50.0° → 3.0° → 50.0° | down and back |
+| `recoil` | −8.0° | 70.0° | the face pulls back and up |
+
+⛔ **`rest` and `nod`'s down point sit on the machine's pitch floor** — 3.0°, the vendor's minimum. A word wanting to go lower cannot here.
+
+⛔ **These are postures, not trajectories.** Each gesture is one move at the servo's own speed field, followed by a stop. **Nothing interpolates.**
 
 ## What this source deliberately does not decide
 
-- **the gesture table** — what angle a `perk` is: no record, no measurement, no line. ✅ **The degrees-to-counts scale is no longer on this list** — the vendor's source holds it, above;
+- **the gesture table** — ✅ **measured 2026-10-18, and no longer on this list**: the five postures are in `main/main.cpp`, judged one at a time by the author's eye. ⛔ **What is still not decided is how a gesture should move** — the table names where it goes, not how it gets there;
 - **the LED colours** — ✅ **the order is RGB565 behind the expander, and since 2026-10-18 every light has a colour**; ⛔ **each one is a choice in `main/leds.cpp`, and no colour is a measurement of anything the Pet should look like**;
 - **the display renderer** — the face is a meaning here, not pixels;
 - **the transport** — ✅ **decided on 2026-10-18, and it is the console**: the daemon opens the USB serial path, writes one line per frame and closes it. ⛔ **Nothing is held open, so `bench` and `idf.py` still own the port between frames.** ⚠️ **The path is not stable across a replug** — see [The lights](#the-lights--2026-10-18).
@@ -48,7 +60,7 @@
 
 ✅ **The restore was written, read back, and watched booting.** On 2026-10-18, on the unit in hand: the stock image was written and read back bit-for-bit, **it booted — its own USB log showed the launcher opening and every app being created** — then the current snapshot was written back, read back the same way, and **that booted too.** `docs/first-contact-stackchan.md` holds the files, their hashes, the measured diff, and the exact boot observations.
 
-✅ **Then the image this directory produces was built and written.** `build/stackchan-vessel.bin`, 272,976 bytes, at `0x510000`, hash verified; the app reached `ready.` and the bench turned the head. ⚠️ **A later build the same day, 273,808 bytes, added `bench timed` and was written the same way** — the size here is that build's, not a constant. ⛔ **What that did not close is the gate at the top of this page:** every gesture in a frame is still refused, because no angle has been measured. **The move was a bench command — no `Motion Intent`, no trajectory, no gate** (`records/2026-10-18-first-arrival.md`).
+✅ **Then the image this directory produces was built and written.** `build/stackchan-vessel.bin`, 272,976 bytes, at `0x510000`, hash verified; the app reached `ready.` and the bench turned the head. ⚠️ **A later build the same day, 273,808 bytes, added `bench timed` and was written the same way** — the size here is that build's, not a constant. ⛔ **What that did not close is the gate at the top of this page:** at that point every gesture in a frame was still refused, because no angle had been measured. **The move was a bench command — no `Motion Intent`, no trajectory, no gate** (`records/2026-10-18-first-arrival.md`). ✅ **The gesture gate closed later the same day**, when the five postures were measured (`records/2026-10-18-the-gestures.md`).
 
 ⚠️ **One thing rings on this directory now, and it is narrow.** ✅ **Since 2026-10-18 `tests/test_stackchan_frame_parser.py` compiles `command_frame.cpp` with `clang++` or `g++` and runs it** — fourteen claims about which lines it accepts and which it refuses. ⛔ **It does not build the firmware**: `main.cpp`, `leds.cpp` and `servo.cpp` are never compiled here, and `idf.py build` was run by hand and no check repeats it. `tests/test_stackchan_wire.py` still reads these literals and refuses the day they disagree with the schema — **a copy checked against a copy**. ⚠️ **The parser test exists because that gap had a defect in it**: on 2026-10-18 the parser refused every well-formed frame by failing to step over the closing brace, and the literal comparison passed it.
 

@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.11.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.12.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -132,7 +132,7 @@ frame: light=warm face=greeting (no renderer yet)
 frame: gesture perk refused — no gesture -> angle table exists
 ```
 
-  ⇒ **the daemon's log carried `{"face":"greeting","gesture":"perk","light":"warm"}` with `"sent": true`, and the board printed the same words.** ⛔ **The gesture was refused — `command_frame.cpp` refuses every gesture, and will until an angle is measured — and the refusal did not stop the light.**
+  ⇒ **the daemon's log carried `{"face":"greeting","gesture":"perk","light":"warm"}` with `"sent": true`, and the board printed the same words.** ⛔ **The gesture was refused that day — `command_frame.cpp` refused every gesture until an angle was measured, which it was later the same day — and the refusal did not stop the light.** ⚠️ **The word in that log is the one the protocol carried then**: `perk` became `look_up` when the author renamed all five gestures later on 2026-10-18 (`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`).
 - ⚠️ **The path is not an identity.** On one board it read `/dev/cu.usbmodem1101` before a hang and `/dev/cu.usbmodem101` after one replug, sixteen minutes apart. The installed plist names the second; **a replug may name a third, and the daemon will log `sent: false` and carry on.** ⇒ **the plist's port is the one thing about this installation that a cable can invalidate.**
 - ⛔ **Nothing here holds the port open, and that is also the limit**: no line is queued, so a frame written while another program holds the port is logged as unsent. **The room answers the event either way.**
 - ⚠️ **A reader that asserts DTR and RTS is a reset.** A `pyserial` open of this console reset the board mid-boot, and the ROM stopped answering until the cable went out and back in; **the daemon's own `os.open` path, run alone, did neither.** To watch this console, use `os.open` and raw `termios`.
@@ -154,7 +154,7 @@ frame: gesture perk refused — no gesture -> angle table exists
 
 **Not decided here:**
 
-- ✅ **The framing is decided (0.19.0) and this page still does not own it** — one ASCII JSON line, `face` / `light` / `gesture`, in `schemas/stackchan-command.schema.json`, encoded by `engine/backend/protocol_stackchan.py`. ✅ **Since 0.19.1 the daemon calls that codec and writes the line it would send.** ✅ **Since 0.19.8 the transport is decided as well: the daemon writes that line to the board's console, one open per frame, and the installed plist names the path** (see [The transport](#the-transport)). ⚠️ **`projects/stackchan-firmware/` is built and flashed, and still refuses every gesture**;
+- ✅ **The framing is decided (0.19.0) and this page still does not own it** — one ASCII JSON line, `face` / `light` / `gesture`, in `schemas/stackchan-command.schema.json`, encoded by `engine/backend/protocol_stackchan.py`. ✅ **Since 0.19.1 the daemon calls that codec and writes the line it would send.** ✅ **Since 0.19.8 the transport is decided as well: the daemon writes that line to the board's console, one open per frame, and the installed plist names the path** (see [The transport](#the-transport)). ✅ **And since later that same day `projects/stackchan-firmware/` plays the gesture it receives** — five postures measured on the unit — **so a frame carrying a gesture moves the head** (`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`); ⛔ **what it still cannot do is move smoothly**, and the author's word for the motion is 「動きが硬い」;
 - what the firmware does at idle and after a stop;
 - whether a second body — a second daemon per unit — needs anything different.
 

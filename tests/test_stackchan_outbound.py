@@ -64,7 +64,7 @@ def test_a_phase_change_carries_the_face_the_light_and_the_gesture():
 
     frame = outbound.frame(Companion().offer("SessionStart", 0.0))
 
-    assert frame == Frame(face="greeting", light="warm", gesture="perk")
+    assert frame == Frame(face="greeting", light="warm", gesture="look_up")
 
 
 def test_a_gesture_alone_is_still_a_frame():
@@ -102,7 +102,7 @@ def test_the_face_is_sent_back_only_when_it_changes():
     assert outbound.known == ("greeting", "warm")
 
     frame = outbound.frame(companion.offer("UserPromptSubmit", 1.0))
-    assert frame == Frame(face="curious", light="dim", gesture="perk")
+    assert frame == Frame(face="curious", light="dim", gesture="look_up")
     assert outbound.known == ("curious", "dim")
 
 

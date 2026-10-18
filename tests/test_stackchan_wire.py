@@ -221,7 +221,7 @@ def test_the_mock_records_and_answers_nothing():
     mock = MockStackchan()
     assert mock.last() is None
     assert mock.count() == 0
-    first = wire.Command(light="warm", face="greeting", gesture="perk")
+    first = wire.Command(light="warm", face="greeting", gesture="look_up")
     second = wire.Command(light="dim", face="curious")
     assert mock.send(wire.encode(first)) is None
     assert mock.send(wire.encode(second)) is None

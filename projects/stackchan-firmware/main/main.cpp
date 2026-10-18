@@ -1,7 +1,6 @@
 // Stack-chan — the device end of the wire, on the unit in hand.
 //
 // ⛔ What this firmware does NOT do:
-//   - it has no gesture -> angle table, so every `gesture` in a frame is refused;
 //   - it has no display renderer, so a `face` is logged as a meaning, not drawn;
 //   - it does not move at boot, and it does not move unless a line arrives.
 //
@@ -9,6 +8,9 @@
 //   - reads the two zero positions out of this unit's NVS (the wizard's
 //     measurement), or says loudly that it fell back to the vendor's defaults;
 //   - lights twelve LEDs for the contract's `light` word;
+//   - plays the contract's `gesture` word from a table measured on this unit
+//     with the author's eye (2026-10-18) — one posture per gesture, and `nod`
+//     goes down and comes back;
 //   - answers `bench` commands from the USB Serial/JTAG console, which is how the
 //     first arrival is meant to be watched: one person types, one head turns;
 //   - applies the second line type, `pose <yaw_tenths> <pitch_tenths>*<CC>`, one
@@ -105,11 +107,11 @@ const char* LightName(Light light) {
 const char* GestureName(Gesture gesture) {
   switch (gesture) {
     case Gesture::kNone: return "none";
-    case Gesture::kPerk: return "perk";
+    case Gesture::kLookUp: return "look_up";
     case Gesture::kNod: return "nod";
-    case Gesture::kTurn: return "turn";
-    case Gesture::kSettle: return "settle";
-    case Gesture::kFlinch: return "flinch";
+    case Gesture::kLookSide: return "look_side";
+    case Gesture::kRest: return "rest";
+    case Gesture::kRecoil: return "recoil";
   }
   return "?";
 }
@@ -137,6 +139,7 @@ void PrintHelp() {
   printf("  bench read <id>           raw position of one id\n");
   printf("  bench zeros               the zeros this boot used, and where they came from\n");
   printf("  bench move <yaw_deg> [pitch_deg]   slow: about 1 degree per second\n");
+  printf("  bench set <yaw_deg> <pitch_deg> [speed]   one goal to both axes, then held\n");
   printf("  bench timed <yaw_deg> <time> [speed]   one goal with time and speed; reads back every 200 ms\n");
   printf("  bench hold                hold the present positions (torque on)\n");
   printf("  bench release             torque off — the head goes limp\n");
@@ -330,6 +333,200 @@ void BenchTimed(int yaw_tenths, int time_field, int speed) {
   printf("bench: done\n");
 }
 
+
+// ⚠️ A posture, held — the command a gesture table is measured with. One goal to
+//    each axis, armed on the present positions exactly as `bench timed` does, and
+//    then torque stays on. ⛔ The angles are the host's instruction, not a
+//    measurement: what is measured is which posture the eye calls a `perk`.
+void BenchSet(int yaw_tenths, int pitch_tenths, int speed) {
+  if (!g_servos_ready) {
+    printf("bench: refused — the servo bus did not come up\n");
+    return;
+  }
+  const int yaw_wanted = yaw_tenths;
+  yaw_tenths = Clamp(yaw_tenths, -board::kBenchYawMaxTenths, board::kBenchYawMaxTenths);
+  if (yaw_tenths != yaw_wanted) {
+    printf("bench: yaw clamped to %d.%d deg\n", yaw_tenths / 10,
+           std::abs(yaw_tenths) % 10);
+  }
+  const int pitch_wanted = pitch_tenths;
+  pitch_tenths = Clamp(pitch_tenths, board::kPitchAngleMinTenths,
+                       board::kPitchAngleMaxTenths);
+  if (pitch_tenths != pitch_wanted) {
+    printf("bench: pitch clamped to %d.%d deg\n", pitch_tenths / 10,
+           pitch_tenths % 10);
+  }
+
+  int yaw_now = -1;
+  int pitch_now = -1;
+  if (!scs::read_position(board::kYawId, &yaw_now) ||
+      !scs::read_position(board::kPitchId, &pitch_now)) {
+    printf("bench: refused — a servo did not answer\n");
+    return;
+  }
+
+  // ⚠️ Same arming rule as the other bench movers: both goals sit on the present
+  //    positions before torque comes on, so nothing drives to a stale goal.
+  scs::write_position(board::kYawId, yaw_now, 0, 0);
+  scs::write_position(board::kPitchId, pitch_now, 0, 0);
+  scs::set_torque(board::kYawId, true);
+  scs::set_torque(board::kPitchId, true);
+  vTaskDelay(pdMS_TO_TICKS(200));
+
+  const int yaw_target = Clamp(RawFromAngle(g_yaw_zero, yaw_tenths),
+                               board::kRawMin, board::kRawMax);
+  const int pitch_target = Clamp(RawFromAngle(g_pitch_zero, pitch_tenths),
+                                 board::kRawMin, board::kRawMax);
+  const unsigned short sp = static_cast<unsigned short>(speed & 0xFFFF);
+  const bool wrote_yaw = scs::write_position(board::kYawId, yaw_target, 0, sp);
+  const bool wrote_pitch = scs::write_position(board::kPitchId, pitch_target, 0, sp);
+  printf("bench: set -> raw yaw=%d pitch=%d, speed=%d\n", yaw_target,
+         pitch_target, speed);
+  if (!wrote_yaw || !wrote_pitch) {
+    printf("bench: the write failed\n");
+  }
+
+  int last_yaw = yaw_now;
+  int last_pitch = pitch_now;
+  int same = 0;
+  for (int i = 0; i < 75; ++i) {  // 15 s to arrive and settle, then hold
+    vTaskDelay(pdMS_TO_TICKS(200));
+    int y = -1;
+    int p2 = -1;
+    if (!scs::read_position(board::kYawId, &y) ||
+        !scs::read_position(board::kPitchId, &p2)) {
+      continue;
+    }
+    same = (y == last_yaw && p2 == last_pitch) ? same + 1 : 0;
+    last_yaw = y;
+    last_pitch = p2;
+    if (same >= 5) {
+      break;
+    }
+  }
+  printf("bench: held at raw yaw=%d pitch=%d — torque on\n", last_yaw, last_pitch);
+  printf("bench: done\n");
+}
+
+// --- the gesture -> angle table, measured 2026-10-18 -------------------------
+// ⛔ Until this table existed, every gesture a frame carried was refused,
+//    because a guessed angle is indistinguishable from a measured one in the
+//    source. These five postures were placed with `bench set` and judged with
+//    the author's eye, one at a time. The record is
+//    projects/stackchan-firmware/records/2026-10-18-the-gestures.md.
+// ⚠️ A posture is (yaw, pitch) in 0.1 degrees. The raw positions each one held
+//    are beside it, because the angle that was sent and the position the servo
+//    settled at are not the same number — every held read-back was a few counts
+//    off, in both directions.
+struct GesturePosture {
+  int yaw_tenths;
+  int pitch_tenths;
+};
+
+constexpr GesturePosture kLookUpPosture = {80, 500};     // held raw 491 / 778
+constexpr GesturePosture kLookSidePosture = {350, 500};    // held raw 566 / 778
+constexpr GesturePosture kRestPosture = {0, 30};     // held raw 466 / 630
+constexpr GesturePosture kNodDownPosture = {80, 30};   // held raw 478 / 630
+constexpr GesturePosture kRecoilPosture = {-80, 700};  // held raw 442 / 842
+
+// ⚠️ The speed is the one the postures were measured at. ⛔ It is not a
+//    trajectory: nothing interpolates upstream of the wire, so this drives the
+//    neck from wherever it is to one posture and lets the servo's own speed
+//    field do the rest.
+constexpr int kGestureSpeed = 80;
+
+// Waits until both positions stop changing, or the budget runs out.
+void WaitSettled(int max_ticks) {
+  int last_yaw = -1;
+  int last_pitch = -1;
+  int same = 0;
+  for (int i = 0; i < max_ticks; ++i) {
+    vTaskDelay(pdMS_TO_TICKS(100));
+    int yaw = -1;
+    int pitch = -1;
+    if (!scs::read_position(board::kYawId, &yaw) ||
+        !scs::read_position(board::kPitchId, &pitch)) {
+      continue;
+    }
+    same = (yaw == last_yaw && pitch == last_pitch) ? same + 1 : 0;
+    last_yaw = yaw;
+    last_pitch = pitch;
+    if (same >= 3) {
+      return;
+    }
+  }
+}
+
+// Arms both goals on the present positions, then drives to one posture.
+bool MoveToPosture(const GesturePosture& posture) {
+  int yaw_now = -1;
+  int pitch_now = -1;
+  if (!scs::read_position(board::kYawId, &yaw_now) ||
+      !scs::read_position(board::kPitchId, &pitch_now)) {
+    return false;
+  }
+  // ⚠️ Same arming rule as the bench movers: the goals sit on the present
+  //    positions before torque comes on, so nothing drives to a stale goal.
+  scs::write_position(board::kYawId, yaw_now, 0, 0);
+  scs::write_position(board::kPitchId, pitch_now, 0, 0);
+  scs::set_torque(board::kYawId, true);
+  scs::set_torque(board::kPitchId, true);
+  vTaskDelay(pdMS_TO_TICKS(200));
+
+  const int yaw_raw = Clamp(RawFromAngle(g_yaw_zero, posture.yaw_tenths),
+                            board::kRawMin, board::kRawMax);
+  const int pitch_raw = Clamp(RawFromAngle(g_pitch_zero, posture.pitch_tenths),
+                              board::kRawMin, board::kRawMax);
+  const unsigned short sp = static_cast<unsigned short>(kGestureSpeed);
+  return scs::write_position(board::kYawId, yaw_raw, 0, sp) &&
+         scs::write_position(board::kPitchId, pitch_raw, 0, sp);
+}
+
+// ⚠️ A gesture is one posture, except `nod`: it was measured as a down point
+//    and a place to come back to, and the place it comes back to is the posture
+//    the down point was measured from.
+void PlayGesture(Gesture gesture) {
+  if (!g_servos_ready) {
+    printf("frame: gesture %s refused — the servo bus did not come up\n",
+           GestureName(gesture));
+    return;
+  }
+  bool wrote = false;
+  switch (gesture) {
+    case Gesture::kLookUp:
+      wrote = MoveToPosture(kLookUpPosture);
+      break;
+    case Gesture::kLookSide:
+      wrote = MoveToPosture(kLookSidePosture);
+      break;
+    case Gesture::kRest:
+      wrote = MoveToPosture(kRestPosture);
+      break;
+    case Gesture::kRecoil:
+      wrote = MoveToPosture(kRecoilPosture);
+      break;
+    case Gesture::kNod:
+      wrote = MoveToPosture(kNodDownPosture);
+      WaitSettled(20);
+      wrote = MoveToPosture(kLookUpPosture) && wrote;
+      break;
+    case Gesture::kNone:
+      return;
+  }
+  WaitSettled(30);
+  int yaw = -1;
+  int pitch = -1;
+  if (!wrote) {
+    printf("frame: gesture %s — the write failed\n", GestureName(gesture));
+    return;
+  }
+  if (scs::read_position(board::kYawId, &yaw) &&
+      scs::read_position(board::kPitchId, &pitch)) {
+    printf("frame: gesture %s -> raw yaw=%d pitch=%d (measured posture)\n",
+           GestureName(gesture), yaw, pitch);
+  }
+}
+
 // ⚠️ A bus scan, not a guess. `pitch = no answer` says only that id 2 is quiet;
 //    this says which ids are not quiet, and that is what decides whether the
 //    servo is missing, renumbered, or the bus itself is half there.
@@ -469,6 +666,26 @@ void HandleBench(const char* args) {
       speed = parsed_speed;
     }
     BenchTimed(yaw_tenths, static_cast<int>(time_field), static_cast<int>(speed));
+    return;
+  }
+  // ⚠️ `set`, not `pose`: `pos` is three characters and its check runs first,
+  //    so any subcommand starting with `pos` is read as `bench pos`.
+  if (std::strncmp(args, "set", 3) == 0) {
+    const char* cursor = args + 4;
+    int yaw_tenths = 0;
+    int pitch_tenths = 0;
+    if (!ParseDegrees(&cursor, &yaw_tenths) ||
+        !ParseDegrees(&cursor, &pitch_tenths)) {
+      printf("bench: set needs a yaw angle and a pitch angle in degrees\n");
+      return;
+    }
+    char* end = nullptr;
+    long speed = 100;
+    const long parsed_speed = std::strtol(cursor, &end, 10);
+    if (end != cursor) {
+      speed = parsed_speed;
+    }
+    BenchSet(yaw_tenths, pitch_tenths, static_cast<int>(speed));
     return;
   }
   if (std::strncmp(args, "move", 4) == 0) {
@@ -713,10 +930,7 @@ void HandleFrame(const char* line, int length) {
          command.face == Face::kNone ? "" : " (no renderer yet)");
 
   if (command.gesture != Gesture::kNone) {
-    // ⛔ Not a placeholder for a missing line. It is the line, until the unit has
-    //    been measured and a gesture -> angle table is written.
-    printf("frame: gesture %s refused — no gesture -> angle table exists\n",
-           GestureName(command.gesture));
+    PlayGesture(command.gesture);
   }
 }
 

@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.18.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.19.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -318,7 +318,7 @@
 |---|---|---|
 | 格式正确的帧被接受，各字段返回 | `test_stackchan_frame_parser.py` | ⛔ **直到 0.19.8，解析器拒绝了每一个格式正确的帧**——它没有跨过右括号——**而 `test_stackchan_wire.py` 的字面比较让它通过了** |
 | 未知的键、未知的词、过长的行，各自被拒绝 | `test_stackchan_frame_parser.py` | 板子拒绝的，正是主机解码器拒绝的 |
-| 每一个身势都被拒绝，并给出 `no gesture -> angle table exists` | `test_stackchan_frame_parser.py` | ⛔ **在角度被测量之前，那一行拒绝就是那一行** |
+| 契约点名的每一个身势词都能被解析——而这里一个也不演出 | `test_stackchan_frame_parser.py` | ⛔ **`apply_command` 是空的，而这个测试从不编译 `main.cpp`**，所以演出身势的实测姿态表，没有任何检查押着它 |
 | enum 仍然与模式指名的词一致 | `test_stackchan_frame_parser.py` | 契约是三处的副本，这里是第二个响铃的地方 |
 
 ⛔ **它不构建固件。** `main.cpp`、`leds.cpp` 与 `servo.cpp` 在这里从未被编译; `idf.py build` 是 2026-10-18 用手跑的，没有任何检查重复它。**这个测试存在的理由，是它被写进去的那道缝**: 一份对照另一份副本的检查在通过，而唯一要紧的地方，解析器拒绝了每一个帧。

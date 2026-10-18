@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.11.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.12.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -132,7 +132,7 @@ frame: light=warm face=greeting (no renderer yet)
 frame: gesture perk refused — no gesture -> angle table exists
 ```
 
-  ⇒ **守护进程的日志以 `"sent": true` 保持着 `{"face":"greeting","gesture":"perk","light":"warm"}`，而板子印出了同样的话。** ⛔ **身势被拒绝了**——`command_frame.cpp` 拒绝每一个身势，在角度被测量之前会一直拒绝——**而这次拒绝没有让光停下。**
+  ⇒ **守护进程的日志以 `"sent": true` 保持着 `{"face":"greeting","gesture":"perk","light":"warm"}`，而板子印出了同样的话。** ⛔ **身势在那一天被拒绝了**——`command_frame.cpp` 在角度被测量之前拒绝每一个身势，而角度就在同一天被测了出来——**而这次拒绝没有让光停下。** ⚠️ **日志里的那个词，是当时协议所运的词**: 作者在 2026-10-18 当天把五个身势全部改名时，`perk` 变成了 `look_up`（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）。
 - ⚠️ **路径不是身份。** 在同一块板子上，挂起之前是 `/dev/cu.usbmodem1101`，一次重新插拔之后是 `/dev/cu.usbmodem101`——**相隔十六分钟。** 已安装的 plist 指名第二个; **下一次插拔可能指名第三个，而守护进程会记下 `sent: false` 继续走。** ⇒ **关于这个安装，一根线缆能否定掉的，只有 plist 里的端口。**
 - ⛔ **这里不把端口一直打开。那同时也是限度**: 行不排队，所以在别的程序持有端口时写下的帧，被记录为未发送。**无论哪种情况，房间都会回答事件。**
 - ⚠️ **一个拉起 DTR 和 RTS 的读取方，就是一次复位。** 用 `pyserial` 打开这个控制台，让板子在启动途中复位，ROM 直到线缆拔出又插回才重新回答; **单独运行守护进程自己的 `os.open` 路径时，两件事都没有发生。** 想看这个控制台，就用 `os.open` 和原始 `termios`。
@@ -154,7 +154,7 @@ frame: gesture perk refused — no gesture -> angle table exists
 
 **在这里未决定的:**
 
-- ✅ **成帧已经定了（0.19.0），而这一页仍然不拥有它**——一行 ASCII JSON，`face` / `light` / `gesture`，在 `schemas/stackchan-command.schema.json` 里，由 `engine/backend/protocol_stackchan.py` 编码。✅ **自 0.19.1 起，守护进程调用那个编码器，并带着 `sent: false` 写下它本该送出的那一行。** ⛔ **未决定的是传输路径**: 那一行如何到达板子，由谁打开。**守护进程一根也不打开**，而 `projects/stackchan-firmware/`——✅ **2026-10-18 被构建、被写入，不再只有源码**——仍然拒绝每一个身势;
+- ✅ **成帧已经定了（0.19.0），而这一页仍然不拥有它**——一行 ASCII JSON，`face` / `light` / `gesture`，在 `schemas/stackchan-command.schema.json` 里，由 `engine/backend/protocol_stackchan.py` 编码。✅ **自 0.19.1 起，守护进程调用那个编码器。** ✅ **自 0.19.8 起传输路径也定了: 守护进程把那一行写进板子的控制台，每帧打开一次，安装的 plist 点名路径。** ✅ **而自同一天更晚的时候起，`projects/stackchan-firmware/` 会演出它收到的身势**——在这台个体上测得的五个姿态——**所以承载身势的帧会转动头部**（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）; ⛔ **它还做不到的是平滑地移动**，而作者对这个运动的说法是「動きが硬い」;
 - 固件在待机时与停止后做什么;
 - 第二个身体——每台机器第二个守护进程——是否需要不同的东西。
 

@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.21.0 | canonical: README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.22.0 | canonical: README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -34,7 +34,7 @@
 
 **而写者现在存在了。** `skills/embodied-kinetic-loom/` 持有那一本——**写出 `Motion Intent` 的唯一之物。** ⛔ **它是文档，不是程序：本仓库的代码不调用模型，而正是这一点让它下面的轨迹可以被检查。** 它的词的来源是 `references/README.md`，而 ⚠️ **截至 2026-09-28，那个文件是映射，不是固定的表**——**以行写出，以名字取用，在使用中生长，而这是它生长的唯一道路。** ⛔ **由谁来取，才是这个问题的全部——是 Claude，不是程序**——**所以正典的形式是读者读的表，而不会做第二个只有机器用的副本：没有东西会读它。**
 
-✅ **而 2026-10-18，为了机器 2，电线之上多了一层。** `projects/stackchan/` 把 Claude Code 的钩子事件变成六个阶段、Pet 的五张脸、六种光和五个候选身势——⛔ **并且什么也不发送，因为那台机器的数字一个都没有被测量。** **当两个以上的窗口同时运行时，脖子也只用在一个窗口上。** 它是 Stack-chan 路线中，在烧写固件之前就能检查的部分。 ⚠️ **将要保住其状态的守护进程现在有了**——`projects/stackchan/daemon/`，一个纯核心和一个套接字边缘——**而钩子会运行的客户端也有了**——`projects/stackchan/hook/`，一个事件一个进程，沉默地以 0 退出。✅ **两者都在 2026-10-18 被安装**: launchd 用户代理在登录时启动守护进程，而 `~/.claude/settings.json` 的全部三十三个钩子事件都调用客户端。✅ **同一天，电线作为源码存在了**——`engine/backend/protocol_stackchan.py` 组装一行 ASCII，`schemas/stackchan-command.schema.json` 是两端共读的契约，而 `projects/stackchan-firmware/` 解析它，**并拒绝每一个身势**。✅ **而自 0.19.1 起，房间写下它本该送出的帧**——`projects/stackchan/outbound.py` 把可见状态差分，守护进程把 `{"frame": …, "sent": false}` 写进日志。⛔ **一行日志不是电线**: 什么也没有发送给机体——传输路径未选定，守护进程一根也不打开。✅ **2026-10-18 发生的事更窄，但它确实发生了**: `projects/stackchan-firmware/` 被构建，写在 `0x510000`，头转动了——**靠的是打入其控制台的一条台架命令，不是靠帧。** 记录在 `projects/stackchan-firmware/records/2026-10-18-first-arrival.md`。
+✅ **而 2026-10-18，为了机器 2，电线之上多了一层。** `projects/stackchan/` 把 Claude Code 的钩子事件变成六个阶段、Pet 的五张脸、六种光和五个身势——⛔ **而它选择的每一个身势都是一个词，那台机器的数字一个也不在包里。** **当两个以上的窗口同时运行时，脖子也只用在一个窗口上。** 它是 Stack-chan 路线中，在烧写固件之前就能检查的部分。 ⚠️ **将要保住其状态的守护进程现在有了**——`projects/stackchan/daemon/`，一个纯核心和一个套接字边缘——**而钩子会运行的客户端也有了**——`projects/stackchan/hook/`，一个事件一个进程，沉默地以 0 退出。✅ **两者都在 2026-10-18 被安装**: launchd 用户代理在登录时启动守护进程，而 `~/.claude/settings.json` 的全部三十三个钩子事件都调用客户端。✅ **同一天，电线作为源码存在了**——`engine/backend/protocol_stackchan.py` 组装一行 ASCII，`schemas/stackchan-command.schema.json` 是两端共读的契约。✅ **传输路径选定了**——`--port`，每帧一次 `os.open`/`os.write`/`os.close`，安装的 plist 点名了板子的控制台——**而机体那一端会演出它收到的东西**：五个姿态是在这台个体上由作者的眼睛测得的，所以承载身势的帧会转动头部（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）。⛔ **`sent: true` 说的是主机的 tty 收下了这行，不是板子收到了它**——送达只被证明过一次，靠板子自己的控制台把帧打印出来，而这里什么都不读回。⛔ **而电线仍然不运来自这一层的任何数字**——它运的是词，机体把词变成计数。✅ **2026-10-18 发生的事更窄，但它确实发生了**: `projects/stackchan-firmware/` 被构建，写在 `0x510000`，头转动了——**靠打入其控制台的一条台架命令**; 然后，来自本仓库之外一个工具的 `pose` 流让它转了 678 次，零拒绝; 然后十二颗 LED 跟随了一个词; 最后，五个身势从真实的帧里演出。**引擎本身在这台机器上仍然一次也没有跑过。** 记录在 `projects/stackchan-firmware/records/` 下。
 
 ⚠️ **核心、后端、Pet 的画面与运动、Stack-chan 的行为层及其守护进程、外发的帧与电线是绿的**——**28 个文件、439 项测试，实测 2026-10-18**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
 

@@ -104,7 +104,7 @@ def test_a_greeting_stamps_a_face_a_light_and_a_gesture():
     assert decision.phase.value == "greeting"
     assert decision.face is not None and decision.face.value == "greeting"
     assert decision.light.value == "warm"
-    assert (decision.gesture, decision.body) == ("perk", "gesture")
+    assert (decision.gesture, decision.body) == ("look_up", "gesture")
     assert decision.reason == ACTED
     assert decision.sent is False
 
@@ -270,7 +270,7 @@ def test_the_socket_answers_and_logs_the_same_row(sock):
         answer = daemon.send({"session": "left", "event": "SessionStart"})
         assert answer["ok"] is True
         assert answer["phase"] == "greeting"
-        assert answer["gesture"] == "perk"
+        assert answer["gesture"] == "look_up"
         assert answer["sent"] is False
 
     # ⚠️ **ログは停止のときに回収される。** 行は返事と同じである。
@@ -376,7 +376,7 @@ def test_the_daemon_logs_the_frame_it_would_send(sock):
     assert frames[0]["session"] == "main"
 
     command = wire.decode(frames[0]["frame"].encode("ascii"))
-    assert command == wire.Command(face="greeting", light="warm", gesture="perk")
+    assert command == wire.Command(face="greeting", light="warm", gesture="look_up")
 
 
 def test_an_unchanged_event_logs_no_second_frame(sock):

@@ -188,7 +188,7 @@ def test_permission_request_is_the_one_interrupt():
     blocked = companion.offer("PermissionRequest", 5.0)
     assert blocked.phase is Phase.BLOCKED
     assert blocked.light is Light.ALERT
-    assert blocked.gesture == "turn"
+    assert blocked.gesture == "look_side"
 
     denied = companion.offer("PermissionDenied", 6.0)
     assert denied.phase is Phase.WORKING
