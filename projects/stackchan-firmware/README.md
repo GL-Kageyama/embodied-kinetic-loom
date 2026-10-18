@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.0.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.1.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -48,6 +48,14 @@
 
 ✅ **The restore was written, read back, and watched booting.** On 2026-10-18, on the unit in hand: the stock image was written and read back bit-for-bit, **it booted — its own USB log showed the launcher opening and every app being created** — then the current snapshot was written back, read back the same way, and **that booted too.** `docs/first-contact-stackchan.md` holds the files, their hashes, the measured diff, and the exact boot observations.
 
-✅ **Then the image this directory produces was built and written.** `build/stackchan-vessel.bin`, 272,976 bytes, at `0x510000`, hash verified; the app reached `ready.` and the bench turned the head. ⛔ **What that did not close is the gate at the top of this page:** every gesture in a frame is still refused, because no angle has been measured. **The move was a bench command — no `Motion Intent`, no trajectory, no gate** (`records/2026-10-18-first-arrival.md`).
+✅ **Then the image this directory produces was built and written.** `build/stackchan-vessel.bin`, 272,976 bytes, at `0x510000`, hash verified; the app reached `ready.` and the bench turned the head. ⚠️ **A later build the same day, 273,808 bytes, added `bench timed` and was written the same way** — the size here is that build's, not a constant. ⛔ **What that did not close is the gate at the top of this page:** every gesture in a frame is still refused, because no angle has been measured. **The move was a bench command — no `Motion Intent`, no trajectory, no gate** (`records/2026-10-18-first-arrival.md`).
 
 ⚠️ **Still nothing rings on this directory.** There is no C++ test here, and **nothing in this repository builds it** — `idf.py build` was run by hand that day and no check repeats it. `tests/test_stackchan_wire.py` reads these literals and refuses the day they disagree with the schema — that is the only check, and it checks a copy, not the machine.
+
+## What the servo's time field answered — 2026-10-18
+
+✅ **`bench timed <yaw_deg> <time> [speed]` was added to the bench and flashed the same day.** It writes **one** goal carrying a time field and a speed field — unlike `bench move`, which rewrites the goal once a second — and then reads the yaw shaft every 200 ms for up to 70 s.
+
+⛔ **On this unit the time field did not govern the duration; the speed field did.** Two trials: `time=5000, speed=0` moved 5 counts and stopped; `time=500, speed=100` moved 32 counts (10°) in about 0.3–0.4 s at about 127 counts/s. **Both stopped exactly 6 counts short of the goal** — a fixed offset by the look of it, and not yet separated from backlash or from the read-back itself.
+
+⇒ **What this means for the engine, in one line: smoothness cannot be delegated to the servo here.** A neck without steps needs the host to write interpolated goals — which is what `engine/trajectory/` exists for, and what has never run on this machine. ⚠️ **The numbers live in `records/2026-10-18-first-arrival.md`, where the observations they came with are the spine.**

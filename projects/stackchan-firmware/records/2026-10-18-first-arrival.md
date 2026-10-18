@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.1.0 | canonical: projects/stackchan-firmware/records/2026-10-18-first-arrival.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.2.0 | canonical: projects/stackchan-firmware/records/2026-10-18-first-arrival.md | translated: 2026-10-18 -->
 
 **Language:** [English](2026-10-18-first-arrival.md) | [日本語](2026-10-18-first-arrival-ja.md) | [中文](2026-10-18-first-arrival-zh.md)
 
@@ -94,6 +94,23 @@ bench move 0
 ⚠️ **What 468 says, and what it does not.** The target was the zero itself, 460, and `MoveAxis` steps to it exactly, three counts a second, so the last goal written was 460. **The shaft was found eight counts away from it** — 2.5°, of the same order as the six-count sag the first read-back showed, and this time after a move nobody interrupted. ⚠️ **How far this command travelled is not known**: the head was limp between the two commands and no read was taken, so 484 is the last *recorded* value and not necessarily the one this command started from. That the shaft ended nearer the zero than 484 is a measurement; **that the head moved is the author's eye again.**
 
 ⚠️ **The lost lines were the bench tool's fault, not the firmware's.** The tool ended a read after two seconds of silence and this firmware prints `alive` every three — so it never saw silence, never stopped early, and held the port until its own deadline. **The tool lives outside this repository, and no check covers it.**
+
+## The servo's time field — and it does not do what its name says
+
+**What was asked.** The author, watching the neck, asked whether the stock firmware's flexible movement had been lost. It had not been lost; it was never carried over — `bench move` rewrites the goal three counts closer once a second and stops between steps, and this engine's trajectory has never run on this machine.
+
+**What was measured.** A bench command was added and flashed the same day: `bench timed <yaw_deg> <time> [speed]` writes **one** goal carrying a time field and a speed field, then reads the shaft every 200 ms for up to 70 s.
+
+| trial | written | what the shaft did |
+|---|---|---|
+| 1 | `bench timed 5 5000 0` | 5 counts in about 400 ms, then still for the remaining 70 s, **6 counts short** of the goal |
+| 2 | `bench timed 15 500 100` | 32 counts (10°) in about 300–400 ms at about 127 counts/s, then still, **again exactly 6 counts short** |
+
+⛔ **The time field did not govern the duration in either trial; the speed field did.** ⚠️ **The six-count shortfall was the same for a 16-count and a 38-count move**, so it reads as a fixed offset rather than a proportion — **which is an observation, not yet a measurement**: nothing here separated an offset inside the servo from backlash or from the read-back itself.
+
+⚠️ **The first trial was also too small to see, and the author said so** — in their words: 「動いていないよ」. It had moved 1.6° of a 3.4° command, because the angle given was absolute and the head already stood at 1.6°. **The second trial was visible**, and the author's word for it was 「動いた」.
+
+⇒ **What this settles:** on this unit, smoothness cannot be taken from the servo's own time field. If the neck is to move without steps, **the host must write interpolated goals** — which is what this repository's trajectory family is for, and which has still never run here.
 
 ## What this record does not establish
 

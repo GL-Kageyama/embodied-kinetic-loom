@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.11.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.12.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
 
 **Language:** [English](construction-memo.md) | [日本語](construction-memo-ja.md) | [中文](construction-memo-zh.md)
 
@@ -52,6 +52,8 @@
 ⚠️ **2026-10-18: and 0.19.2, also not a rung — the first write, and none of it is code in this repository.** The unit in hand was identified by its MAC, and through esptool the stock image was written and read back bit-for-bit, then the same day's snapshot was written over it and read back the same way. ⛔ **The boot after that first restore was not observed**, so that pass proved the net holds a write and not yet that it holds a machine. ✅ **0.19.3, the same day, closed the second half**: the stock image was watched booting from its own USB log — the launcher opening, every app created — and so was the snapshot written back. ⇒ **The rungs are unchanged; what changed is one document's claim** — `docs/first-contact-stackchan.md`. ⛔ **No transport is chosen, and `sent` is still `False`.**
 
 ⚠️ **2026-10-18: and 0.19.4, still not a rung — the first arrival, and it is the first thing of this repository's that has ever reached a machine.** `projects/stackchan-firmware/` was built (`build/stackchan-vessel.bin`, 272,976 bytes), written at `0x510000`, hash-verified, and run; a command typed into its console turned the head 40°, slowly, in steps. ⛔ **It did not arrive through a frame** — the engine never ran, no `Motion Intent` was read, and every gesture is still refused. ✅ **The record is `projects/stackchan-firmware/records/2026-10-18-first-arrival.md`, and it is the first entry in the vessel that was empty at 0.17.0.** ⛔ **0.20.0 has not started, and the transport is still not chosen.**
+
+⚠️ **2026-10-18: and 0.19.5, still not a rung — the servo's time field, measured and refused.** A bench command, `bench timed <yaw_deg> <time> [speed]`, writes **one** goal carrying a time field and a speed field and then reads the shaft every 200 ms. ⛔ **The time field did not govern the duration in two trials; the speed field did** — and both stopped exactly **6 counts short** of the goal, which reads as a fixed offset and has not been separated from backlash or from the read-back. ⇒ **Smoothness cannot be delegated to the servo on this unit**: it has to come from the host writing interpolated goals, which is `engine/trajectory/` and which has still never run on machine 2. ⛔ **0.20.0 has not started, and the transport is still not chosen.**
 
 ## The traps
 

@@ -114,6 +114,7 @@ void PrintHelp() {
   printf("  bench read <id>           raw position of one id\n");
   printf("  bench zeros               the zeros this boot used, and where they came from\n");
   printf("  bench move <yaw_deg> [pitch_deg]   slow: about 1 degree per second\n");
+  printf("  bench timed <yaw_deg> <time> [speed]   one goal with time and speed; reads back every 200 ms\n");
   printf("  bench hold                hold the present positions (torque on)\n");
   printf("  bench release             torque off — the head goes limp\n");
   printf("  bench power on|off        the servo rail — the only stop this machine has\n");
@@ -229,6 +230,82 @@ void BenchMove(int yaw_tenths, bool has_pitch, int pitch_tenths) {
   printf("bench: %s\n", ok ? "done" : "stopped early");
 }
 
+// ⚠️ A measurement, not a smooth mover. `bench move` rewrites a goal once a second
+//    and stops between steps; this writes ONE goal carrying a time field and then
+//    reads the shaft every 200 ms, so both the duration and the shape of the travel
+//    are recorded rather than remembered. ⛔ `time_ms` is named on an assumption —
+//    the unit has never been measured on this unit, and a wrong unit is a jump, not
+//    a slow move. That is why the amplitude stays small and the observation is the
+//    point. Speed is 0 so that, if the time field is honoured, nothing else moves it.
+void BenchTimed(int yaw_tenths, int time_field, int speed) {
+  if (!g_servos_ready) {
+    printf("bench: refused — the servo bus did not come up\n");
+    return;
+  }
+  const int yaw_wanted = yaw_tenths;
+  yaw_tenths = Clamp(yaw_tenths, -board::kBenchYawMaxTenths, board::kBenchYawMaxTenths);
+  if (yaw_tenths != yaw_wanted) {
+    printf("bench: yaw clamped to %d.%d deg\n", yaw_tenths / 10,
+           std::abs(yaw_tenths) % 10);
+  }
+
+  int yaw_now = -1;
+  int pitch_now = -1;
+  if (!scs::read_position(board::kYawId, &yaw_now) ||
+      !scs::read_position(board::kPitchId, &pitch_now)) {
+    printf("bench: refused — a servo did not answer\n");
+    return;
+  }
+
+  // ⚠️ Same rule as `bench move`: both goals sit on the present positions before
+  //    torque comes on, so nothing drives to a stale goal.
+  scs::write_position(board::kYawId, yaw_now, 0, 0);
+  scs::write_position(board::kPitchId, pitch_now, 0, 0);
+  scs::set_torque(board::kYawId, true);
+  scs::set_torque(board::kPitchId, true);
+  vTaskDelay(pdMS_TO_TICKS(200));
+
+  const int yaw_target = Clamp(RawFromAngle(g_yaw_zero, yaw_tenths),
+                               board::kRawMin, board::kRawMax);
+  const bool written = scs::write_position(
+      board::kYawId, yaw_target, static_cast<unsigned short>(time_field & 0xFFFF),
+      static_cast<unsigned short>(speed & 0xFFFF));
+  printf("bench: timed yaw %d -> %d, time=%d speed=%d (units not measured); "
+         "reading every 200 ms\n",
+         yaw_now, yaw_target, time_field, speed);
+  if (!written) {
+    printf("bench: the write failed\n");
+  }
+
+  int last = yaw_now;
+  int same = 0;
+  int elapsed = 0;
+  for (int i = 0; i < 350; ++i) {  // 70 s of watching, then give up
+    vTaskDelay(pdMS_TO_TICKS(200));
+    elapsed += 200;
+    int now = -1;
+    if (!scs::read_position(board::kYawId, &now)) {
+      printf("bench: t=%d ms no answer\n", elapsed);
+      continue;
+    }
+    if (now == last) {
+      ++same;
+    } else {
+      same = 0;
+      last = now;
+    }
+    printf("bench: t=%d ms raw %d\n", elapsed, now);
+    if (now == yaw_target && same >= 5) {  // arrived and settled for a second
+      break;
+    }
+  }
+
+  scs::set_torque(board::kYawId, false);
+  scs::set_torque(board::kPitchId, false);
+  printf("bench: torque released — the head is limp again\n");
+  printf("bench: done\n");
+}
+
 // ⚠️ A bus scan, not a guess. `pitch = no answer` says only that id 2 is quiet;
 //    this says which ids are not quiet, and that is what decides whether the
 //    servo is missing, renumbered, or the bus itself is half there.
@@ -331,6 +408,28 @@ void HandleBench(const char* args) {
     } else {
       printf("bench: power needs `on` or `off`\n");
     }
+    return;
+  }
+  if (std::strncmp(args, "timed", 5) == 0) {
+    const char* cursor = args + 5;
+    int yaw_tenths = 0;
+    if (!ParseDegrees(&cursor, &yaw_tenths)) {
+      printf("bench: timed needs a yaw angle in degrees\n");
+      return;
+    }
+    char* end = nullptr;
+    const long time_field = std::strtol(cursor, &end, 10);
+    if (end == cursor) {
+      printf("bench: timed needs a time field after the angle\n");
+      return;
+    }
+    cursor = end;
+    long speed = 0;
+    const long parsed_speed = std::strtol(cursor, &end, 10);
+    if (end != cursor) {
+      speed = parsed_speed;
+    }
+    BenchTimed(yaw_tenths, static_cast<int>(time_field), static_cast<int>(speed));
     return;
   }
   if (std::strncmp(args, "move", 4) == 0) {
