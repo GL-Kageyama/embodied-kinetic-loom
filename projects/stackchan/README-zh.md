@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.14.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.15.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -16,7 +16,7 @@
 
 ✅ **它 import Pet 的 `State`，不是复制。** 五张表情只画过一次（决定 A，`projects/pet/expressions.py`）。第二套就是对同一个问题的第二个答案。
 
-✅ **自 2026-10-18 起，它连到了机体**——守护进程每帧把一行写进板子的控制台——**而在此之前没有连上。** ⛔ **这条连接是单向的，每帧只运一行**：这一层自己不打开任何东西，也不读回任何东西，只能说出主机的 tty 收下了整行。检查之外的消费者是它自己的 CLI、守护进程的日志，以及守护进程点名的端口。⚠️ **它在 2026-10-18 之前也没有连到 Claude Code。** ✅ **自那以后就连上了**——`~/.claude/settings.json` 的全部三十三个事件都运行 `projects/stackchan/hook/`，而 launchd 用户代理在登录时启动守护进程。⛔ **这个目录是层，不是安装**：这里的 plist 是副本，记录在 `docs/stackchan-daemon.md`。
+✅ **自 2026-10-18 起，它连到了机体**——守护进程每帧把一行写进板子的控制台——**而在此之前没有连上。** ⛔ **这条连接是单向的，每帧只运一行**：这一层自己不打开任何东西，⚠️ **自 0.19.23 起只读回一样东西——身势瞬间所问的 `bench pos` 的答案**——除此之外只能说主机的 tty 收下了整行。检查之外的消费者是它自己的 CLI、守护进程的日志，以及守护进程点名的端口。⚠️ **它在 2026-10-18 之前也没有连到 Claude Code。** ✅ **自那以后就连上了**——`~/.claude/settings.json` 的全部三十三个事件都运行 `projects/stackchan/hook/`，而 launchd 用户代理在登录时启动守护进程。⛔ **这个目录是层，不是安装**：这里的 plist 是副本，记录在 `docs/stackchan-daemon.md`。
 
 ## 六个阶段
 
@@ -153,7 +153,10 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 - **五个姿态是板子那张表的副本**（`neck/gestures.py`），副本由一项读 `main/main.cpp` 的检查守住：表一动，测试就变红。⛔ **正本的顺序没有变**——机器是正本，这是副本。
 - **`nod` 是接在一条时间轴上的两段。** ⛔ **接缝上并排两个样本，头就会停一个刻度**，而那正是作者所说的「動きが硬い」的形状。
-- **守护进程启动后的第一次转换不流。** 这台主机不读头的位置——机器什么也不回报——所以指名一个未知起点的第一行会是一次飞向那个位置的移动。**那一次身势交给板子**，而主机记住表的终点姿态。⚠️ **那是假设，并如此自称**: 板子是否演完了，没有被观察到。
+- ✅ **自 0.19.23 起，主机向板子询问头在哪里**——每个身势，它在将要用来流出的同一个 fd 上写一行 `bench pos`，并在同样的 `PORT_WAIT = 0.5` 之内读回。⚠️ **读到的姿态就是起点**——因此启动后的第一次转换，只要控制台回答，也会被流出。⛔ **只在身势的瞬间询问，绝不按时钟询问**: 定期的查询会切入正打在同一个控制台上的 `bench` 行——**控制台也是人的。**
+- ⛔ **控制台不回答时，什么也不捏造。** 起点落回实际写下的最后一个姿态，再落回板子要演的表的终点姿态；两者都没有时，**第一次身势交给帧。**
+- ⛔ **日志把两种失败分开。** `{"position": null, "heard": false}` 是沉默的控制台；`{"position": null, "heard": true}` 是回答了 `yaw=no answer` 的控制台——**舵机沉默了。**
+- ✅ **2026-10-19 在机体上测量:** 查询被写下，板子回答了它（`{"position": null, "heard": true}`）。`bench pos` 打印 `yaw=no answer pitch=no answer`，`bench scan` 返回 **0 id(s)**。⇒ **路径被测量了；来自这台机体的位置还没有。** 舵机总线什么也没有回答，而 ⛔ **这里的代码无法补上它。**
 - **此后的每一个动作都从实际写下的最后一个姿态开始**——不是上一个计划的终点。被打断的计划，停在离它瞄准的地方不同的位置。
 - ⛔ **短的写入会停住流**，行变成 `sent: false`。下一个身势从写下的最后一个姿态重新开始。
 - ⛔ **流为一个身势持有端口，而不是每个姿态开一次**（0.19.15）。帧仍然是 `os.open`/`os.write`/`os.close` 各一次，帧与帧之间什么都不持有; **流只开一次端口，每个姿态在 `PORT_WAIT = 0.5` 的上限下写出，在要结时关上。** ⚠️ **第一种形式被测出会让守护进程卡死**: 在 50 Hz 下反复 open/write/close，会在第四次或第五次时卡在 `open()` 里，信号够不着那里。**什么也接收不了的端口会让流结束，打不开的端口会把身势留在帧里交给板子。**
@@ -200,7 +203,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ## 检查了什么
 
-**`tests/test_stackchan_behaviors.py` 有三十五条主张，`tests/test_stackchan_daemon.py` 有三十五条，`tests/test_stackchan_hook_client.py` 有二十一条，`tests/test_stackchan_wire.py` 有二十八条，`tests/test_stackchan_outbound.py` 有十三条，`tests/test_stackchan_neck.py` 有四十条**，它们与其余检查一起运行:
+**`tests/test_stackchan_behaviors.py` 有三十五条主张，`tests/test_stackchan_daemon.py` 有三十六条，`tests/test_stackchan_hook_client.py` 有二十一条，`tests/test_stackchan_wire.py` 有二十八条，`tests/test_stackchan_outbound.py` 有十三条，`tests/test_stackchan_neck.py` 有四十条，`tests/test_stackchan_readback.py` 有十条**，它们与其余检查一起运行:
 
 - 列表是三十三个，没有重复；每个事件恰好属于三种类型之一，三种类型分割整个列表。
 - 每个事件都带理由代码——**没有空白。**
@@ -239,7 +242,9 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - **问候写下一个帧行，其中的 `sent` 是 `False`**——那一行会被解码回 `Command(face="greeting", light="warm", gesture="look_up")`;
 - **不变的事件不写下第二个帧。**
 - **第二次转换从第一次结束的姿态之后流出姿态行，而帧先运 `look_up` 再运 `null`**——写出的每一行姿态都能解码，日志里的 `neck` 行名指 `look_side` 与至少五个姿态。
-- **第一次转换不被流出**，它的帧运着身势。
+- **不回答的控制台，被写入而不被相信**——查询到达端口，`heard` 是 `False`，第一次身势交给帧；
+- **给出位置的控制台，从那里流出**——第一次转换也是，而行记录测到的姿态；
+- **不给出位置而回答，仍是回答**——行说 `heard: true` 和 `position: null`。这与沉默不同；
 - **一次流只开一次端口**，不是每个姿态开一次。
 - **什么也接收不了的端口会让流结束**，而不是等待，行变成 `sent: false`。
 - **打不开的端口把身势留在帧里**，交给板子去演。

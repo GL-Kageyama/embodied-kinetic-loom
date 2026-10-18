@@ -20,7 +20,12 @@
 デーモンは `neck/` の純粋な予定表を1つ持ち、**同じ `at` から姿勢の行を流す**。
 ⚠️ **枠と姿勢の行で、同じ身振りを2度動かさない**: 流すとき、枠の `gesture` は `None` である
 （基板の `PlayGesture` はメインループを数秒塞ぎ、その間の姿勢は遅れて適用される）。
-⛔ **最初の1回だけは基板に演じさせる**——このホストは首の位置を読まないからである。**
+✅ **そして 0.19.23 から、身振りを引き受けるたびに、首の位置を尋ねる**——`bench pos` を1行書き、
+⚠️ **`PORT_WAIT` で縛って同じ fd で読む**（`neck/readback.py`）。⇒ **始点は推測ではなく、
+その瞬間の測定である**——起動後の最初の遷移も、始点が測れれば流せる。
+⛔ **答えなければ、今まで通り基板に演じさせる**——**尋ねることは、待つことではない。**
+⚠️ **尋ねるのは身振りの瞬間だけである**: 背景で定期に尋ねると、`bench` を打っている
+行の途中に割り込む——**コンソールは人のものでもある。**
 """
 from __future__ import annotations
 
@@ -35,8 +40,9 @@ import time
 from dataclasses import replace
 
 from engine.backend import protocol_stackchan as wire
+from engine.backend.protocol_stackchan_pose import Pose
 from projects.stackchan.behaviors import Decision
-from projects.stackchan.neck import gestures
+from projects.stackchan.neck import gestures, readback
 from projects.stackchan.neck.stream import Stream
 from projects.stackchan.outbound import Frame, Outbound
 
@@ -171,11 +177,16 @@ class Neck:
     デーモンごと止まる。**開くのは身振りに1回、閉じるのは終わりに1回**であり、
     書くたびに `PORT_WAIT` を上限に待つ——⚠️ **基板が読まなければ、流れは止まる。**
 
-    ⛔ **最初の1回は、基板に演じさせる。** このホストは首の位置を読まない——
-    知らない位置を始点にすれば、1行目は「その位置への移動」になる。
-    だから最初の身振りは枠の `gesture` に任せ、**その終わりの姿勢**を覚える。
+    ⛔ **最初の1回は、基板に演じさせる**——ただし、**位置を尋ねて答えが返らなかったときだけ**である。
+    ✅ **0.19.23 から、身振りを引き受けるたびに `bench pos` を1行書き、同じ fd で読む**
+    （`neck/readback.py`）。⇒ **始点は推測ではなく、その瞬間の測定である。**
+    ⛔ **答えなければ、知らない位置を始点にしない**: 枠の `gesture` に任せ、**その終わりの姿勢**を覚える。
     ⚠️ **それは推測である**: 基板が演じ切ったことを、このホストは知らない
     （この機体は何も報告しない）。**命令は届くものとして扱う。**
+
+    ⛔ **背景で定期的に尋ねない。** コンソールは人のものでもある——2秒ごとの問い合わせは、
+    `bench` を打っている行の途中に割り込む。**尋ねるのは、身振りを引き受ける瞬間だけ**であり、
+    ⚠️ **その瞬間が、位置の要る唯一の瞬間である。**
     """
 
     def __init__(self, port: str | None, *, period: float = gestures.DEFAULT_PERIOD,
@@ -191,14 +202,18 @@ class Neck:
         return self._stream.deadline if self._fd is not None else None
 
     def _open(self) -> bool:
-        """**1つの身振りのために、1回だけ開く。** ⛔ 行ごとに開くと止まる。"""
+        """**1つの身振りのために、1回だけ開く。** ⛔ 行ごとに開くと止まる。
+
+        ⚠️ **`O_RDWR` である**——同じ fd で `bench pos` を書き、答えを読む。
+        2つ目の fd を開けば、2回目の `open` がまた止まりうる。
+        """
         self._close()
         if self.port is None:
             return False
         try:
             # ⚠️ **`O_APPEND` は tty には効かないが、普通のファイルでは効く。**
             #    これが無いと、試験のファイルの先頭を姿勢の列が上書きする。
-            self._fd = os.open(self.port, os.O_WRONLY | os.O_NOCTTY
+            self._fd = os.open(self.port, os.O_RDWR | os.O_NOCTTY
                                | os.O_NONBLOCK | os.O_APPEND)
         except OSError:
             self._fd = None
@@ -213,8 +228,8 @@ class Neck:
                 pass
             self._fd = None
 
-    def _write(self, payload: bytes) -> bool:
-        """**持っている fd へ1行。** ⛔ **待ちには上限がある。**
+    def _write_to(self, fd: int, payload: bytes) -> bool:
+        """**その fd へ1行。** ⛔ **待ちには上限がある。**
 
         ⚠️ **短く書けた行は、続きを書く。** それでも `PORT_WAIT` を越えたら
         失敗である——**読まない端末を、行の列で埋めない。**
@@ -222,7 +237,7 @@ class Neck:
         deadline = time.monotonic() + PORT_WAIT
         while True:
             try:
-                written = os.write(self._fd, payload)
+                written = os.write(fd, payload)
             except BlockingIOError:
                 written = 0
             except OSError:
@@ -235,11 +250,70 @@ class Neck:
             if remaining <= 0.0:
                 return False
             try:
-                _, writable, _ = select.select([], [self._fd], [], remaining)
+                _, writable, _ = select.select([], [fd], [], remaining)
             except (OSError, ValueError):
                 return False
             if not writable:
                 return False
+
+    def _write(self, payload: bytes) -> bool:
+        return self._fd is not None and self._write_to(self._fd, payload)
+
+    def _probe(self, fd: int) -> tuple[bool, Pose | None]:
+        """**`bench pos` を書き、答えを `PORT_WAIT` まで読む。** ⛔ **上限を越えない。**
+
+        ⚠️ **2つを返す**: **基板が何か答えたか**と、**姿勢が読めたか**。
+        ⛔ **この2つを混ぜない**——`bench: yaw=no answer pitch=no answer` は
+        **コンソールが答えた**（サーボが答えなかった）のであり、沈黙ではない。
+
+        ⚠️ **尋ねる前に、溜まっていた出力を捨てる。** 読まなかった `alive` や、
+        前の答えを、今の答えとして読まない——**古い姿勢は、無い姿勢より悪い。**
+        ⚠️ **普通のファイルは試験台である。** tty では `lseek` が失敗するので、
+        そのときだけ捨てる（ファイルでは、先に置いた答えを読むため先頭へ戻る）。
+        """
+        try:
+            os.lseek(fd, 0, os.SEEK_SET)
+        except OSError:
+            # ⚠️ **tty である。** 読めるものは、今の答えではない。
+            while True:
+                try:
+                    if not os.read(fd, 4096):
+                        break
+                except BlockingIOError:
+                    break
+                except OSError:
+                    break
+        if not self._write_to(fd, readback.QUERY):
+            return False, None
+        try:
+            # ⚠️ **試験台（普通のファイル）では、先頭から読む。** tty は `ESPIPE` を返す。
+            os.lseek(fd, 0, os.SEEK_SET)
+        except OSError:
+            pass
+        deadline = time.monotonic() + PORT_WAIT
+        text = ""
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.0:
+                return readback.answered(text), readback.parse(text)
+            try:
+                ready, _, _ = select.select([fd], [], [], remaining)
+            except (OSError, ValueError):
+                return readback.answered(text), readback.parse(text)
+            if not ready:
+                return readback.answered(text), readback.parse(text)
+            try:
+                chunk = os.read(fd, 256)
+            except BlockingIOError:
+                continue
+            except OSError:
+                return readback.answered(text), readback.parse(text)
+            if not chunk:
+                return readback.answered(text), readback.parse(text)
+            text += chunk.decode("ascii", "replace")
+            pose = readback.parse(text)
+            if pose is not None:
+                return True, pose
 
     def take(self, decision: Decision, at: float) -> bool:
         """**身振りを引き受ける。** ⚠️ **流し始めたときだけ `True`。**
@@ -247,16 +321,13 @@ class Neck:
         ⛔ **枠と姿勢の行で、同じ身振りを2度動かさない。** `True` を返したら、
         呼ぶ側は枠の `gesture` を `None` にして送る——基板の `PlayGesture` は
         メインループを数秒塞ぎ、その間の姿勢は遅れて適用される。
+
+        ⚠️ **始点の優先は3つ**: **いま尋ねた姿勢**（最も新しく、最も確か）→ 最後に出した行
+        （流れが終わった後も残る）→ 基板に演じさせた身振りの終わり（推測）。
+        ⛔ **尋ねるのは、身振りを引き受けた後である**——割り込まれた流れを止め、
+        ポートを開き、その同じ fd で尋ねる。**2度開かない。**
         """
         if self.port is None or decision.gesture is None:
-            return False
-
-        starts = self._stream.last_pose
-        if starts is None:
-            starts = self._parked
-        if starts is None:
-            # ⚠️ **最初の1回だけ、基板に演じさせる。** 位置を知らないからである。
-            self._parked = gestures.ends(decision.gesture)
             return False
 
         if self._stream.running:
@@ -272,6 +343,24 @@ class Neck:
         # ⛔ **開けなければ、流さない。** 枠が身振りを運び、基板が演じる——
         #    開けない端末に、行だけを数えて「送った」と言わない。
         if not self._open():
+            self._parked = gestures.ends(decision.gesture)
+            return False
+
+        heard, measured = self._probe(self._fd)
+        if measured is not None:
+            emit({"position": [measured.yaw_tenths, measured.pitch_tenths], "at": at})
+        else:
+            # ⛔ **「コンソールが黙っている」と「サーボが答えない」は別の行である。**
+            emit({"position": None, "heard": heard, "at": at})
+
+        starts = measured
+        if starts is None:
+            starts = self._stream.last_pose
+        if starts is None:
+            starts = self._parked
+        if starts is None:
+            # ⛔ **位置を知らないまま流さない。** 最初の1回は基板に演じさせる。
+            self._close()
             self._parked = gestures.ends(decision.gesture)
             return False
 

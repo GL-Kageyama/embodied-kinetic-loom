@@ -414,7 +414,10 @@ def test_the_configured_port_receives_the_logged_line(sock):
     frames = daemon.frames()
     assert len(frames) == 1
     assert frames[0]["sent"] is True
-    assert port.read_text(encoding="ascii") == frames[0]["frame"] + "\n"
+    # ⚠️ **端末には、枠のほかに問い合わせの行（`bench pos`）が在る。** それは枠ではない。
+    written = [line for line in port.read_text(encoding="ascii").splitlines()
+               if line != "bench pos"]
+    assert written == [frames[0]["frame"]]
 
 
 def test_a_missing_port_is_not_a_refusal(sock):
@@ -466,8 +469,8 @@ def test_the_second_gesture_is_streamed_and_the_frame_carries_none(sock):
 
     ⛔ **枠が身振りも運べば、基板は2度動く**——`PlayGesture` はメインループを数秒塞ぎ、
     その間の姿勢の行は遅れて適用される。⇒ **流すとき、枠の `gesture` は `None` である。**
-    ⚠️ **最初の1回だけは基板が演じる**（このホストは首の位置を読まない）——
-    だからこの検査は、**2つ目の事象**で見る。
+    ⚠️ **最初の1回だけは基板が演じる**（**この端末は `bench pos` に答えない**から、
+    ホストは始点を知らない）——だからこの検査は、**2つ目の事象**で見る。
     """
     port = sock.parent / "console"
     port.touch()
@@ -500,22 +503,63 @@ def test_the_second_gesture_is_streamed_and_the_frame_carries_none(sock):
     assert necks[0]["to"] == [350, 500]          # look_side の姿勢へ
 
 
-def test_the_first_gesture_is_not_streamed(sock):
-    """⚠️ **最初の1回は、基板に任せる。** このホストは首の位置を読まない。
+def test_the_first_gesture_is_not_streamed_when_the_console_does_not_answer(sock):
+    """⚠️ **答えが返らなければ、最初の1回は基板に任せる。**
 
     ⛔ **知らない位置を始点にすれば、1行目は「その位置への移動」になる。**
+    ⚠️ **問い合わせは書かれている**——答えが無かっただけで、尋ねなかったのではない。
     """
     port = sock.parent / "console"
     port.touch()
     with Daemon(sock, port=port) as daemon:
         daemon.send({"session": "main", "event": "SessionStart"})
 
-    lines = port.read_text(encoding="ascii").splitlines()
+    raw = port.read_text(encoding="ascii")
+    assert "bench pos" in raw, "尋ねていない——この検査は何も見ていない"
+    lines = [line for line in raw.splitlines() if line != "bench pos"]
     assert [line for line in lines if line.startswith("pose ")] == []
     assert json.loads(lines[0])["gesture"] == "look_up"
 
     rows = [json.loads(line) for line in daemon.out.splitlines() if line.strip()]
     assert [row for row in rows if "neck" in row] == []
+    # ⚠️ **答えなかったことは、1行だけ残る。**
+    assert [row for row in rows if row.get("heard") is False]
+
+
+def test_a_console_that_answers_is_streamed_from_where_it_says(sock):
+    """✅ **答えが返れば、最初の遷移から姿勢の行で流れる。**
+
+    ⚠️ **始点は測定である**——基板が `bench pos` に答えた姿勢から動き出す。
+    ⛔ **枠は身振りを運ばない**: 首は姿勢の行で動く。2度動かさない。
+    """
+    port = sock.parent / "console"
+    port.write_text(
+        "bench: yaw=ok pitch=ok\n"
+        "bench: yaw raw 512, angle 2.5 deg (zero 504)\n"
+        "bench: pitch raw 788, angle 2.5 deg (zero 780)\n",
+        encoding="ascii",
+    )
+    with Daemon(sock, port=port) as daemon:
+        answer = daemon.send({"session": "main", "event": "SessionStart"})
+        assert answer["gesture"] == "look_up"
+        time.sleep(0.3)
+
+    lines = port.read_text(encoding="ascii").splitlines()
+    frames = [json.loads(line) for line in lines if line.startswith("{")]
+    poses = [line for line in lines if line.startswith("pose ")]
+
+    assert len(frames) == 1
+    assert frames[0]["gesture"] is None
+    assert len(poses) >= 5, "姿勢の行が流れていない——この検査は何も見ていない"
+    for line in poses:
+        decode(line.encode("ascii") + b"\n")
+
+    rows = [json.loads(line) for line in daemon.out.splitlines() if line.strip()]
+    measured = [row for row in rows if "position" in row]
+    assert measured and measured[0]["position"] == [25, 25]
+    necks = [row for row in rows if "neck" in row]
+    assert necks[0]["from"] == [25, 25]          # 測った姿勢から
+    assert necks[0]["to"] == [80, 500]           # look_up へ
 
 
 # ---------------------------------------------------------------------------

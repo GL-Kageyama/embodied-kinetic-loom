@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.6.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.7.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -211,6 +211,6 @@
 
 ⛔ **Nothing was compensated.** A constant bias would be wrong half the time, because the sign follows the travel direction; a directional bias would be a new machine-specific number written into the host or the firmware. **Whether to write one, and where, is a decision not taken here.**
 
-⚠️ **What it means for the join**: the daemon plans each gesture from the last pose it wrote, and the head sits six to eight counts short of that pose. The next plan's first sample is near the same place, so the discrepancy is bounded by the offset rather than accumulating across gestures — **but the jump between two gestures has not been measured**, and the daemon still reads nothing back.
+⚠️ **What it means for the join**: the daemon plans each gesture from the last pose it wrote, and the head sits six to eight counts short of that pose. The next plan's first sample is near the same place, so the discrepancy is bounded by the offset rather than accumulating across gestures — **but the jump between two gestures has not been measured**, and ⚠️ **the daemon asks the board for its position at each gesture since 0.19.23, but on this unit the servo bus answers nothing** (`bench scan` → 0 ids), so the query is answered without a pose.
 
 ⚠️ **The head was left at yaw 8.0°, pitch 50.0°** — raw yaw 491, pitch 781, torque on. **That is the posture the daemon believes the head is in**, so the next streamed gesture starts within the offset of where the daemon thinks it starts.

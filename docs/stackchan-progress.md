@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: docs/stackchan-progress.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.1.0 | canonical: docs/stackchan-progress.md | translated: 2026-10-19 -->
 
 **Language:** [English](stackchan-progress.md) | [日本語](stackchan-progress-ja.md) | [中文](stackchan-progress-zh.md)
 
@@ -30,14 +30,14 @@
 | **4** | **Does it move?** | ✅ | the pose line at about **50 poses a second**; **five postures** placed by the author's eye; **822 poses applied** in the engine-driven run; the firmware writes the stock's call (`kPoseTimeMs = 20`, `kPoseSpeed = 0`). ⚠️ **The landing is six to eight counts short on yaw and one to three on pitch — not a constant** | — |
 | **5** | **Does it sound?** | ⚠️ | **four words**, a closed set; the board played all four, and the author heard all four. ⛔ **Not one was compared** — the tones are choices, not measurements | **the author's ear**, one word at a time |
 | **6** | **Does it move with the event, not after it?** | ✅ | **one `at`** for the frame and the pose line; a streamed frame carries `gesture: null`; seen moving from a hook event, and judged 「滑らかだった」. **19 of 23, 17 of 23, 16 of 23 and 68 of 79** poses were applied late — **lateness is the schedule's, smoothness is the eye's** | — |
-| **7** | **Can the host know where the head is?** | ⛔ | **nothing.** The daemon reads nothing back; **the first transition after a start is not streamed**; every motion starts from the last pose actually written, not from a measurement; `sent: true` means the host's tty took the line | **a bounded, non-blocking read** of the port the stream already holds — then the first transition can be streamed and a start can be measured |
+| **7** | **Can the host know where the head is?** | ⚠️ | **the query is built and bounded** — `bench pos` at each gesture on the streaming fd, read under `PORT_WAIT = 0.5`, ten tests; measured on the unit on 2026-10-19: **the console answered** (`{"position": null, "heard": true}`), and `bench pos` printed `yaw=no answer` while `bench scan` found **0 id(s)**. ⛔ **No position has been read from this machine** — the servo bus is silent. Every motion still starts from the last pose actually written when the answer carries no position | **one answer from the servo bus** — a power switch, a cable, or an id; then the same path returns a pose, and ⛔ **nothing in the code needs to change for it** |
 | **8** | **Can it be lived with, day after day?** | ⛔ | **nothing.** Sound is off by default; no hour is named in the code; and no one has written down a day — **how often the body is right, wrong, or unnoticed** | **a day, written down** |
 
 ## Where the climb stands
 
-**Five of the eight are ✅, one is ⚠️, and two are ⛔ — measured 2026-10-19.** ⛔ **That is not "five-eighths of a coding agent":** the rows are questions, not weights, and the question below the table has no instrument at all.
+**Five of the eight are ✅, two are ⚠️, and one is ⛔ — measured 2026-10-19.** ⛔ **That is not "five-eighths of a coding agent":** the rows are questions, not weights, and the question below the table has no instrument at all.
 
-**The next rung is 7**, and it is the only missing one that code alone can close. It is also a named defect, not a wish: **the first transition after a daemon start is left to the board because the host does not know where the head is** (`projects/stackchan-firmware/records/2026-10-19-the-join.md`). ✅ **The board already prints the number** — `pose: stream started — goals on the present positions (yaw 504, pitch 780), torque on`. ⚠️ **The risk is the port**: a stream holds it for one gesture, each write is bounded by `PORT_WAIT = 0.5`, and an open/write/close loop was measured wedging the daemon inside `open()` on 2026-10-19. **A read must be bounded and non-blocking, or it repeats that day.**
+**Rung 7 is built, and it stopped at the machine.** ✅ **The code side is closed**: the daemon asks the board for the position at each gesture, on the fd it is about to stream on, and reads the answer under `PORT_WAIT = 0.5` — the bounded read this table asked for (`projects/stackchan/neck/readback.py`, ten tests). ✅ **Measured on the unit on 2026-10-19**: the query was written and the console answered — but the answer was `yaw=no answer pitch=no answer`, and `bench scan` found **0 id(s)**, before and after `bench power on`. ⇒ **The path is measured; the position is not, and no code here can produce it.** ⛔ **The row stays ⚠️ until one pose comes back from the servo bus.**
 
 **Row 8 needs time, not code.** ⛔ **No table writes it; only days do** — and a day is not something this repository can run on its own.
 

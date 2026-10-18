@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.23.0 | canonical: tests/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.24.0 | canonical: tests/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Thirty-one files, five hundred and twenty-nine tests, all green — measured 2026-10-19.**
+**Thirty-two files, five hundred and forty tests, all green — measured 2026-10-19.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -210,7 +210,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | no machine-1 name or number is in the package | `test_stackchan_behaviors.py` | over **AST identifiers and numeric constants**, not text — and it also asserts that no `motions/` directory exists |
 | the parser builds in three languages, and the help differs | `test_stackchan_behaviors.py` | the same assertion `test_strings.py` makes for the Pet's entry point |
 
-**Thirty-five more hold the daemon — the process that keeps the phase between hook processes:**
+**Thirty-six more hold the daemon — the process that keeps the phase between hook processes:**
 
 | the check | where | what it is for |
 |---|---|---|
@@ -226,7 +226,8 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | without a port, nothing is written anywhere | `test_stackchan_daemon.py` | the device is optional, and that is still the default |
 | a write that returns short is not `sent` | `test_stackchan_daemon.py` | ⛔ **`sent` is the host's tty taking the whole line — not the board receiving it** |
 | **the second transition streams the pose line, and its frame carries `gesture: null`** | `test_stackchan_daemon.py` | ⛔ **`PlayGesture` blocks the main loop for seconds, and the poses written meanwhile are applied late** — one happening must not move the head twice |
-| **the first transition after a start is not streamed** | `test_stackchan_daemon.py` | ⚠️ **this host does not read the head's position**; a first line naming an unknown start is a flight to that position |
+| **the first transition is not streamed when the console does not answer** (0.19.23) | `test_stackchan_daemon.py` | ⚠️ **the query is written and not believed**; a first line naming an unknown start is a flight to that position |
+| **a console that answers is streamed from where it says** (0.19.23) | `test_stackchan_daemon.py` | ✅ **the measured pose is the start, so the first transition streams too** — the frame for that event carries `gesture: null` |
 | **one stream opens the port once, not once per pose** (0.19.15) | `test_stackchan_daemon.py` | ⛔ **the open/write/close loop was measured to wedge the daemon inside `open()`** — where no signal reaches it |
 | **a port that takes nothing ends the stream** (0.19.15) | `test_stackchan_daemon.py` | each write is bounded by `PORT_WAIT = 0.5`; ⛔ **waiting with no upper limit is what stopped the daemon on 2026-10-19** |
 | **a port that cannot be opened leaves the gesture in the frame** (0.19.15) | `test_stackchan_daemon.py` | the board plays it instead, and the room carries on |
@@ -373,6 +374,26 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | a frame without `sound` is refused by the board's own parser, and `"horn"` is an unknown value | `test_stackchan_frame_parser.py` | the board refuses what the host's decoder refuses, spoken by the other end |
 
 ⛔ **What none of them can see is the amplifier.** `sound.cpp` — the AW88298's register table, its reset line on the display's expander, the I2S channel and the four tones — **is compiled by no check**, and no test here opens a device. ⚠️ **The tones are choices, not measurements**, and the only thing that has judged them is one pair of ears: **on 2026-10-18 the board played all four from `bench sound`, and the author heard all four** (`projects/stackchan-firmware/records/2026-10-18-the-voice.md`). ⛔ **That says a sound was made. It says nothing about pitch, loudness, or whether a word suits its transition.**
+
+## The question the host asks the board (0.19.23)
+
+**`projects/stackchan/neck/readback.py` parses the answer to `bench pos`, and `test_stackchan_readback.py` holds it with ten claims.**
+
+⚠️ **The query and the answer are the board's own words, and the check reads `main.cpp` for both** — the printf formats included — **because a copy that does not go red when the source moves is not a copy.** What the other nine hold:
+
+| the check | what it is for |
+|---|---|
+| the two lines become one pose, in tenths of a degree | one count is 5/16 of a degree, and the conversion is C's truncation toward zero |
+| a small negative angle keeps the sign the print lost | ⛔ **the degree field drops the sign for angles under 1°** — `0.6` is printed for −0.6, so only `raw` and `zero` are read. **Python's `//` would give −7 where the board means −6** |
+| one axis is not a pose | ⛔ **a missing axis is not filled with 0** — 0 is the same spelling as `rest`'s yaw |
+| an answer with no position is still an answer | ⛔ **a silent console and a silent servo are different failures**, and the log keeps them apart |
+| the daemon asks the console and streams from the answer | the file stands in for a tty; its seeded lines are the only ones it gives |
+| an unanswered query is written and not believed | ⛔ **the only thing this path may not do is invent a start** |
+| the console can answer without a position | the 2026-10-19 shape: `yaw=no answer`, `bench scan` 0 ids |
+| the probe is bounded by `PORT_WAIT` | a FIFO that answers nothing; the test measures elapsed time, not intentions |
+| every gesture asks once and uses what it hears | ⛔ **no cached answer and no background schedule** — the console is also the human's |
+
+⛔ **None of these tests opens a device.** The port is a file, or a FIFO. ⇒ **How fast the board answers is not measured here** — the measured answer on the unit took about 0.22 s — and ⚠️ **whether a position ever comes back is a hardware question this suite cannot ask.** On 2026-10-19 it did not: the console answered, the servo bus did not.
 
 ## The rule that holds this directory — applied to us
 

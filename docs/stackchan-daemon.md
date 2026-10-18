@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.15.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.16.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-19 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -98,10 +98,13 @@
 
 - ⛔ **No child process and no second clock.** The pose line comes out of the same loop that answers the socket, from the same monotonic time that stamped the event. **The author chose this shape on 2026-10-19** (「デーモンが自前のループで流す（推奨）」).
 - ⛔ **The frame carries `gesture: null` while a gesture is streamed.** The board's `PlayGesture` blocks its main loop for seconds, and the pose lines written meanwhile are applied late — **one happening must not move the head twice.** ⚠️ **The log row and the client's reply still name the gesture**; the field that disappears is the one on the wire.
-- ⚠️ **The first transition after a start is not streamed.** This host does not read the head's position, and the machine reports nothing back — so the first line naming an unknown start would be a flight to that position. **That one gesture is left to the frame, and the host remembers the table's end pose.**
-- ⚠️ **Every later gesture starts from the last pose actually written** — the plan's end when the plan finished, and wherever the head had got to when it was interrupted. ⛔ **The planned end is not evidence that the head arrived there.**
-- ⛔ **A short write stops the stream** and logs `sent: false`. The next gesture starts again from the last pose that was written.
-- ⚠️ **Nothing is sent back.** The board prints, and no code here listens — so *the poses were written to the console* is the whole of what the log can say. ⛔ **Whether the head moved is an observation, and it has not been made through this path.**
+- ✅ **Since 0.19.23 the host asks the board where the head is** — before every gesture it writes `bench pos` on the same fd it will stream from, and reads the answer under the same `PORT_WAIT = 0.5`. ⚠️ **The pose it reads is the start**, so the first transition after a start is streamed when the console answers. ⛔ **It asks only at the gesture, never on a clock**: a query every few seconds would cut into a `bench` line being typed into the same console — **the console is the human's too.**
+- ⛔ **If the console does not answer, nothing is invented.** The start falls back to the last pose actually written, then to the table's end pose of a gesture the board played; with neither, **the first gesture is left to the frame.**
+- ⛔ **The log keeps two failures apart.** `{"position": null, "heard": false}` is a silent console; `{"position": null, "heard": true}` is a console that answered `yaw=no answer` — **the servos were silent.**
+- ✅ **Measured on the unit, 2026-10-19:** the query was written, the board answered it (`{"position": null, "heard": true}`), `bench pos` printed `yaw=no answer pitch=no answer`, and `bench scan` found **0 id(s)**. ⇒ **The path is measured; a position from this machine is not.** The servo bus answered nothing, and ⛔ **no code here can supply that.**
+- ⚠️ **Every gesture still falls back to the last pose actually written** — the plan's end when the plan finished, and wherever the head had got to when it was interrupted. ⛔ **The planned end is not evidence that the head arrived there.**
+- ⚠️ **A short write stops the stream** and logs `sent: false`. The next gesture starts again from the last pose that was written.
+- ⚠️ **The only thing read back is the position query.** The board's other printing is not listened to — so *the poses were written to the console* is still the whole of what the log can say. ⛔ **Whether the head moved is an observation, and it has not been made through this path.**
 
 ## Stop, and what the body does
 

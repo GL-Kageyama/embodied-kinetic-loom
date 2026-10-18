@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.14.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.15.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -16,7 +16,7 @@
 
 ✅ **It imports the Pet's `State`; it does not copy it.** The five expressions were drawn once (decision A, `projects/pet/expressions.py`), and a second set would be a second answer to the same question.
 
-✅ **It is joined to a machine since 2026-10-18** — the daemon writes one line per frame to the board's console — **and it was not joined before that.** ⛔ **The join runs one way and carries one line**: this layer opens nothing itself, reads nothing back, and can confirm only that the host's tty took the whole line. Its consumers outside the tests are its own CLI, the daemon's log, and the port the daemon names. ⚠️ **It was not joined to Claude Code until 2026-10-18.** ✅ **Since then it is** — every one of the thirty-three events in `~/.claude/settings.json` runs `projects/stackchan/hook/`, and a launchd user agent starts the daemon at login. ⛔ **This directory is the layer, not the installation**: the plist here is a copy, and the record is `docs/stackchan-daemon.md`.
+✅ **It is joined to a machine since 2026-10-18** — the daemon writes one line per frame to the board's console — **and it was not joined before that.** ⛔ **The join runs one way and carries one line**: this layer opens nothing itself, ⚠️ **reads back exactly one thing since 0.19.23 — the answer to `bench pos`, asked at a gesture** — and can otherwise confirm only that the host's tty took the whole line. Its consumers outside the tests are its own CLI, the daemon's log, and the port the daemon names. ⚠️ **It was not joined to Claude Code until 2026-10-18.** ✅ **Since then it is** — every one of the thirty-three events in `~/.claude/settings.json` runs `projects/stackchan/hook/`, and a launchd user agent starts the daemon at login. ⛔ **This directory is the layer, not the installation**: the plist here is a copy, and the record is `docs/stackchan-daemon.md`.
 
 ## The six phases
 
@@ -153,8 +153,11 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 - **The five postures are a copy of the board's table** (`neck/gestures.py`), and the copy is held by a check that reads `main/main.cpp`: a table that moves turns the test red. ⛔ **The order of the source of truth did not change** — the machine is the source, this is the copy.
 - **`nod` is two segments chained on one timeline.** ⛔ **Two samples at the seam would stop the head for one tick**, and that is the shape the author called 「動きが硬い」.
-- **The first transition after a daemon start is not streamed.** This host does not read the head's position — the machine reports nothing — so a first line naming an unknown start would be a flight to that position. **That one gesture is left to the board**, and the host remembers the table's end pose. ⚠️ **That is an assumption, named as one**: whether the board finished is not observed.
-- **Every later motion starts from the last pose actually written**, not from the previous plan's end — an interrupted plan ends somewhere other than where it aimed.
+- ✅ **Since 0.19.23 the host asks the board where the head is** — at each gesture, on the same fd it is about to stream on, it writes one line `bench pos` and reads the answer back under the same `PORT_WAIT = 0.5`. ⚠️ **The pose it reads is the start** — so the first transition after a start is streamed too, whenever the console answers. ⛔ **Asked at the moment of a gesture and never on a schedule**: a periodic query would cut into a `bench` line being typed on the same console — **the console is also the human's.**
+- ⛔ **When the console does not answer, nothing is invented.** The start falls back to the last pose actually written, then to the end pose of the table's gesture the board would play; with neither, **the first gesture is left to the frame.**
+- ⛔ **The log keeps two failures apart.** `{"position": null, "heard": false}` is a silent console; `{"position": null, "heard": true}` is a console that answered `yaw=no answer` — **the servos were silent.**
+- ✅ **Measured on the unit, 2026-10-19:** the query was written and the board answered it (`{"position": null, "heard": true}`), `bench pos` printed `yaw=no answer pitch=no answer`, and `bench scan` found **0 id(s)**. ⇒ **The path is measured; a position from this machine is not.** The servo bus answered nothing, and ⛔ **no code here can supply that.**
+- **Every later motion still starts from the last pose actually written**, not from the previous plan's end — an interrupted plan ends somewhere other than where it aimed.
 - ⛔ **A short write stops the stream**, and the row says `sent: false`. The next gesture starts again from the last pose that was written.
 - ⛔ **The stream holds the port for one gesture, not for one pose** (0.19.15). A frame is still one `os.open`/`os.write`/`os.close` with nothing held between frames; **a stream opens the port once, writes each pose under a `PORT_WAIT = 0.5` bound, and closes it at the summary.** ⚠️ **The first shape was measured to wedge the daemon**: at 50 Hz, open/write/close blocked inside `open()` at the fourth or fifth attempt, where no signal could reach it. **A port that takes nothing ends the stream; a port that cannot be opened leaves the gesture in the frame for the board.**
 
@@ -200,7 +203,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ## What is checked
 
-**`tests/test_stackchan_behaviors.py` holds thirty-five claims, `tests/test_stackchan_daemon.py` holds thirty-five, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds twenty-eight, `tests/test_stackchan_outbound.py` holds thirteen, and `tests/test_stackchan_neck.py` holds forty**, and they run with the rest of the suite:
+**`tests/test_stackchan_behaviors.py` holds thirty-five claims, `tests/test_stackchan_daemon.py` holds thirty-six, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds twenty-eight, `tests/test_stackchan_outbound.py` holds thirteen, `tests/test_stackchan_neck.py` holds forty, and `tests/test_stackchan_readback.py` holds ten**, and they run with the rest of the suite:
 
 - the list is 33 and none is repeated; every event has exactly one of three kinds, and the kinds partition it;
 - every event carries a reason code — **there is no blank**;
@@ -239,7 +242,9 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - **a greeting logs one frame row, and `sent` is `False` in it** — the row is decoded back into `Command(face="greeting", light="warm", gesture="look_up")`;
 - **an unchanged event logs no second frame**;
 - **the second transition streams the pose line from the pose the first one ended at, and the frames carry `look_up` then `null`** — every written pose line decodes, and the log's `neck` row names `look_side` with at least five poses;
-- **the first transition is not streamed**, and its frame carries the gesture;
+- **a console that does not answer is written to and not believed** — the query reaches the port, `heard` is `False`, and the first gesture is left to the frame;
+- **a console that answers with a position is streamed from it** — the first transition, and the row records the measured pose;
+- **a console that answers without one is still an answer** — the row says `heard: true` and `position: null`, which is not the same as silence;
 - **one stream opens the port once**, not once per pose;
 - **a port that takes nothing ends the stream** instead of waiting, and the row says `sent: false`;
 - **a port that cannot be opened leaves the gesture in the frame**, for the board to play.
