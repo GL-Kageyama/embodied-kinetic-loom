@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.20.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.21.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-19 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -101,6 +101,7 @@
 - ✅ **自 0.19.23 起，主机向板子询问头在哪里**——每个身势，它在将要用来流出的同一个 fd 上写一行 `bench pos`，并在同样的 `PORT_WAIT = 0.5` 之内读回。⚠️ **读到的姿态就是起点**——因此启动后的第一次转换，只要控制台回答，也会被流出。⛔ **只在身势的瞬间询问，绝不按时钟询问**: 每隔几秒的查询会切入正打进同一个控制台的 `bench` 行——**控制台也是人的。**
 - ⛔ **如果控制台不回答，什么也不发明。** 起点落回实际写下的最后一个姿态，再落回板子演出的身势的表的终点；两者都没有时，**第一次身势交给帧。**
 - ⛔ **日志把两种失败分开。** `{"position": null, "heard": false}` 是沉默的控制台；`{"position": null, "heard": true}` 是回答了 `yaw=no answer` 的控制台——**舵机沉默了。**
+- ✅ **自 0.19.33 起，没有回答的探针也保留到达的文字。** 该行带有 `"read"`——板子在那个窗口里送出的最后 160 个字符——因为 ⛔ **仅有 `heard: false` 无法区分沉默的控制台和与上一行粘连而被吞掉的行。** 同一天的测量中，文字是 `console: unknown command` 和 `frame: refused (malformed)`: 问句进入了板子拒收的那一行。⇒ **原因在线路的板子一侧**——`ConsoleTask` 调用 `HandleFrame`，并在其中**就地**调用 `sound::play` 与 `PlayGesture`，所以**身势或声音进行时，控制台不读 STDIN。** ✅ **被吞掉的问句会在同一个 `PORT_WAIT` 之内再问一次**——测得的一次运行中八次里八次被听见，改变之前十三次里有七次是 `heard: false`。⛔ **帧也一样会损坏，而主机看不见。**
 - ✅ **2026-10-19 在机体上测量:** 查询被写下，板子回答了它（`{"position": null, "heard": true}`），`bench pos` 打印 `yaw=no answer pitch=no answer`，`bench scan` 找到 **0 id(s)**。⇒ **路径被测量了；来自这台机体的位置还没有。** 舵机总线什么也没有回答，而 ⛔ **这里的代码无法补上它。**
 - ⚠️ **此后的每一个身势仍然从实际写下的最后一个姿态开始**——计划走完就是计划的终点，被打断就是头走到的地方。⛔ **计划的终点不是头到达那里的证据。**
 - ⛔ **短的写入会停住流**，并留下 `sent: false`。下一个身势从写下的最后一个姿态重新开始。

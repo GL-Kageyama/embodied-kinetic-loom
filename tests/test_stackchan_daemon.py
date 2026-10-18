@@ -523,7 +523,55 @@ def test_the_first_gesture_is_not_streamed_when_the_console_does_not_answer(sock
     rows = [json.loads(line) for line in daemon.out.splitlines() if line.strip()]
     assert [row for row in rows if "neck" in row] == []
     # ⚠️ **答えなかったことは、1行だけ残る。**
-    assert [row for row in rows if row.get("heard") is False]
+    missed = [row for row in rows if row.get("heard") is False]
+    assert missed
+    # ✅ **そして、その行は「何も届かなかった」ではなく「これが届いた」を言う。**
+    # ⛔ **窓に届いた文字を捨てれば、次の問いでは区別できない**——
+    #    2026-10-19、9回の問いのうち5回がこの行で終わり、理由は残らなかった。
+    assert missed[0]["read"] == "bench pos\n", missed[0]
+
+
+def test_a_console_that_says_something_else_keeps_what_it_said(sock):
+    """⚠️ **答えでない行も、答えでないことの証拠である。**
+
+    ⛔ **`heard: false` だけでは、「沈黙していた」と「別のことを言った」が
+    同じ1行になる。** 2026-10-19、共有コンソールで行の混線
+    （`console: unknown command (try `help`)`）が一度だけ見え、
+    **その現象を記録に残す手立てが無かった**——この行がそれである。
+    """
+    port = sock.parent / "console"
+    port.write_text("console: unknown command (try `help`)\n", encoding="ascii")
+    with Daemon(sock, port=port) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    rows = [json.loads(line) for line in daemon.out.splitlines() if line.strip()]
+    missed = [row for row in rows if row.get("heard") is False]
+    assert missed, "答えなかった行が出ていない——この検査は何も見ていない"
+    assert "console: unknown command" in missed[0]["read"], missed[0]
+    # ⛔ **尋ねたことは、言い訳に使えない。** 問いは書かれている。
+    assert "bench pos" in port.read_text(encoding="ascii")
+
+
+def test_a_swallowed_query_is_asked_once_more(sock):
+    """✅ **行を飲み込まれたら、同じ `PORT_WAIT` の内側で、1回だけ尋ね直す。**
+
+    ⚠️ **2026-10-19 に機体で測った**: 基板の `ConsoleTask` は `HandleFrame` の中で
+    `PlayGesture` と `sound::play` をその場で呼ぶので、身振りや音のあいだは
+    STDIN を読まない。**その窓に書いた問いは、次の行と繋がって飲み込まれる**——
+    記録に残った答えは `console: unknown command (try `help`)` と
+    `frame: refused (malformed)` であった。**尋ね直しは1回だけである**:
+    ⛔ 2回目も飲み込まれたら、それは答える端末ではない。
+    """
+    port = sock.parent / "console"
+    port.write_text("console: unknown command (try `help`)\n", encoding="ascii")
+    with Daemon(sock, port=port) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    raw = port.read_text(encoding="ascii")
+    assert raw.count("bench pos") == 2, raw
+    rows = [json.loads(line) for line in daemon.out.splitlines() if line.strip()]
+    missed = [row for row in rows if row.get("heard") is False]
+    assert missed and "console: unknown command" in missed[0]["read"], missed
 
 
 def test_a_console_that_answers_is_streamed_from_where_it_says(sock):

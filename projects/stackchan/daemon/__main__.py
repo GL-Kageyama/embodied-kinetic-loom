@@ -37,6 +37,7 @@ import argparse
 import datetime
 import json
 import os
+import re
 import select
 import signal
 import socket
@@ -173,6 +174,19 @@ def send_line(path: str, line: str | bytes) -> bool:
 #: ⛔ **待ちに上限が無いことが、2026-10-19 にデーモンを止めた。**
 PORT_WAIT = 0.5
 
+#: **窓のあいだに届いた文字を、ログ1行に収まる長さで残す。**
+#: ⛔ **改行は潰さない**——繋がった行は、改行が無いこと自体が証拠である。
+SEEN_LIMIT = 160
+
+
+#: **問いを飲み込んだ行の印。** ⚠️ 基板が「これは命令ではない」と言った2つの綴り。
+_MANGLED = re.compile(r"^(?:console: unknown command|frame: refused)", re.M)
+
+
+def _seen(text: str) -> str:
+    """**届いた文字の末尾。** ⚠️ **先頭ではなく末尾である**——答えは最後に来る。"""
+    return text[-SEEN_LIMIT:] if len(text) > SEEN_LIMIT else text
+
 
 class Neck:
     """**首の縁。** ⚠️ **純粋な予定表（`Stream`）と、最後に命じた姿勢だけを持つ。**
@@ -265,12 +279,19 @@ class Neck:
     def _write(self, payload: bytes) -> bool:
         return self._fd is not None and self._write_to(self._fd, payload)
 
-    def _probe(self, fd: int) -> tuple[bool, Pose | None]:
+    def _probe(self, fd: int) -> tuple[bool, Pose | None, str]:
         """**`bench pos` を書き、答えを `PORT_WAIT` まで読む。** ⛔ **上限を越えない。**
 
-        ⚠️ **2つを返す**: **基板が何か答えたか**と、**姿勢が読めたか**。
-        ⛔ **この2つを混ぜない**——`bench: yaw=no answer pitch=no answer` は
+        ⚠️ **3つを返す**: **基板が何か答えたか**、**姿勢が読めたか**、そして
+        **その窓のあいだに実際に届いた文字**である。
+        ⛔ **この3つを混ぜない**——`bench: yaw=no answer pitch=no answer` は
         **コンソールが答えた**（サーボが答えなかった）のであり、沈黙ではない。
+
+        ⚠️ **3つ目は 2026-10-19 に足した。** その日、レールの電源サイクル以降の13回の問いのうち
+        7回が `heard: false` で終わり、**ログは「何も届かなかった」としか言えなかった**
+        ——**基板が別の行を返していたのか、行が繋がって拒まれていたのか、
+        何も届いていなかったのかを、区別する手立てが無かった。**
+        ⇒ **届いた文字を残す。** ⛔ **捨てた文字は、次に尋ねたときに捨てられる。**
 
         ⚠️ **尋ねる前に、溜まっていた出力を捨てる。** 読まなかった `alive` や、
         前の答えを、今の答えとして読まない——**古い姿勢は、無い姿勢より悪い。**
@@ -290,7 +311,7 @@ class Neck:
                 except OSError:
                     break
         if not self._write_to(fd, readback.QUERY):
-            return False, None
+            return False, None, ""
         try:
             # ⚠️ **試験台（普通のファイル）では、先頭から読む。** tty は `ESPIPE` を返す。
             os.lseek(fd, 0, os.SEEK_SET)
@@ -298,28 +319,40 @@ class Neck:
             pass
         deadline = time.monotonic() + PORT_WAIT
         text = ""
+        reasked = False
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0.0:
-                return readback.answered(text), readback.parse(text)
+                return readback.answered(text), readback.parse(text), _seen(text)
             try:
                 ready, _, _ = select.select([fd], [], [], remaining)
             except (OSError, ValueError):
-                return readback.answered(text), readback.parse(text)
+                return readback.answered(text), readback.parse(text), _seen(text)
             if not ready:
-                return readback.answered(text), readback.parse(text)
+                return readback.answered(text), readback.parse(text), _seen(text)
             try:
                 chunk = os.read(fd, 256)
             except BlockingIOError:
                 continue
             except OSError:
-                return readback.answered(text), readback.parse(text)
+                return readback.answered(text), readback.parse(text), _seen(text)
             if not chunk:
-                return readback.answered(text), readback.parse(text)
+                return readback.answered(text), readback.parse(text), _seen(text)
             text += chunk.decode("ascii", "replace")
             pose = readback.parse(text)
             if pose is not None:
-                return True, pose
+                return True, pose, _seen(text)
+            # ⚠️ **問いが行として届かなかったなら、1回だけ尋ね直す。**
+            #    2026-10-19 に測った: 基板の `ConsoleTask` は `HandleFrame` の中で
+            #    `PlayGesture` と `sound::play` を**その場で**呼ぶので、身振りや音の
+            #    あいだは STDIN を読まない。**その窓に書いた行は、次の行と繋がるか、
+            #    落ちる**——記録に残った答えは `console: unknown command` と
+            #    `frame: refused (malformed)` であった。⇒ **繋がった行は、問いを
+            #    飲み込む。** 尋ね直しは同じ `PORT_WAIT` の内側で、1回だけである。
+            if (not reasked and not readback.answered(text)
+                    and _MANGLED.search(text)):
+                reasked = True
+                self._write_to(fd, readback.QUERY)
 
     def take(self, decision: Decision, at: float) -> bool:
         """**身振りを引き受ける。** ⚠️ **流し始めたときだけ `True`。**
@@ -352,12 +385,14 @@ class Neck:
             self._parked = gestures.ends(decision.gesture)
             return False
 
-        heard, measured = self._probe(self._fd)
+        heard, measured, seen = self._probe(self._fd)
         if measured is not None:
             emit({"position": [measured.yaw_tenths, measured.pitch_tenths], "at": at})
         else:
             # ⛔ **「コンソールが黙っている」と「サーボが答えない」は別の行である。**
-            emit({"position": None, "heard": heard, "at": at})
+            # ⚠️ **そして、届いた文字を残す**——「何も届かなかった」と
+            #    「別のことが届いた」は、次の問いでは区別できない。
+            emit({"position": None, "heard": heard, "read": seen, "at": at})
 
         starts = measured
         if starts is None:

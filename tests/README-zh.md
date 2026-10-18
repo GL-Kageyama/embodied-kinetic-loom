@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.26.0 | canonical: tests/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.27.0 | canonical: tests/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**35 个文件、594 项测试，全部通过——实测 2026-10-19。**
+**35 个文件、596 项测试，全部通过——实测 2026-10-19。**
 
 **本文件曾经写着「一项也没有」。** **它与第一个测试在同一次提交里改变**——**那正是 `CLAUDE.md` 那一节所规定、而这个目录所维护的规则。**
 
@@ -232,7 +232,7 @@
 | 包里没有机器 1 的名字或数字 | `test_stackchan_behaviors.py` | **按 AST 的标识符和数值常量**，不是按文本——并且还主张没有 `motions/` |
 | parser 在三种语言里建起，帮助不同 | `test_stackchan_behaviors.py` | 与 `test_strings.py` 对 Pet 入口所作的同一主张 |
 
-**另有三十六项守住守护进程——在钩子进程之间保住阶段的那个进程:**
+**另有三十七项守住守护进程——在钩子进程之间保住阶段的那个进程:**
 
 | 检查 | 哪里 | 为了什么 |
 |---|---|---|
@@ -253,6 +253,7 @@
 | **一次流只开一次端口，不是每个姿势开一次**（0.19.15） | `test_stackchan_daemon.py` | ⛔ **反复 open/write/close 被测出会让守护进程卡死在 `open()` 里**——信号够不着那里 |
 | **什么也接收不了的端口会让流结束**（0.19.15） | `test_stackchan_daemon.py` | 每次写入以 `PORT_WAIT = 0.5` 为限; ⛔ **没有上限的等待，就是 2026-10-19 让守护进程停下的东西** |
 | **打不开的端口把身势留在帧里**（0.19.15） | `test_stackchan_daemon.py` | 改由板子来演，房间照常继续 |
+| **没有回答的探针保留板子说过的话，被吞掉的问句会被再问一次**（0.19.33） | `test_stackchan_daemon.py` | ⛔ **仅有 `heard: false` 无法区分沉默与粘连的行**——身势或声音进行时，`ConsoleTask` 不读 |
 
 **另有二十一项守住客户端——钩子会运行的那个进程:**
 

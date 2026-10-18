@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: projects/stackchan-firmware/records/2026-10-19-the-bus-answered.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.1.0 | canonical: projects/stackchan-firmware/records/2026-10-19-the-bus-answered.md | translated: 2026-10-19 -->
 
 **Language:** [English](2026-10-19-the-bus-answered.md) | [日本語](2026-10-19-the-bus-answered-ja.md) | [中文](2026-10-19-the-bus-answered-zh.md)
 
@@ -48,14 +48,14 @@ The session sent one `PermissionRequest` and, 3.0 seconds later, one `SessionSta
 
 **Before this morning, the read-back had never carried a position.** The log read at 05:36 held **24 read-backs, 12 heard, 0 with a position** — a path that answered and a position that did not come.
 
-**Since the rail's power cycle (0.19.31) the log holds eight read-backs, and four carry a position**: `[28, 487]`, `[53, 487]`, `[328, 487]`, and the one quoted above. ⇒ **The path is not dead; its answer is intermittent.**
+**Since the rail's power cycle (0.19.31) the log holds thirteen read-backs, and six carry a position**: `[28, 487]`, `[53, 487]`, `[328, 487]` twice — one of them the one quoted above — and `[100, 487]` twice. ⇒ **The path is not dead; its answer is intermittent.** ⚠️ **What was counted**: every `{"position": …}` row in the installed daemon's log after the restart that followed the rail cycle — thirteen — including **questions this session sent on purpose in order to look**, and not counting the diagnostic run made later by hand, which wrote to its own log. **What was not counted**: why the seven that carried nothing carried nothing.
 
 ✅ **And the one number it brought agrees with another instrument.** The target was 350 tenths and the host read 328 — 2.2° short, about seven counts. **The board's own printing measured six to eight counts short of every goal the day before**, through a different route: the firmware reading the servo itself. **Two instruments, one number** — and ⛔ **neither is calibrated**, so agreement here is agreement in size, not accuracy.
 
 ## What this does not say
 
 - ⛔ **It is not the goal.** A head moving and a sound playing are the body; they are not evidence that anything is there. **The goal's record is a different file**, `projects/stackchan-firmware/records/2026-10-19-something-is-there.md`.
-- ⛔ **It does not say answering is now guaranteed.** Four of eight read-backs answered. **The other four were `heard: false`** — nothing that parsed as an answer arrived within `PORT_WAIT = 0.5` — and **the reason has not been separated**. ⚠️ **The glued-line mechanism found on the shared console the same day (`frame: refused (malformed)`) is the same console and may not be the same cause.**
+- ⛔ **It does not say answering is now guaranteed.** Six of thirteen read-backs carried a position. **The other seven were `heard: false`** — nothing that parsed as an answer arrived within `PORT_WAIT = 0.5` — and **the reason has not been separated**. ⚠️ **The glued-line mechanism found on the shared console the same day (`frame: refused (malformed)`) is the same console and may not be the same cause**: it was seen once and did not reproduce in thirty trials. **Until 0.19.33 a `heard: false` row named only the absence** — it could not say what the board had actually sent. ⚠️ **The probe now keeps the text it saw** (`"read"`), so the next failure is a sentence from the board rather than a silence.
 - ⚠️ **It does not describe the motion.** Nobody has said whether 22 of 23 poses applied late read as smooth this time; that question was asked of a different gesture, in a different file.
 - ⚠️ **It does not connect the two answers to the two moves.** The first report and the second check were minutes apart; the words the author gave cannot be matched to a particular frame by this file.
 

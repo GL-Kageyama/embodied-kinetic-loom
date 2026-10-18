@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.26.0 | canonical: tests/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.27.0 | canonical: tests/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Thirty-five files, five hundred and ninety-four tests, all green — measured 2026-10-19.**
+**Thirty-five files, five hundred and ninety-six tests, all green — measured 2026-10-19.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -210,7 +210,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | no machine-1 name or number is in the package | `test_stackchan_behaviors.py` | over **AST identifiers and numeric constants**, not text — and it also asserts that no `motions/` directory exists |
 | the parser builds in three languages, and the help differs | `test_stackchan_behaviors.py` | the same assertion `test_strings.py` makes for the Pet's entry point |
 
-**Thirty-six more hold the daemon — the process that keeps the phase between hook processes:**
+**Thirty-seven more hold the daemon — the process that keeps the phase between hook processes:**
 
 | the check | where | what it is for |
 |---|---|---|
@@ -231,6 +231,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | **one stream opens the port once, not once per pose** (0.19.15) | `test_stackchan_daemon.py` | ⛔ **the open/write/close loop was measured to wedge the daemon inside `open()`** — where no signal reaches it |
 | **a port that takes nothing ends the stream** (0.19.15) | `test_stackchan_daemon.py` | each write is bounded by `PORT_WAIT = 0.5`; ⛔ **waiting with no upper limit is what stopped the daemon on 2026-10-19** |
 | **a port that cannot be opened leaves the gesture in the frame** (0.19.15) | `test_stackchan_daemon.py` | the board plays it instead, and the room carries on |
+| **an unanswered probe keeps what the board said, and a swallowed query is asked once more** (0.19.33) | `test_stackchan_daemon.py` | ⛔ **`heard: false` alone cannot tell silence from a merged line** — `ConsoleTask` does not read while a gesture or a sound plays |
 
 **Twenty-one more hold the client — the process a hook would run:**
 

@@ -128,7 +128,9 @@ def test_an_unanswered_query_is_written_and_not_believed(tmp_path, capsys):
     assert neck._fd is None, "演じさせた後も、ポートを握っている"
 
     rows = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
-    assert rows == [{"position": None, "heard": False, "at": 0.0}]
+    assert rows == [
+        {"position": None, "heard": False, "read": "bench pos\n", "at": 0.0}
+    ]
 
 
 def test_the_console_can_answer_without_a_position(tmp_path, capsys):
@@ -142,7 +144,14 @@ def test_the_console_can_answer_without_a_position(tmp_path, capsys):
 
     assert neck.take(_first(neck), 0.0) is False
     rows = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
-    assert rows == [{"position": None, "heard": True, "at": 0.0}]
+    assert rows == [
+        {
+            "position": None,
+            "heard": True,
+            "read": "bench: yaw=no answer pitch=no answer\nbench pos\n",
+            "at": 0.0,
+        }
+    ]
 
 
 def test_the_probe_is_bounded_by_port_wait(tmp_path):
