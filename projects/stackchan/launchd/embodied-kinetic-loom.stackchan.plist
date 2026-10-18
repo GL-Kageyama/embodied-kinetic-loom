@@ -17,13 +17,20 @@
              when the board is plugged in, it is this line that changes. -->
         <string>--port</string>
         <string>/dev/cu.usbmodem101</string>
+        <!-- ⚠️ The speaker is on since 0.19.25. The quiet hours are not named here:
+             the daemon reads the hour off its own wall clock and closes the sound
+             field between 21:00 and 05:00, and nothing else. A switch is a decision;
+             an hour is a rule. -->
+        <string>--sound</string>
+        <string>on</string>
     </array>
 
     <key>WorkingDirectory</key>
     <string>/Users/user/AI創作工房/embodied-kinetic-loom</string>
 
-    <!-- It starts at login and comes back when it falls. ⚠️ It writes words to machine 2's
-         console and nothing else: no pose line leaves this process, and no number is invented. -->
+    <!-- It starts at login and comes back when it falls. ⚠️ It writes the frame line to
+         machine 2's console, and for a gesture it streams that gesture's pose line from
+         its own select loop; no number is invented. -->
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>

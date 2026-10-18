@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.16.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.17.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -86,7 +86,7 @@
 
 ⛔ **There is no "silent mode" here, because the name would be false.** The servos are audible. **Motion and sound are two axes, not one enum**, and the face and the light obey neither — they make no noise.
 
-✅ **Since 2026-10-19 the speaker has an hour as well as a switch.** `projects/stackchan/quiet.py` answers one question — **is this hour between 21:00 and 05:00?** — and the daemon reads the wall clock once per event and passes the answer down as a value (`Room.offer(..., quiet=)`). ⛔ **The core still reads no clock.** ⚠️ **Quiet closes the sound field and nothing else**: the face, the light and the neck are unchanged — **being silent is not being absent.** ⚠️ **The boundaries are whole hours and minutes are not carried**: 20:59 is day, 21:00 is quiet, 05:00 is day again.
+✅ **Since 2026-10-19 the speaker has an hour as well as a switch.** `projects/stackchan/quiet.py` answers one question — **is this hour between 21:00 and 05:00?** — and the daemon reads the wall clock once per event and passes the answer down as a value (`Room.offer(..., quiet=)`). ⛔ **The core still reads no clock.** ⚠️ **Quiet closes the sound field and nothing else**: the face, the light and the neck are unchanged — **being silent is not being absent.** ⚠️ **The boundaries are whole hours and minutes are not carried**: 20:59 is day, 21:00 is quiet, 05:00 is day again. ✅ **And since 0.19.26 the installed job names `--sound on`** — the author asked — so the daytime speaks and the night does not; ⛔ **the job names no hour**, because the hour lives in `quiet.py` alone.
 
 ✅ **The light is semantic, not RGB.** `Light` is `off`, `dim`, `breathe`, `warm`, `alert` or `error`; the mapping to twelve pixels is firmware's job, and **the LED order and colour order of this unit are in no record here.** The stock firmware exposes `set_led_color`; this layer does not call it.
 

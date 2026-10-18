@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.25.0 | canonical: tests/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.26.0 | canonical: tests/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Thirty-three files, five hundred and seventy-three tests, all green — measured 2026-10-19.**
+**Thirty-four files, five hundred and seventy-seven tests, all green — measured 2026-10-19.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -415,6 +415,8 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | the rule is named once | ⚠️ `21` and `5` live in `quiet.py`; **`__main__.py` carries no number** |
 
 ⛔ **Nothing here opens a port, and nothing here hears anything.** A closed field is counted; **whether the speaker is silent is not something a host can measure** — the ear is the instrument, and it has not yet heard a quiet night.
+
+✅ **Since 0.19.26 four more tests read the copy of the installed job** — `tests/test_stackchan_launchd.py`: the plist parses and names its label, the speaker is `--sound on`, the hour is not written into the job, and the port is named once. ⚠️ **A copy is not an installation** — the suite can say what the repository holds, never what launchd loaded.
 
 ## The rule that holds this directory — applied to us
 
