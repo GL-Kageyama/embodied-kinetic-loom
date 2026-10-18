@@ -34,7 +34,7 @@
 | 画面 | 無音 | 常に | 顔。直視したときの情報 |
 | LED ×12 | 無音 | 常に | 呼吸・暖色・注意・消灯。**周辺視で「生きている」** |
 | 首（2軸） | サーボ音 | on | **遷移のときだけ** |
-| スピーカー | 有音 | off | ⛔ **まだ無い**（スピーカーは未検証） |
+| スピーカー | 有音 | off | 遷移の4つに1語ずつ。✅ **2026-10-18 に着いた**——語は `hello` / `pip` / `chime` / `fall` |
 
 ⛔ **「無音モード」という名前は無い。** サーボは鳴る。
 **音と運動は別の軸であり、1つの enum に畳まない。**
@@ -53,6 +53,9 @@
 ⇒ **この層が返す `gesture` は記号であり、`sent` は常に `False` である。**
 **数の無い記号を送ったことにしない**——それが `no-intent` だった理由を、
 この版は `sent=False` という1つの欄で言う。
+
+⛔ **`sound` も同じである。** 語は音の名前であり、**周波数はこの層に無い**——
+語から音への表はファームに在り、**この機体の耳で決まる**（身振りと同じ規則）。
 """
 
 from __future__ import annotations
@@ -92,6 +95,12 @@ class Light(Enum):
 
 #: ⛔ **候補語である。** 語彙表の行ではない——**数になった日に、行が書かれる。**
 GESTURES: tuple[str, ...] = ("look_up", "nod", "look_side", "rest", "recoil")
+
+#: ✅ **2026-10-18 の語である。** 音の名前であり、周波数でも長さでもない。
+#: ⚠️ **鳴る理由が1つずつ違う**——挨拶（`SessionStart`）・人を要る瞬間
+#: （`PermissionRequest`）・終わり（`Stop`）・失敗（`StopFailure`）である。
+#: ⛔ **`SessionEnd` は鳴らない。** 去る窓に声をかけても、聞く人がいない。
+SOUNDS: tuple[str, ...] = ("hello", "pip", "chime", "fall")
 
 #: ✅ **作者の決定、2026-10-18。** 運動は既定で入り、音は既定で出ない。
 DEFAULT_MOTION = True
@@ -163,6 +172,8 @@ class Decision:
     """**1つの事象（または1つの刻み）に対する、1つの答え。**
 
     ⚠️ `face` が `None` なら顔は変わらない。`gesture` が `None` なら身振りは選ばれていない。
+    ⚠️ `sound` は**語か `None`** である——`None` は「この判定は鳴らない」であり、
+    **チャンネルが切られているときも `None`** になる（切れていることは語にならない）。
     ⛔ **`sent` は常に `False` である**——**機体2へ渡す数が1つも無いからである。**
     `body` は体の欄であり、`reason` は判定の理由である。**2つは別の軸である。**
     """
@@ -173,7 +184,7 @@ class Decision:
     light: Light
     gesture: str | None
     body: str
-    sound: bool
+    sound: str | None
     sent: bool
     reason: str
 
@@ -255,7 +266,7 @@ class Companion:
             light=self._light,
             gesture=None,
             body=BODY_NONE,
-            sound=False,
+            sound=None,
             sent=False,
             reason=reason,
         )
@@ -303,7 +314,7 @@ class Companion:
         if reaction.kind is hooks.Kind.IGNORED:
             return self._decision(
                 event, face=woke_face, light=self._light,
-                gesture=None, body=BODY_NONE, sound=False, reason=IGNORED,
+                gesture=None, body=BODY_NONE, sound=None, reason=IGNORED,
             )
 
         return self._evidence(event, at, woke_face)
@@ -321,16 +332,22 @@ class Companion:
         self._idle_until = at + IDLE_SECONDS
         return self._decision(
             event, face=None, light=self._light,
-            gesture=None, body=BODY_NONE, sound=False, reason=DISTANT,
+            gesture=None, body=BODY_NONE, sound=None, reason=DISTANT,
         )
 
     def _transition(self, event: str, at: float) -> Decision:
+        # ⚠️ **音は、この4つの遷移に1つずつ在る。** `UserPromptSubmit` は鳴らない——
+        #    人はいま自分で喋った。`SessionEnd` も鳴らない——去る窓に声をかけない。
+        # ⛔ **音は体の下限に従わない。** 別の軸である（「音と運動は別」）。
+        sound: str | None = None
+
         if event == "SessionStart":
             self._phase = Phase.GREETING
             self._face = State.GREETING
             self._light = Light.WARM
             self._hold_until = at + EXPRESSION_SECONDS
             gesture, body = self._body("look_up", at)
+            sound = "hello"
 
         elif event == "UserPromptSubmit":
             self._phase = Phase.WORKING
@@ -347,6 +364,7 @@ class Companion:
             self._face = State.CURIOUS
             self._light = Light.ALERT
             gesture, body = self._body("look_side", at)
+            sound = "pip"
 
         elif event == "Stop":
             long_turn = (
@@ -362,6 +380,7 @@ class Companion:
             self._concerned = False
             # ⚠️ **短いターンは、締めのうなずきを省く。** 返事に挨拶を重ねない。
             gesture, body = self._body("nod", at) if long_turn else (None, BODY_NONE)
+            sound = "chime"
 
         elif event == "StopFailure":
             self._phase = Phase.CLOSING
@@ -372,6 +391,7 @@ class Companion:
             self._failures = 0
             self._concerned = False
             gesture, body = self._body("recoil", at)
+            sound = "fall"
 
         else:  # SessionEnd
             self._phase = Phase.RESTING
@@ -382,7 +402,7 @@ class Companion:
 
         return self._decision(
             event, face=self._face, light=self._light,
-            gesture=gesture, body=body, sound=self.sound, reason=ACTED,
+            gesture=gesture, body=body, sound=self._sound(sound), reason=ACTED,
         )
 
     def _evidence(self, event: str, at: float, woke_face: State | None) -> Decision:
@@ -404,7 +424,7 @@ class Companion:
                 self._light = Light.ALERT
                 return self._decision(
                     event, face=face, light=self._light,
-                    gesture=None, body=BODY_NONE, sound=False, reason=CONCERN,
+                    gesture=None, body=BODY_NONE, sound=None, reason=CONCERN,
                 )
 
         elif event == "PostToolUse":
@@ -418,7 +438,7 @@ class Companion:
 
         return self._decision(
             event, face=face, light=self._light,
-            gesture=None, body=BODY_NONE, sound=False, reason=OBSERVED,
+            gesture=None, body=BODY_NONE, sound=None, reason=OBSERVED,
         )
 
     # -- 部品 ---------------------------------------------------------------
@@ -447,6 +467,17 @@ class Companion:
         self._last_body = at
         return name, BODY_GESTURE
 
+    def _sound(self, word: str | None) -> str | None:
+        """**音の欄を決める。** ⚠️ **切られていれば、語は選ばれない。**
+
+        ⛔ **「切っている」を語にしない。** `None` は「鳴らない」であり、
+        切られていることも、この事象が音を持たないことも、同じ1つの値で言える。
+        2つを区別する必要が出た日に、欄が1つ増える——**いまは区別しない。**
+        """
+        if not self.sound:
+            return None
+        return word
+
     def _decision(
         self,
         event: str,
@@ -455,7 +486,7 @@ class Companion:
         light: Light,
         gesture: str | None,
         body: str,
-        sound: bool,
+        sound: str | None,
         reason: str,
     ) -> Decision:
         return Decision(
@@ -561,6 +592,7 @@ __all__ = [
     "Phase",
     "Light",
     "GESTURES",
+    "SOUNDS",
     "DEFAULT_MOTION",
     "DEFAULT_SOUND",
     "EXPRESSION_SECONDS",

@@ -313,3 +313,23 @@ void display::show(Face face) {
   face_bitmap::render(face, g_grey);
   Push();
 }
+
+bool display::pulse_amplifier_reset() {
+  if (g_aw9523 == nullptr) {
+    return false;
+  }
+  // ⚠️ The vendor's own pulse (stackchan.cc: Aw9523::ResetAw88298): P0.2 low
+  //    for 10 ms, high again, then 50 ms before the amplifier is spoken to.
+  //    The other two bits of port 0 are left high, as the constructor left them.
+  const uint8_t high = static_cast<uint8_t>(0b00000111);
+  const uint8_t low = static_cast<uint8_t>(high & ~(1u << board::kAmpResetBit));
+  if (!WriteReg(g_aw9523, 0x02, low)) {
+    return false;
+  }
+  vTaskDelay(pdMS_TO_TICKS(10));
+  if (!WriteReg(g_aw9523, 0x02, high)) {
+    return false;
+  }
+  vTaskDelay(pdMS_TO_TICKS(50));
+  return true;
+}

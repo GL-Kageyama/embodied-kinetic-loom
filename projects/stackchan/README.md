@@ -82,7 +82,7 @@
 | the screen | silent | always | the face — the information when you look |
 | **12 RGB LEDs** | **silent** | **always** | breathing, warmth, attention, dark — **presence in peripheral vision** |
 | the neck (2 axes) | servo noise | `--motion on` | **only at transitions** |
-| the speaker | audible | `--sound off` | ⛔ **it does not exist yet** |
+| the speaker | audible | `--sound off` | **one word at four of the six transitions** — `hello`, `pip`, `chime`, `fall`; the board plays it |
 
 ⛔ **There is no "silent mode" here, because the name would be false.** The servos are audible. **Motion and sound are two axes, not one enum**, and the face and the light obey neither — they make no noise.
 
@@ -157,15 +157,15 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ✅ **The client sends the event name and the window's name — and not the prompt.** The daemon stamps the time when the line arrives, so the client carries no clock and no state. The robot needs to know that a turn began, not what was said; it needs the window's name only because windows share one body. **Privacy by construction, not by policy.** ⚠️ **The start-and-stop design is `docs/stackchan-daemon.md`** — **the loop, the socket, the client, the launchd job and the registration in `settings.json` are all built and installed on this host.**
 
-⚠️ **And the device path is still mostly missing:** a renderer for the display, and a sound. ✅ **The LEDs have a driver and the transport is chosen** — both below. **This layer's output is a `Decision`; its consumers are the terminal, the daemon, and — through the daemon, one line per frame — the board.**
+✅ **And the device path is no longer missing a part:** the LEDs have a driver, the display a renderer since 0.19.12, the speaker a voice since 0.19.13, and the transport is chosen — all beneath this package, in `projects/stackchan-firmware/`. **This layer's output is a `Decision`; its consumers are the terminal, the daemon, and — through the daemon, one line per frame — the board.**
 
-✅ **Since 2026-10-18 the frame it would be sent in exists as source** — `engine/backend/protocol_stackchan.py` encodes and decodes one ASCII line, and `schemas/stackchan-command.schema.json` is the contract both ends read. ✅ **The transport is chosen and connected** — `--port`, one line per frame, the port named in the installed plist. ✅ **And the board acts on the gesture word**: `projects/stackchan-firmware/` carries five postures measured on the unit (`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`). ⛔ **The wire still carries no number from this layer** — the words go out, and the machine turns them into counts.
+✅ **Since 2026-10-18 the frame it would be sent in exists as source** — `engine/backend/protocol_stackchan.py` encodes and decodes one ASCII line, and `schemas/stackchan-command.schema.json` is the contract both ends read. ✅ **The transport is chosen and connected** — `--port`, one line per frame, the port named in the installed plist. ✅ **And the board acts on the gesture word**: `projects/stackchan-firmware/` carries five postures measured on the unit (`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`). ✅ **Since 0.19.13 the fourth field carries a word too** — `sound`, from the closed set of four — and the board turns it into tones (`records/2026-10-18-the-voice.md`). ⛔ **The wire still carries no number from this layer** — the words go out, and the machine turns them into counts.
 
 ## What leaves the room
 
-✅ **`projects/stackchan/outbound.py` turns a `Decision` into a `Frame`** — a face (or `null`), a light, and a gesture (or `null`). **It is pure, it holds no clock, and it names no machine.**
+✅ **`projects/stackchan/outbound.py` turns a `Decision` into a `Frame`** — a face (or `null`), a light, a gesture (or `null`), and a sound (or `null`). **It is pure, it holds no clock, and it names no machine.**
 
-- **A frame is emitted when what the machine should show changes** — a face, a light — **or a gesture was chosen, or it is the process's first decision.** ⛔ **The first decision is always emitted, because the machine's state before it is unknown**; a face the decision does not name is filled in from the frame's own state, so the machine never has to remember what it was showing.
+- **A frame is emitted when what the machine should show changes** — a face, a light — **or a gesture was chosen, or a sound is named, or it is the process's first decision.** ⛔ **A sound is an event and not a state**: the light is remembered and re-sent, a sound is not, and `null` in that field means *this frame is silent*. ⛔ **The first decision is always emitted, because the machine's state before it is unknown**; a face the decision does not name is filled in from the frame's own state, so the machine never has to remember what it was showing.
 - ⛔ **The event's reason does not partition state changes.** A `PostToolUse` inside `blocked` returns the phase to `working` with reason `OBSERVED`, and the light may not move; a concern changes the light and not the phase. **Counting frames by event kind would have emitted frames that carried no change and missed changes that carried no transition.** So the rule reads the state, not the reason.
 - ⚠️ **This is not a stream.** A hundred evidence events inside one phase produce one frame.
 - **The daemon writes the frame as a row** — `{"frame": "<one ASCII line>", "sent": false, "at": …, "session": …}` — and the line is produced by the same codec the wire tests hold, **so the log cannot drift from the contract.**
@@ -187,7 +187,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ## What is checked
 
-**`tests/test_stackchan_behaviors.py` holds thirty-four claims, `tests/test_stackchan_daemon.py` holds twenty-six, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds twenty-five, and `tests/test_stackchan_outbound.py` holds ten**, and they run with the rest of the suite:
+**`tests/test_stackchan_behaviors.py` holds thirty-five claims, `tests/test_stackchan_daemon.py` holds twenty-six, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds twenty-eight, and `tests/test_stackchan_outbound.py` holds thirteen**, and they run with the rest of the suite:
 
 - the list is 33 and none is repeated; every event has exactly one of three kinds, and the kinds partition it;
 - every event carries a reason code — **there is no blank**;
@@ -201,7 +201,8 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - an expression expires and returns to `present`;
 - a gesture inside the cooldown is dropped **while the light still changes**;
 - motion off keeps the face and the light;
-- sound is off by default and follows transitions only;
+- sound is off by default, and carries one word on four of the six transitions — the other two are silent;
+- every sound word the layer can choose is one the wire's closed set names;
 - **no gesture is ever sent** — `sent` is `False` on every line;
 - **with more than one window, the first to speak takes the gaze**, a person's act in another window moves it, a tool call and a background `Stop` do not, and a background `PermissionRequest` steals it;
 - **the rule does not count to two**: three windows behave by the same rule;
@@ -237,21 +238,24 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - **one daemon carries the phase across two separate processes**: a `SessionStart` in one and a `Stop` in the next read `greeting` then `closing`, though neither process held any state;
 - **two windows through two clients keep one gaze**, and a background `Stop` is reported as `distant` without changing the phase.
 
-**The wire adds twenty-five more** — the frame, its contract and the machine's end of it:
+**The wire adds twenty-eight more** — the frame, its contract and the machine's end of it:
 
-- 216 frames round-trip — **150 of them carrying no `null`** — and not one carries a number;
+- 1,080 frames round-trip — **125 of them carrying no `null`** — and not one carries a number;
 - a frame is one ASCII line, and a `null` field is present as a value rather than missing;
 - an unknown key is refused (`prompt` cannot ride along), an unknown word is refused per field, and `light` is required and never `null`;
+- **`sound` is required, may be `null`, and its values are the four words** — `null` is *this frame is silent*, not *keep the last one*;
 - the encoder refuses exactly what the decoder refuses;
 - the contract, the codec and the firmware literals spell the same words, and **the firmware contains no angle for either machine**;
 - the wire imports only `json` and `dataclasses`, and **imports nothing from machine 1's `protocol`**;
 - the mock records what would have been sent and answers nothing.
 
-**The outbound frame adds ten more** — what the room decides to put in front of the machine, before there is a wire:
+**The outbound frame adds thirteen more** — what the room decides to put in front of the machine, before there is a wire:
 
 - the first decision always emits, and fills in a face it did not name;
 - a decision that changes nothing emits no frame — **a hundred evidence events produce one**;
 - a change of light alone emits a frame with `face: null`, and a gesture alone emits a frame;
+- **a sound alone emits a frame, and the frame is not repeated** — `Outbound` remembers no sound, where it remembers the light;
+- each transition carries its own word, and two are silent;
 - every emitted frame parses against the contract and round-trips on the codec;
 - **no field of a frame is a number.**
 
@@ -262,7 +266,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - **No counts for machine 2.** The five gestures are words; the counts they become live with the machine (`projects/stackchan-firmware/main/main.cpp`, measured 2026-10-18), never in this package. `projects/pet/motions/greeting.json` is machine 1's counts, and borrowing it would make this layer claim motion that will not happen. ⚠️ **`neck/` receives two poses as arguments** — the caller names them, and the package stores none.
 - **No frame carrying a number.** ✅ **The transport exists and the board acts on a frame**, but what crosses is words — a face, a light, a gesture. **No count from the layer above the wire reaches it.** ⚠️ **The pose line does carry numbers, and since 0.19.10 `neck/` writes it** — with both endpoints supplied by the caller, never chosen here.
 - **No display renderer, and no LED driver in this package.** ✅ **The twelve LEDs have a driver, and it is the firmware's** (`projects/stackchan-firmware/main/leds.cpp`) — this layer sends the word `warm` and never a pixel. **The display has none**: the face is still a meaning, and nothing in this package paints it.
-- **No sound.** `--sound on` names a channel that does not exist, and the speaker has never been verified on this unit.
+- **No frequency and no tone table.** ✅ **The speaker exists since 0.19.13** — `--sound on` lets the layer name one of four words, and the firmware's `sound.cpp` turns a word into tones. ⛔ **The tones are choices, not measurements**, and the word-to-tone mapping is the board's: this package selects a word and never a waveform.
 - **No head-touch input.** The sensor works on this unit (observed in AI.AGENT, 2026-10-18), but it is machine input, and a firmware would have to read it. **A hook is not a head.**
 - **No live installation in this directory.** The plist here is a copy, and `settings.json` is not in the repository at all; both are recorded in `docs/stackchan-daemon.md`.
 - **No record in this directory.** `projects/` holds work, and since 2026-10-18 it holds three records — all under `projects/stackchan-firmware/records/` — but **none of them is this layer observing a machine**: they record what a session saw while driving the firmware from its console.

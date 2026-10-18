@@ -17,12 +17,16 @@
 続く状態ではない**——だから、遅れて届いた身振りというものが存在しない
 （クールダウンで落ちたものは、`gesture: null` として届く）。
 
-⚠️ **欄は3つとも常に在る。** 省略しないのは、**枠を自己記述にするためである**——
+⚠️ **欄は4つとも常に在る。** 省略しないのは、**枠を自己記述にするためである**——
 `null` は「変えない」という値であって、欠けた欄ではない。
 **欠けた欄は、受け取る側が前の値で埋めてしまう。**
 
-⛔ **`sound` は無い。** スピーカーはまだ存在しないチャンネルである——存在しない欄を
-契約に置くと、誰かが既定値で埋める（`schemas/stackchan-command.schema.json` を見よ）。
+✅ **`sound` は 2026-10-18 に着いた**——⚠️ **語彙が先で、欄が後である。**
+この欄が運ぶのは**音の名前**であり、周波数でも長さでもない。語から音への表は
+ファームウェアに在り、**この機体の耳で1つずつ決められる**（身振りと同じ規則）。
+⛔ **`sound` は状態ではない。** 顔と光は「いま何であるか」だが、音は**事象**である——
+だから `null` は「変えない」ではなく、**「この枠は鳴らない」**である。
+⚠️ 同じ語が2つの枠に続けて載ることはない（`projects/stackchan/outbound.py`）。
 
 ⚠️ **このモジュールは輸入を持たない**（`json` と `dataclasses` だけ）。時計も、ソケットも、
 環境も読まない——**純粋な関数である**（`tools/purity.py` の一覧を見よ）。
@@ -36,6 +40,7 @@ __all__ = [
     "FACES",
     "LIGHTS",
     "GESTURES",
+    "SOUNDS",
     "MAX_LINE",
     "Command",
     "FrameRefused",
@@ -57,12 +62,17 @@ LIGHTS: tuple[str, ...] = ("off", "dim", "breathe", "warm", "alert", "error")
 #: **数になった日に、行が書かれる。**
 GESTURES: tuple[str, ...] = ("look_up", "nod", "look_side", "rest", "recoil")
 
-#: ⚠️ **枠の上限である。** 最長の枠は、5文字の顔・6文字の光・6文字の身振りで、
-#: 区切りと鍵を足しても100バイトに届かない——**256は、桁が違う側の余裕である。**
+#: ✅ **2026-10-18 の語である。** 音の名前であり、音そのものではない。
+#: ⚠️ **4つとも、鳴る理由が1つずつ違う**——挨拶・人を要る瞬間・終わり・失敗である。
+#: ⛔ **ここに周波数は無い。** 語から音への表はファームに在り、この機体の耳で決まる。
+SOUNDS: tuple[str, ...] = ("hello", "pip", "chime", "fall")
+
+#: ⚠️ **枠の上限である。** 最長の枠は、5文字の顔・6文字の光・6文字の身振り・
+#: 5文字の音で、区切りと鍵を足しても120バイトに届かない——**256は、桁が違う側の余裕である。**
 #: ⛔ **これは機体の測定ではない**——プロトコルの縛りである。
 MAX_LINE = 256
 
-_KEYS = frozenset({"face", "light", "gesture"})
+_KEYS = frozenset({"face", "light", "gesture", "sound"})
 
 
 class FrameRefused(ValueError):
@@ -83,13 +93,14 @@ class FrameRefused(ValueError):
 class Command:
     """**機体2へ向かう1つの枠。**
 
-    ⛔ **数が1つも無い。** `light` は常にあり、`face` と `gesture` は `None` を取りうる——
-    `None` は「変えない」であり、欠けた欄ではない。
+    ⛔ **数が1つも無い。** `light` は常にあり、`face` と `gesture` と `sound` は `None` を取りうる——
+    `None` は「変えない」（音では「鳴らない」）であり、欠けた欄ではない。
     """
 
     light: str
     face: str | None = None
     gesture: str | None = None
+    sound: str | None = None
 
 
 def _checked(command: Command) -> dict:
@@ -104,11 +115,18 @@ def _checked(command: Command) -> dict:
         raise FrameRefused("unknown-value", "face", command.face)
     if command.gesture is not None and command.gesture not in GESTURES:
         raise FrameRefused("unknown-value", "gesture", command.gesture)
-    return {"face": command.face, "light": command.light, "gesture": command.gesture}
+    if command.sound is not None and command.sound not in SOUNDS:
+        raise FrameRefused("unknown-value", "sound", command.sound)
+    return {
+        "face": command.face,
+        "light": command.light,
+        "gesture": command.gesture,
+        "sound": command.sound,
+    }
 
 
 def encode(command: Command) -> bytes:
-    """**1つの枠を、1行にする。** ⚠️ **改行で終わる。** 鍵は常に3つとも書く。
+    """**1つの枠を、1行にする。** ⚠️ **改行で終わる。** 鍵は常に4つとも書く。
 
     ⛔ **バイト列にするのは、ここだけである**——`Command` は行を持たない。
     """
@@ -152,7 +170,10 @@ def decode(line: bytes) -> Command:
     face = body["face"]
     light = body["light"]
     gesture = body["gesture"]
-    for name, value in (("face", face), ("light", light), ("gesture", gesture)):
+    sound = body["sound"]
+    for name, value in (
+        ("face", face), ("light", light), ("gesture", gesture), ("sound", sound)
+    ):
         if value is not None and not isinstance(value, str):
             raise FrameRefused("bad-type", name, type(value).__name__)
     if light is None:
@@ -163,4 +184,6 @@ def decode(line: bytes) -> Command:
         raise FrameRefused("unknown-value", "face", face)
     if gesture is not None and gesture not in GESTURES:
         raise FrameRefused("unknown-value", "gesture", gesture)
-    return Command(light=light, face=face, gesture=gesture)
+    if sound is not None and sound not in SOUNDS:
+        raise FrameRefused("unknown-value", "sound", sound)
+    return Command(light=light, face=face, gesture=gesture, sound=sound)

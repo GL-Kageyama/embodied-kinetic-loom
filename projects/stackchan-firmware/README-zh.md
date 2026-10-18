@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.5.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.6.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -12,15 +12,16 @@
 
 ## 帧携带什么
 
-**每条命令一行 JSON**，而命令在机体该显示的东西发生变化时到达——阶段、脸、光或选中的身势；这不是流。⚠️ **脖子只在阶段转换时动**: 身势只在那里被选中。契约是 `schemas/stackchan-command.schema.json`，两端都读它。
+**每条命令一行 JSON**，而命令在机体该显示的东西发生变化时到达——阶段、脸、光、选中的身势，或一个要说的词；这不是流。⚠️ **脖子只在阶段转换时动**: 身势只在那里被选中。契约是 `schemas/stackchan-command.schema.json`，两端都读它。
 
 | 栏 | 值 | 含义 |
 |---|---|---|
 | `face` | Pet 的五张脸，或 `null` | 显示这个表情。`null` = 不改变 |
 | `light` | `off` / `dim` / `breathe` / `warm` / `alert` / `error` | 始终存在，永不为 `null` |
 | `gesture` | `look_up` / `nod` / `look_side` / `rest` / `recoil`，或 `null` | 动脖子。`null` = 不动 |
+| `sound` | `hello` / `pip` / `chime` / `fall`，或 `null` | 播放这个词。`null` = 这一帧沉默 |
 
-⛔ **没有 `sound` 栏。** 扬声器是一个还不存在的通道。
+⚠️ **`sound` 是唯一一个属于事件而不属于状态的栏位**: `null` 不是*保持最后一个词*，而是*什么也不说*。⛔ **板子知道四个词，却对何时正确一无所知**——那由主机决定，映射在 `projects/stackchan/behaviors.py`。
 
 ## 厂商源码记录了什么
 
@@ -143,3 +144,22 @@
 ⚠️ **曾依第四份报告在 `face_bitmap.cpp` 里写下一个 `-2` 的行偏移，随后又移除。** ⛔ **`tests/test_stackchan_face.py` 的九项测试没有抓住它，因为它们跟着它一起动了。** 这个文件现在画的是原厂的行，并带着一段注释，说明为什么不该有偏移。
 
 **记录是 `records/2026-10-18-the-face.md`，观察是它的脊梁。**
+
+## 声音——2026-10-18
+
+✅ **基板播放第四个栏位，而作者四个词都听见了。** 放大器是 I²C `0x36` 上的 **AW88298**，坐在显示器已经拥有的总线上；它的复位是 **AW9523 的 P0.2**，所以 `display::pulse_amplifier_reset()` 持有那次脉冲，`sound` 回调进去——**一条总线，一个所有者。** 音频路径是 `I2S_NUM_0` 作主，**24,000 Hz、16 位立体声**，MCLK 256 × fs。
+
+| 什么 | 厂商的数 | 本仓库改动的 |
+|---|---|---|
+| 放大器的表 | 按顺序写八个寄存器，`0x00` 的 `0x55AA` 在前，其后 50 ms 的沉默 | ⛔ **没有——没有一个值是在这个个体上测得的** |
+| 采样率码 | `0x06` = `0x3CC8`，48,000 Hz 的码 | **`0x3CC5`**——速率码 5，手工写入，使码与 24,000 Hz 的流一致 |
+| 音量 | `0x0C` = `0x3064`，−18 dB | 无；`bench volume <0..100>` 只改写高字节 |
+| 引脚 | MCLK GPIO 0、BCLK 34、WS 33、DOUT 13（DIN 14 未用） | 无 |
+
+⛔ **速率码与采样率不一致，就是一条沉默、音高错误的通道，而板子上没有任何东西报告它**——所以改动的那一个数不留在源码里，而是在这里、在记录里被点名。
+
+⚠️ **四个音是选择，不是测量**——与十二颗 LED 的颜色同一地位。`hello` 上行，`pip` 是一个亮点，`chime` 上行且响得更久，`fall` 下行。**判定它们的只有一对耳朵**，而那个判定只是*被听见了*（`records/2026-10-18-the-voice-zh.md`）。
+
+⚠️ **`i2s_channel_write` 是在采样装进 DMA 缓冲时返回的，不是在音放完时返回的**——所以板子的 `playing` → `done` 不是音的长度，不能那样读。
+
+⛔ **`main/sound.cpp` 没有任何检查编译它。** `idf.py build` 是手工跑的；测试构建的是 `command_frame.cpp` 与 `face_bitmap.cpp`，这里没有任何东西构建 I²S 通道或放大器的启动。

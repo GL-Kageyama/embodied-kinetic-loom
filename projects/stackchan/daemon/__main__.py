@@ -105,7 +105,8 @@ def frame_line(frame: Frame) -> str:
     ⚠️ **ログに残る行と、端末へ書く行は、この1回の符号化から来る。**
     2回書けば、2つは同じに見えて、同じであることを誰も確かめていない。
     """
-    command = wire.Command(face=frame.face, light=frame.light, gesture=frame.gesture)
+    command = wire.Command(face=frame.face, light=frame.light, gesture=frame.gesture,
+                           sound=frame.sound)
     return wire.encode(command).decode("ascii")
 
 

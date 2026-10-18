@@ -150,17 +150,61 @@ def test_every_frame_the_room_can_make_is_in_the_contract():
         assert frame.face is None or frame.face in wire.FACES
         assert frame.light in wire.LIGHTS
         assert frame.gesture is None or frame.gesture in wire.GESTURES
+        assert frame.sound is None or frame.sound in wire.SOUNDS
 
 
 def test_every_frame_round_trips_on_the_wire():
     """⚠️ **枠は、そのまま1行になり、そのまま戻る。**"""
     for frame in _scripted_frames():
-        command = wire.Command(face=frame.face, light=frame.light, gesture=frame.gesture)
+        command = wire.Command(face=frame.face, light=frame.light,
+                               gesture=frame.gesture, sound=frame.sound)
         assert wire.decode(wire.encode(command)) == command
 
 
 def test_no_number_crosses():
-    """⛔ **3つの欄は、すべて語か `None` である。** 角度は1つも無い。"""
+    """⛔ **4つの欄は、すべて語か `None` である。** 角度も周波数も無い。"""
     for frame in _scripted_frames():
-        for value in (frame.face, frame.light, frame.gesture):
+        for value in (frame.face, frame.light, frame.gesture, frame.sound):
             assert value is None or isinstance(value, str)
+
+
+# ---------------------------------------------------------------------------
+# 音。✅ 2026-10-18 から、遷移の4つに1語ずつ載る。
+# ---------------------------------------------------------------------------
+
+
+def test_a_sound_alone_is_still_a_frame():
+    """⚠️ **状態が同じでも、音が選ばれていれば枠になる。** ⛔ 音は状態ではない。"""
+    companion = Companion(sound=True)
+    outbound = Outbound()
+    first = companion.offer("SessionStart", 0.0)
+    outbound.frame(first)
+
+    frame = outbound.frame(dataclasses.replace(first, sound="pip"))
+
+    assert frame == Frame(face=None, light="warm", gesture="look_up", sound="pip")
+
+
+def test_the_sound_is_off_until_the_switch_turns_it_on():
+    """⚠️ **既定は off である**（作者の決定、2026-10-18）。切られていれば語は選ばれない。"""
+    quiet = Companion().offer("SessionStart", 0.0)
+    assert quiet.sound is None
+
+    speaking = Companion(sound=True).offer("SessionStart", 0.0)
+    assert speaking.sound == "hello"
+
+
+def test_each_transition_carries_its_own_word():
+    """⚠️ **4つの遷移に4つの語、そして2つの遷移は黙る。**
+
+    ⛔ `UserPromptSubmit` は鳴らない——人はいま自分で喋った。`SessionEnd` も鳴らない——
+    去る窓に声をかけない。**「遷移なら鳴る」は規則ではない。**
+    """
+    companion = Companion(sound=True)
+    assert companion.offer("SessionStart", 0.0).sound == "hello"
+    assert companion.offer("UserPromptSubmit", 1.0).sound is None
+    assert companion.offer("PermissionRequest", 2.0).sound == "pip"
+    assert companion.offer("PostToolUse", 3.0).sound is None
+    assert companion.offer("Stop", 30.0).sound == "chime"
+    assert companion.offer("StopFailure", 31.0).sound == "fall"
+    assert companion.offer("SessionEnd", 32.0).sound is None

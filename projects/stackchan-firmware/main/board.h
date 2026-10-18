@@ -29,6 +29,8 @@ constexpr int kExpanderAddress = 0x6F;  // PY32IOExpander_Class::DEFAULT_ADDRESS
 
 // --- the expander's pins (vendor: hal_io_expander.cpp) ---
 constexpr int kServoPowerPin = 0;
+// ⚠️ A pin number on the expander, not an ESP32 GPIO — the two numbers happen to
+//    be 13 and mean different wires. GPIO 13 is the I2S data line, below.
 constexpr int kLedDataPin = 13;
 constexpr int kLedCount = 12;
 
@@ -45,6 +47,24 @@ constexpr int kDisplayHeight = 240;
 // --- the two other devices on the I2C bus (vendor: stackchan.cc) ---
 constexpr int kAw9523Address = 0x58;    // the display's reset line
 constexpr int kAxp2101Address = 0x34;   // the backlight rail (DLDO1)
+
+// --- the speaker (vendor: hal/board/config.h and cores3_audio_codec.cc) ---
+// ⚠️ 24,000 Hz, 16-bit stereo, the ESP32-S3 as I2S master. These are the
+//    vendor's numbers, read on 2026-10-18; ⛔ none of them was measured here.
+constexpr int kAudioSampleRate = 24000;
+constexpr int kAudioMclkMultiple = 256;  // I2S_MCLK_MULTIPLE_256
+constexpr int kAudioMclk = 0;            // GPIO 0
+constexpr int kAudioBclk = 34;           // GPIO 34
+constexpr int kAudioWs = 33;             // GPIO 33
+constexpr int kAudioDout = 13;           // GPIO 13
+constexpr int kAudioDin = 14;            // GPIO 14 — the microphone; unused here
+// ⚠️ The amplifier answers at 0x36 on the same bus as the display's two chips.
+constexpr int kAw88298Address = 0x36;
+// ⚠️ Its reset line is P0.2 on the AW9523 — the expander the display already
+//    owns. ⛔ Not a GPIO: the pulse is an I2C write, and `display` holds the
+//    handle. `sound::begin()` calls back into it rather than opening the
+//    expander a second time.
+constexpr int kAmpResetBit = 2;  // AW9523 port 0, bit 2
 
 // --- the scale (vendor: hal_servo.cpp, `set_angle_impl`) ---
 //   raw = zero + angle * 16 / 5 / 10,  with angle in 0.1 degree

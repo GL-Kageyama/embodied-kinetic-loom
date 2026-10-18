@@ -45,6 +45,8 @@ FACE_WIDTH = 9
 LIGHT_WIDTH = 8
 BODY_WIDTH = 9
 GESTURE_WIDTH = 7
+#: ⚠️ **最長の音の語は5文字である**（`chime`）。列の幅は語から来ており、数ではない。
+SOUND_WIDTH = 5
 TIME_WIDTH = 9
 
 
@@ -176,19 +178,20 @@ def trace_lines(rows: list[dict]) -> list[str]:
     lines = [
         f"{'at':>{TIME_WIDTH}}  {'who':<{SESSION_WIDTH}}  {'event':<{EVENT_WIDTH}}  "
         f"{'phase':<{PHASE_WIDTH}}  {'face':<{FACE_WIDTH}}  {'light':<{LIGHT_WIDTH}}  "
-        f"{'body':<{BODY_WIDTH}}  {'gest':<{GESTURE_WIDTH}}  snd  reason"
+        f"{'body':<{BODY_WIDTH}}  {'gest':<{GESTURE_WIDTH}}  {'snd':<{SOUND_WIDTH}}  reason"
     ]
     for row in rows:
         session = row["session"] or "(tick)"
         event = row["event"] or "-"
         face = row["face"] or "-"
         gesture = row["gesture"] or "-"
+        sound = row["sound"] or "-"
         lines.append(
             f"{row['at']:>{TIME_WIDTH}.3f}  {session:<{SESSION_WIDTH}}  "
             f"{event:<{EVENT_WIDTH}}  "
             f"{row['phase']:<{PHASE_WIDTH}}  {face:<{FACE_WIDTH}}  "
             f"{row['light']:<{LIGHT_WIDTH}}  {row['body']:<{BODY_WIDTH}}  "
-            f"{gesture:<{GESTURE_WIDTH}}  {'yes' if row['sound'] else '-':<3}  "
+            f"{gesture:<{GESTURE_WIDTH}}  {sound:<{SOUND_WIDTH}}  "
             f"{row['reason']}"
         )
         if row["face"] is not None:

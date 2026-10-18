@@ -20,4 +20,9 @@ bool begin();
 // draw a sixth face.
 void show(Face face);
 
+// ⚠️ The AW88298's reset line is P0.2 on the AW9523 — the expander this module
+//    already owns. The speaker asks for that pulse here rather than opening the
+//    expander twice: one bus, one owner. False if this module never came up.
+bool pulse_amplifier_reset();
+
 }  // namespace display

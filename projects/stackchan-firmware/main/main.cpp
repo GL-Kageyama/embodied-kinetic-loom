@@ -13,6 +13,8 @@
 //   - plays the contract's `gesture` word from a table measured on this unit
 //     with the author's eye (2026-10-18) — one posture per gesture, and `nod`
 //     goes down and comes back;
+//   - plays the contract's `sound` word — four tones, this repository's choice,
+//     through the AW88298 the board carries behind its speaker;
 //   - answers `bench` commands from the USB Serial/JTAG console, which is how the
 //     first arrival is meant to be watched: one person types, one head turns;
 //   - applies the second line type, `pose <yaw_tenths> <pitch_tenths>*<CC>`, one
@@ -38,6 +40,7 @@
 #include "display.h"
 #include "leds.h"
 #include "servo.h"
+#include "sound.h"
 #include "zeros.h"
 
 namespace {
@@ -78,6 +81,7 @@ int g_pitch_zero = board::kPitchZeroDefault;
 bool g_zeros_from_nvs = false;
 
 bool g_servos_ready = false;
+bool g_sound_ready = false;  // ⚠️ a silent board must not stop the neck
 
 int RawFromAngle(int zero, int angle_tenths) {
   // The vendor's own formula, in 0.1-degree units.
@@ -126,6 +130,17 @@ const char* GestureName(Gesture gesture) {
   return "?";
 }
 
+const char* SoundName(Sound sound) {
+  switch (sound) {
+    case Sound::kNone: return "none";
+    case Sound::kHello: return "hello";
+    case Sound::kPip: return "pip";
+    case Sound::kChime: return "chime";
+    case Sound::kFall: return "fall";
+  }
+  return "?";
+}
+
 const char* ParseResultName(ParseResult result) {
   switch (result) {
     case ParseResult::kOk: return "ok";
@@ -142,7 +157,7 @@ const char* ParseResultName(ParseResult result) {
 
 void PrintHelp() {
   printf("commands\n");
-  printf("  {\"face\":...,\"light\":...,\"gesture\":...}  one frame from the wire\n");
+  printf("  {\"face\":...,\"light\":...,\"gesture\":...,\"sound\":...}  one frame from the wire\n");
   printf("  pose <yaw_tenths> <pitch_tenths>*<CC>   one pose per tick; 500 ms of silence releases torque\n");
   printf("  bench pos                 present positions\n");
   printf("  bench scan                which servo ids answer, 1..12\n");
@@ -155,6 +170,8 @@ void PrintHelp() {
   printf("  bench release             torque off — the head goes limp\n");
   printf("  bench power on|off        the servo rail — the only stop this machine has\n");
   printf("  bench leds                read the expander back, then set all twelve full red\n");
+  printf("  bench sound <word>        play one of hello|pip|chime|fall\n");
+  printf("  bench volume <0..100>     set the amplifier's volume and keep it\n");
   printf("  help\n");
 }
 
@@ -589,6 +606,69 @@ void BenchRelease() {
   printf("bench: torque released — the head is limp\n");
 }
 
+// ⚠️ The bench's own spelling, and it is the wire's four words and no others.
+//    ⛔ A word not in this table is refused: a bench that played something for
+//    an unknown word would be a second vocabulary, and the two would drift.
+bool SoundFromName(const char* name, int length, Sound* out) {
+  static const struct {
+    const char* text;
+    Sound word;
+  } kWords[] = {
+      {"hello", Sound::kHello},
+      {"pip", Sound::kPip},
+      {"chime", Sound::kChime},
+      {"fall", Sound::kFall},
+  };
+  for (const auto& entry : kWords) {
+    if (static_cast<int>(std::strlen(entry.text)) == length &&
+        std::strncmp(name, entry.text, static_cast<size_t>(length)) == 0) {
+      *out = entry.word;
+      return true;
+    }
+  }
+  return false;
+}
+
+void BenchSound(const char* name) {
+  int length = 0;
+  while (name[length] != '\0' && name[length] != ' ') {
+    ++length;
+  }
+  Sound word = Sound::kNone;
+  if (!SoundFromName(name, length, &word)) {
+    printf("bench: sound needs one of hello|pip|chime|fall\n");
+    return;
+  }
+  if (!g_sound_ready) {
+    printf("bench: refused — the speaker did not come up\n");
+    return;
+  }
+  printf("bench: playing %s\n", SoundName(word));
+  sound::play(word);
+  printf("bench: %s done\n", SoundName(word));
+}
+
+void BenchVolume(int percent) {
+  if (!g_sound_ready) {
+    printf("bench: refused — the speaker did not come up\n");
+    return;
+  }
+  const int wanted = percent;
+  if (percent < 0) percent = 0;
+  if (percent > 100) percent = 100;
+  if (percent != wanted) {
+    printf("bench: volume clamped to %d\n", percent);
+  }
+  if (sound::set_volume_percent(percent)) {
+    // ⚠️ The register took the value. Whether it is quiet or loud is the ear's
+    //    answer, not this line's.
+    printf("bench: volume -> %d (the vendor's -96..0 dB sweep; was -18 dB at boot)\n",
+           percent);
+  } else {
+    printf("bench: the amplifier did not take the volume\n");
+  }
+}
+
 void HandleBench(const char* args) {
   // ⛔ A `bench` command blocks this task for seconds, and every pose that
   //    arrives while it runs is read late. A pose that arrives late is not a
@@ -630,6 +710,24 @@ void HandleBench(const char* args) {
   }
   if (std::strncmp(args, "release", 7) == 0) {
     BenchRelease();
+    return;
+  }
+  if (std::strncmp(args, "sound", 5) == 0) {
+    const char* name = args + 5;
+    while (*name == ' ') {
+      ++name;
+    }
+    BenchSound(name);
+    return;
+  }
+  if (std::strncmp(args, "volume", 6) == 0) {
+    char* end = nullptr;
+    const long percent = std::strtol(args + 6, &end, 10);
+    if (end == args + 6) {
+      printf("bench: volume needs 0..100\n");
+      return;
+    }
+    BenchVolume(static_cast<int>(percent));
     return;
   }
   if (std::strncmp(args, "leds", 4) == 0) {
@@ -937,7 +1035,20 @@ void HandleFrame(const char* line, int length) {
 
   leds::set_light(command.light);
   display::show(command.face);
-  printf("frame: light=%s face=%s\n", LightName(command.light), FaceName(command.face));
+  printf("frame: light=%s face=%s gesture=%s sound=%s\n", LightName(command.light),
+         FaceName(command.face), GestureName(command.gesture), SoundName(command.sound));
+
+  // ⚠️ The word plays before the neck moves. A gesture blocks for the better part
+  //    of a second while the servo drives to its posture, and a sound that
+  //    arrived with the face should be heard with it, not after it.
+  if (command.sound != Sound::kNone) {
+    if (g_sound_ready) {
+      sound::play(command.sound);
+    } else {
+      printf("frame: sound %s not played — the speaker did not come up\n",
+             SoundName(command.sound));
+    }
+  }
 
   if (command.gesture != Gesture::kNone) {
     PlayGesture(command.gesture);
@@ -1067,6 +1178,14 @@ extern "C" void app_main() {
   // ⚠️ Not fatal. The screen failing must not take the neck with it; a face
   //    that is only logged is still a face the console reports.
   display::begin();
+
+  // ⚠️ The speaker is behind the display's expander (its reset line is P0.2 on
+  //    the AW9523), so it comes up after the display — and it is not fatal
+  //    either. A board with no voice is still a board that turns its head.
+  g_sound_ready = sound::begin();
+  if (!g_sound_ready) {
+    printf("sound: the speaker did not come up — frames will carry a word and play nothing\n");
+  }
 
   if (!zeros::read(&g_yaw_zero, &g_pitch_zero, &g_zeros_from_nvs)) {
     printf("zeros: NO ANSWER FROM NVS — using the vendor's defaults %d / %d\n",

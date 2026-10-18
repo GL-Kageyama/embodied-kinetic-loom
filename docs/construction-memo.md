@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.17.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.18.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
 
 **Language:** [English](construction-memo.md) | [日本語](construction-memo-ja.md) | [中文](construction-memo-zh.md)
 
@@ -69,6 +69,8 @@
 
 ⚠️ **2026-10-18: and 0.19.12, still not a rung — half of stage 2, and the half that is left is the voice.** `projects/stackchan-firmware/main/` gained `display.cpp` (SPI3, the ILI9342C init sequence, the AW9523's reset line, the AXP2101's backlight) and `face_bitmap.cpp` (the vendor's default skin as an 8-bit coverage buffer, 8 × 8 supersampled), and `display::show(command.face)` is called from the frame handler. ✅ **The author looked at it and said 「OK」「綺麗に写っている」.** ⛔ **Getting there took four reports and a photograph**: the panel was receiving every eight-row chunk while the DMA was still reading it, so each shape on the glass had a thinner copy of itself below it — read in turn as 「ギザギザ」, 「ずれている」, 「目の描画が、二行だけ、下に」, 「画面全体が下にずれる」. **The fix is `on_color_trans_done` and one transfer at a time.** ⚠️ **A `-2` row shift was written into `face_bitmap.cpp` on the strength of the symptom, and removed**; ⛔ **the nine tests did not catch it, because they were moved with it.** **The record is `projects/stackchan-firmware/records/2026-10-18-the-face.md`.** ⛔ **0.20.0 has not started.**
 
+⚠️ **2026-10-18: and 0.19.13, still not a rung — stage 2 is done, and the board speaks.** The fourth field of the wire stopped being silent: `sound` is a required key carrying one of four words — `hello`, `pip`, `chime`, `fall` — with `null` meaning *this frame is silent*, and `main/sound.cpp` addresses the board's amplifier: AW88298 at I²C `0x36` on the display's bus, its reset on AW9523 P0.2, I²S at 24,000 Hz, 16-bit stereo. ⛔ **Not one register value in it was discovered on this unit** — the init table is the vendor's — **and the one number this repository changed is the sample-rate code**, `0x3CC8` → `0x3CC5`, put there by hand so that the amplifier's code and the I²S rate agree; a disagreement would be a silent, wrong-pitch channel that nothing on the board reports. ⚠️ **The four tones are choices, not measurements**, the same standing as the twelve LEDs' colours. ✅ **The author heard all four** at 19:00 JST, before the 21:00 line — **and that is all `records/2026-10-18-the-voice.md` claims**: a sound was made. ⛔ **0.20.0 has not started.**
+
 ## The remaining work — the product, not the wire
 
 ⚠️ **The ladder above ends at 0.20.0, and the Pet does not.** The ladder is about opening a port; the product is a face, a voice and a body that move together when something happens. **The order below is the author's ruling of 2026-10-18 (「推奨で進めよう」), and it is the only thing in this section that is not derivable from another page.**
@@ -76,11 +78,11 @@
 | # | what is missing | the work | gated by |
 |---|---|---|---|
 | **1** | **machine 1 has never been touched** — the last rung, 0.20.0 | `engine/backend/serial.py`, after the four items of `docs/first-contact.md` | the DOF box and the author in the same room |
-| **2** | **the voice is missing** — ✅ **the face is drawn since 0.19.12**: `display.cpp` puts the ILI9342C up and `face_bitmap.cpp` draws the vendor's skin, from the `face=` word the wire already carries. ⛔ **`sound` still does not exist in the wire**, and the board's amp has never been addressed | a `sound` field, its schema, its codec and the board's amp (AW88298 over I²C and I2S) — inside quiet hours 21:00–05:00 | nothing: machine 2 and this host only |
+| **2** | ✅ **nothing, for stage 2 — the face landed in 0.19.12 and the voice in 0.19.13.** `display.cpp` puts the ILI9342C up and `face_bitmap.cpp` draws the vendor's skin; `sound` is now a required key on the wire and `sound.cpp` plays it. ⛔ **What is still unjudged is the tones themselves** — four were heard, not one was compared | done: the `sound` field, its schema, its codec in two languages, and the board's amp (AW88298 over I²C and I2S) | — |
 | **3** | **the join is missing** — a hook event reaches the frame (face, light, gesture) and a gesture is still one write and a stop (「動きが硬い」); the smooth neck runs only when `projects/stackchan/neck/` is typed by hand | the daemon — or a child of it — streams the pose line for the same event on the same clock: one happening moves the face, the lights and the neck | stages 1–2, and one decision: whether the daemon holds a child or the hook calls the neck edge |
-| **4** | **the record of the goal** — four records exist (arrival, gestures, lights, neck), and none of them is the goal | observation written as those four are: the eye first, the program's numbers inside it | stages 2–3 moving at all |
+| **4** | **the record of the goal** — six records exist (arrival, gestures, lights, neck, face, voice), and none of them is the goal | observation written as those four are: the eye first, the program's numbers inside it | stages 2–3 moving at all |
 
-**The order is 2 → 3 → 1 → 4**, unless a day in front of the DOF box arrives first — then 1 goes before the others, because the hours with the machine in the room cannot be moved.
+**The order is 3 → 1 → 4** — 2 is finished, and the rest is the ruling of 2026-10-18 with the done part struck, unless a day in front of the DOF box arrives first — then 1 goes before the others, because the hours with the machine in the room cannot be moved.
 
 ⛔ **The fine numbers wait for the product to move.** The landing's six to eight counts, `Spring(sharpness=5.0)` and `kPoseTimeMs` do not change whether anything moves; ⚠️ **the landing offset is the one of the three written down as unexplained** (`projects/stackchan-firmware/records/2026-10-18-the-neck.md`), so it is closed once, after stage 3, so that the record does not stay wrong.
 

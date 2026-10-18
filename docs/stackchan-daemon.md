@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.12.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.13.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -111,10 +111,11 @@
 ✅ **Since 0.19.1 every decision passes through `projects/stackchan/outbound.py`**, and when the frame is not `None` the daemon writes it as a row:
 
 ```
-{"frame": "{\"face\":null,\"gesture\":null,\"light\":\"breathe\"}", "sent": false, "at": 6497.584270416, "session": "…"}
+{"frame": "{\"face\":null,\"gesture\":null,\"light\":\"breathe\",\"sound\":null}", "sent": false, "at": 6497.584270416, "session": "…"}
 ```
 
-- **A frame is written when what the machine should show changes** — a face, a light — **or a gesture was chosen, or it is the process's first decision.** ⛔ **The first decision is always emitted, because the state of the machine before it is unknown**; the face is filled in from the frame's own state, so the machine never has to remember what it was showing.
+- **A frame is written when what the machine should show changes** — a face, a light — **or a gesture was chosen, or a sound is named, or it is the process's first decision.** ✅ **The fourth key arrived in 0.19.13** and is required: `null` means *this frame is silent*, ⛔ **not *keep the last one*.** **A sound is an event and a gesture is an event; the face and the light are state**, and only the state is remembered between frames.
+- ⚠️ **The sound is off by default** (`--sound on|off`), the author's decision: installing this must not make a machine speak without being asked. ⛔ **With the switch off the key is still written, as `null`** — the frame is the same shape either way, and the board never has to infer why nothing played. ⛔ **The first decision is always emitted, because the state of the machine before it is unknown**; the face is filled in from the frame's own state, so the machine never has to remember what it was showing.
 - ⛔ **The event's reason does not partition state changes**, and the rule reads the state rather than the reason. A `PostToolUse` inside `blocked` returns to `working` with reason `OBSERVED` while the light may not move; a concern changes the light and not the phase.
 - ⚠️ **This is not a stream.** In the observed run, a `PreToolUse` that followed the first frame wrote no second row.
 - **The line is the codec's** — `engine/backend/protocol_stackchan.py`, the same one `tests/test_stackchan_wire.py` holds — so **the log cannot drift from `schemas/stackchan-command.schema.json`.**
@@ -132,7 +133,7 @@ frame: light=warm face=greeting (no renderer yet)
 frame: gesture perk refused — no gesture -> angle table exists
 ```
 
-  ⇒ **the daemon's log carried `{"face":"greeting","gesture":"perk","light":"warm"}` with `"sent": true`, and the board printed the same words.** ⛔ **The gesture was refused that day — `command_frame.cpp` refused every gesture until an angle was measured, which it was later the same day — and the refusal did not stop the light.** ⚠️ **The word in that log is the one the protocol carried then**: `perk` became `look_up` when the author renamed all five gestures later on 2026-10-18 (`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`).
+  ⇒ **the daemon's log carried `{"face":"greeting","gesture":"perk","light":"warm"}` with `"sent": true`, and the board printed the same words.** ⛔ **The gesture was refused that day — `command_frame.cpp` refused every gesture until an angle was measured, which it was later the same day — and the refusal did not stop the light.** ⚠️ **The word in that log is the one the protocol carried then**: `perk` became `look_up` when the author renamed all five gestures later on 2026-10-18 (`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`). ⚠️ **Those two lines predate the fourth key**, so neither carries `sound`; a frame written after 0.19.13 always does.
 - ⚠️ **The path is not an identity.** On one board it read `/dev/cu.usbmodem1101` before a hang and `/dev/cu.usbmodem101` after one replug, sixteen minutes apart. The installed plist names the second; **a replug may name a third, and the daemon will log `sent: false` and carry on.** ⇒ **the plist's port is the one thing about this installation that a cable can invalidate.**
 - ⛔ **Nothing here holds the port open, and that is also the limit**: no line is queued, so a frame written while another program holds the port is logged as unsent. **The room answers the event either way.**
 - ⚠️ **A reader that asserts DTR and RTS is a reset.** A `pyserial` open of this console reset the board mid-boot, and the ROM stopped answering until the cable went out and back in; **the daemon's own `os.open` path, run alone, did neither.** To watch this console, use `os.open` and raw `termios`.
@@ -154,7 +155,7 @@ frame: gesture perk refused — no gesture -> angle table exists
 
 **Not decided here:**
 
-- ✅ **The framing is decided (0.19.0) and this page still does not own it** — one ASCII JSON line, `face` / `light` / `gesture`, in `schemas/stackchan-command.schema.json`, encoded by `engine/backend/protocol_stackchan.py`. ✅ **Since 0.19.1 the daemon calls that codec and writes the line it would send.** ✅ **Since 0.19.8 the transport is decided as well: the daemon writes that line to the board's console, one open per frame, and the installed plist names the path** (see [The transport](#the-transport)). ✅ **And since later that same day `projects/stackchan-firmware/` plays the gesture it receives** — five postures measured on the unit — **so a frame carrying a gesture moves the head** (`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`); ✅ **and since 0.19.11 the engine drives it smoothly enough that the author accepted the motion** — `projects/stackchan/neck/`, after the firmware's write was changed to the stock's own call (`records/2026-10-18-the-neck.md`);
+- ✅ **The framing is decided (0.19.0) and this page still does not own it** — one ASCII JSON line, `face` / `light` / `gesture` / `sound`, in `schemas/stackchan-command.schema.json`, encoded by `engine/backend/protocol_stackchan.py`. ✅ **Since 0.19.1 the daemon calls that codec and writes the line it would send.** ✅ **Since 0.19.8 the transport is decided as well: the daemon writes that line to the board's console, one open per frame, and the installed plist names the path** (see [The transport](#the-transport)). ✅ **And since later that same day `projects/stackchan-firmware/` plays the gesture it receives** — five postures measured on the unit — **so a frame carrying a gesture moves the head** (`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`); ✅ **and since 0.19.11 the engine drives it smoothly enough that the author accepted the motion** — `projects/stackchan/neck/`, after the firmware's write was changed to the stock's own call (`records/2026-10-18-the-neck.md`);
 - what the firmware does at idle and after a stop;
 - whether a second body — a second daemon per unit — needs anything different.
 

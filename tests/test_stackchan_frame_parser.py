@@ -102,22 +102,27 @@ def test_the_enum_still_matches():
     "line, expected",
     [
         # ✅ **受理される形。** 閉じ括弧の後に改行が在っても、無くても。
-        ('{"face":"greeting","gesture":"look_up","light":"warm"}', OK),
-        ('{"face":"greeting","gesture":"look_up","light":"warm"}\n', OK),
-        ('{"face":null,"gesture":null,"light":"breathe"}', OK),
+        ('{"face":"greeting","gesture":"look_up","light":"warm","sound":null}', OK),
+        ('{"face":"greeting","gesture":"look_up","light":"warm","sound":"hello"}', OK),
+        ('{"face":"greeting","gesture":"look_up","light":"warm","sound":null}\n', OK),
+        ('{"face":null,"gesture":null,"light":"breathe","sound":null}', OK),
         # ⚠️ **鍵の順は問わない**（パーサの docstring がそう言っている）。
-        ('{"light":"dim","face":"curious","gesture":"nod"}', OK),
+        ('{"light":"dim","face":"curious","gesture":"nod","sound":"chime"}', OK),
         # ⛔ **1行に2つは拒む。**
-        ('{"face":null,"gesture":null,"light":"dim"}{}', MALFORMED),
-        ('{"face":null,"gesture":null,"light":"dim"} ', OK),
+        ('{"face":null,"gesture":null,"light":"dim","sound":null}{}', MALFORMED),
+        ('{"face":null,"gesture":null,"light":"dim","sound":null} ', OK),
         # ⛔ **知らない鍵は拒む**——同乗できないことが privacy である。
-        ('{"face":null,"gesture":null,"light":"dim","prompt":"secret"}', UNKNOWN_KEY),
-        # ⛔ **欠けた鍵は拒む。**
+        ('{"face":null,"gesture":null,"light":"dim","sound":null,"prompt":"secret"}',
+         UNKNOWN_KEY),
+        # ⛔ **欠けた鍵は拒む。** ⚠️ **音の欄も必須である**——2026-10-18 から。
+        ('{"face":null,"light":"dim","sound":null}', MISSING_KEY),
         ('{"face":null,"light":"dim"}', MISSING_KEY),
+        ('{"face":null,"gesture":null,"light":"dim"}', MISSING_KEY),
         ('{}', MISSING_KEY),
         # ⛔ **語彙の外の語は拒む。**
-        ('{"face":"smug","gesture":null,"light":"dim"}', UNKNOWN_VALUE),
-        ('{"face":null,"gesture":null,"light":null}', MISSING_KEY),
+        ('{"face":"smug","gesture":null,"light":"dim","sound":null}', UNKNOWN_VALUE),
+        ('{"face":null,"gesture":null,"light":"dim","sound":"horn"}', UNKNOWN_VALUE),
+        ('{"face":null,"gesture":null,"light":null,"sound":null}', MISSING_KEY),
         # ⛔ **対象でない行は拒む。**
         ('pose 50 857*2A', NOT_AN_OBJECT),
         ('', NOT_AN_OBJECT),

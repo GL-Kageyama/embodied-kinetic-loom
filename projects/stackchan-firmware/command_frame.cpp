@@ -3,8 +3,10 @@
 // ✅ Built and flashed on 2026-10-18 — the app was written at 0x510000 and it runs.
 //
 // ⚠️ The parser is deliberately strict and deliberately small. It accepts the
-//    shape `{"face": <string|null>, "light": <string>, "gesture": <string|null>}`
-//    and nothing else. It does not allocate, and it does not depend on key order.
+//    shape `{"face": <string|null>, "light": <string>, "gesture": <string|null>,
+//    "sound": <string|null>}` and nothing else. It does not allocate, and it does
+//    not depend on key order. ⛔ All four keys are required: a missing key is
+//    filled by the reader with something the sender never said.
 //
 // ⛔ `apply_command` is the parser-side stub and it still does nothing: the
 //    measured gesture table lives in main/main.cpp, and the firmware's console
@@ -37,9 +39,15 @@ const char* const kGestureLookSide = "look_side";
 const char* const kGestureRest = "rest";
 const char* const kGestureRecoil = "recoil";
 
+const char* const kSoundHello = "hello";
+const char* const kSoundPip = "pip";
+const char* const kSoundChime = "chime";
+const char* const kSoundFall = "fall";
+
 const char* const kKeyFace = "face";
 const char* const kKeyLight = "light";
 const char* const kKeyGesture = "gesture";
+const char* const kKeySound = "sound";
 
 // The longest value is "breathe" (7 bytes); the bound is the host's, with room
 // to spare. ⚠️ This is a protocol bound, not a measurement of anything.
@@ -124,6 +132,14 @@ ParseResult DecideGesture(const char* text, int size, Gesture* out) {
   return ParseResult::kUnknownValue;
 }
 
+ParseResult DecideSound(const char* text, int size, Sound* out) {
+  if (Equals(text, size, kSoundHello)) { *out = Sound::kHello; return ParseResult::kOk; }
+  if (Equals(text, size, kSoundPip)) { *out = Sound::kPip; return ParseResult::kOk; }
+  if (Equals(text, size, kSoundChime)) { *out = Sound::kChime; return ParseResult::kOk; }
+  if (Equals(text, size, kSoundFall)) { *out = Sound::kFall; return ParseResult::kOk; }
+  return ParseResult::kUnknownValue;
+}
+
 }  // namespace
 
 ParseResult parse_command(const char* line, int length, Command* out) {
@@ -143,9 +159,11 @@ ParseResult parse_command(const char* line, int length, Command* out) {
   bool has_face = false;
   bool has_light = false;
   bool has_gesture = false;
+  bool has_sound = false;
   out->face = Face::kNone;
   out->light = Light::kOff;
   out->gesture = Gesture::kNone;
+  out->sound = Sound::kNone;
 
   SkipSpace(line, length, &at);
   if (at < length && line[at] == '}') {
@@ -191,6 +209,13 @@ ParseResult parse_command(const char* line, int length, Command* out) {
         const ParseResult r = DecideGesture(value, value_size, &out->gesture);
         if (r != ParseResult::kOk) { return r; }
       }
+    } else if (Equals(key, key_size, kKeySound)) {
+      if (has_sound) { return ParseResult::kMalformed; }
+      has_sound = true;
+      if (!is_null) {
+        const ParseResult r = DecideSound(value, value_size, &out->sound);
+        if (r != ParseResult::kOk) { return r; }
+      }
     } else {
       return ParseResult::kUnknownKey;
     }
@@ -211,7 +236,7 @@ ParseResult parse_command(const char* line, int length, Command* out) {
     return ParseResult::kMalformed;
   }
 
-  if (!has_face || !has_light || !has_gesture) {
+  if (!has_face || !has_light || !has_gesture || !has_sound) {
     return ParseResult::kMissingKey;
   }
   SkipSpace(line, length, &at);

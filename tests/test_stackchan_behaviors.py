@@ -20,6 +20,7 @@ import pytest
 from projects.pet import strings
 from projects.pet.expressions import State
 from projects.stackchan import hooks
+from engine.backend import protocol_stackchan as wire
 from projects.stackchan.__main__ import build_parser, trace
 from projects.stackchan.behaviors import (
     ACTED,
@@ -41,6 +42,7 @@ from projects.stackchan.behaviors import (
     OBSERVED,
     SETTLED,
     SLEPT,
+    SOUNDS,
     STEALS,
     Companion,
     Focus,
@@ -423,14 +425,33 @@ def test_motion_off_keeps_the_face_and_the_light():
     assert greeting.light is Light.WARM
 
 
-def test_sound_is_off_by_default_and_only_on_transitions():
-    """⚠️ **スピーカーは未検証である。** 既定は黙っている。"""
-    assert Companion().offer("SessionStart", 0.0).sound is False
+def test_sound_is_off_by_default_and_a_word_when_on():
+    """⚠️ **既定は黙っている**（作者の決定、2026-10-18）。
+
+    ✅ **切られていれば `None`、入っていれば語である**——2026-10-18 まで、この欄は
+    真偽値であり、**どの音か**を言えなかった。**語になった日、`SessionEnd` は黙った**:
+    去る窓に声をかけても、聞く人がいない。
+    """
+    assert Companion().offer("SessionStart", 0.0).sound is None
 
     companion = Companion(sound=True)
-    assert companion.offer("SessionStart", 0.0).sound is True
-    assert companion.offer("PostToolUse", 1.0).sound is False
-    assert companion.offer("SessionEnd", 2.0).sound is True
+    assert companion.offer("SessionStart", 0.0).sound == "hello"
+    assert companion.offer("PostToolUse", 1.0).sound is None
+    assert companion.offer("SessionEnd", 2.0).sound is None
+
+
+def test_every_sound_word_is_in_the_vocabulary_list():
+    """⛔ **層の語と、電線の語は同じである。** 食い違った日に赤くなる。"""
+    listed = set(SOUNDS)
+    assert set(wire.SOUNDS) == listed
+    companion = Companion(sound=True)
+    for event, at in (
+        ("SessionStart", 0.0),
+        ("PermissionRequest", 2.0),
+        ("Stop", 30.0),
+        ("StopFailure", 31.0),
+    ):
+        assert companion.offer(event, at).sound in listed
 
 
 def test_no_gesture_is_ever_sent():

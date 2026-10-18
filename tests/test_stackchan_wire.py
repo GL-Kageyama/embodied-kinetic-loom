@@ -30,33 +30,40 @@ FIRMWARE = REPO_ROOT / "projects" / "stackchan-firmware"
 
 
 def test_every_symbol_round_trips():
-    """⚠️ **6 × 6 × 6 ＝ 216 の枠**（顔6・光6・身振り6、うち `null` を1つも持たないものが150）。**すべてが戻る。**"""
+    """⚠️ **6 × 6 × 6 × 5 ＝ 1,080 の枠**（顔6・光6・身振り6・音5、うち `null` を
+    1つも持たないものが5×5×5＝125）。**すべてが戻る。**"""
     for face in (None, *wire.FACES):
         for light in wire.LIGHTS:
             for gesture in (None, *wire.GESTURES):
-                command = wire.Command(light=light, face=face, gesture=gesture)
-                assert wire.decode(wire.encode(command)) == command
+                for sound in (None, *wire.SOUNDS):
+                    command = wire.Command(
+                        light=light, face=face, gesture=gesture, sound=sound
+                    )
+                    assert wire.decode(wire.encode(command)) == command
 
 
 def test_a_frame_is_one_ascii_line():
     """⚠️ **1枠＝1行。** 改行は最後の1つだけで、中身は ASCII である。"""
-    line = wire.encode(wire.Command(light="warm", face="happy", gesture="nod"))
+    line = wire.encode(
+        wire.Command(light="warm", face="happy", gesture="nod", sound="chime")
+    )
     assert line.endswith(b"\n")
     assert line.count(b"\n") == 1
     line.decode("ascii")
 
 
 def test_null_is_a_value_not_a_missing_field():
-    """⛔ **欄は3つとも常に在る。** 欠けた欄は、受け取る側が前の値で埋めてしまう。"""
+    """⛔ **欄は4つとも常に在る。** 欠けた欄は、受け取る側が前の値で埋めてしまう。"""
     body = json.loads(wire.encode(wire.Command(light="dim")))
-    assert set(body) == {"face", "light", "gesture"}
+    assert set(body) == {"face", "light", "gesture", "sound"}
     assert body["face"] is None
     assert body["gesture"] is None
+    assert body["sound"] is None
 
 
 def test_an_unknown_key_is_refused():
     """⛔ **プロンプトは、この電線を渡らない。** 無視される欄は同乗できる。"""
-    line = b'{"face":null,"light":"dim","gesture":null,"prompt":"secret"}\n'
+    line = b'{"face":null,"light":"dim","gesture":null,"sound":null,"prompt":"secret"}\n'
     with pytest.raises(wire.FrameRefused) as caught:
         wire.decode(line)
     assert caught.value.code == "unknown-key"
@@ -69,11 +76,12 @@ def test_an_unknown_key_is_refused():
         ("face", "proud"),
         ("light", "rainbow"),
         ("gesture", "bow"),
+        ("sound", "horn"),
     ],
 )
 def test_an_unknown_value_is_refused(field, value):
     """⛔ **表の外の語は、語彙の外である**（`references/README.md`）。"""
-    body = {"face": None, "light": "dim", "gesture": None}
+    body = {"face": None, "light": "dim", "gesture": None, "sound": None}
     body[field] = value
     with pytest.raises(wire.FrameRefused) as caught:
         wire.decode((json.dumps(body) + "\n").encode())
@@ -84,11 +92,32 @@ def test_an_unknown_value_is_refused(field, value):
 def test_light_is_required_and_never_null():
     """⚠️ **光は常時チャンネルである。** `null` は「変えない」ではなく、欠けた値である。"""
     with pytest.raises(wire.FrameRefused) as caught:
-        wire.decode(b'{"face":"happy","light":null,"gesture":"nod"}\n')
+        wire.decode(b'{"face":"happy","light":null,"gesture":"nod","sound":null}\n')
     assert caught.value.code == "missing-key"
     with pytest.raises(wire.FrameRefused) as caught:
-        wire.decode(b'{"face":"happy","gesture":"nod"}\n')
+        wire.decode(b'{"face":"happy","gesture":"nod","sound":null}\n')
     assert caught.value.code == "missing-key"
+
+
+def test_sound_is_required_and_may_be_null():
+    """⚠️ **音は事象である。** `null` は「この枠は鳴らない」であり、
+    **欠けた欄ではない**——欠けた欄は、受け取る側が前の値で埋めてしまう。"""
+    with pytest.raises(wire.FrameRefused) as caught:
+        wire.decode(b'{"face":"happy","light":"warm","gesture":"nod"}\n')
+    assert caught.value.code == "missing-key"
+    assert caught.value.field == "sound"
+
+    command = wire.decode(
+        b'{"face":null,"light":"dim","gesture":null,"sound":"pip"}\n'
+    )
+    assert command.sound == "pip"
+
+
+def test_a_sound_is_a_word_and_not_a_number():
+    """⛔ **周波数も長さも、この電線を通らない。** 語から音への表はファームに在る。"""
+    body = json.loads(wire.encode(wire.Command(light="warm", sound="chime")))
+    assert isinstance(body["sound"], str)
+    assert all(word.isalpha() for word in wire.SOUNDS)
 
 
 @pytest.mark.parametrize(
@@ -130,6 +159,7 @@ def test_encode_refuses_what_decode_refuses():
         wire.Command(light="rainbow"),
         wire.Command(light="dim", face="proud"),
         wire.Command(light="dim", gesture="bow"),
+        wire.Command(light="dim", sound="horn"),
     ):
         with pytest.raises(wire.FrameRefused) as caught:
             wire.encode(bad)
@@ -151,20 +181,26 @@ def test_the_contract_and_the_codec_agree():
     assert set(properties["face"]["enum"]) == {None, *wire.FACES}
     assert set(properties["light"]["enum"]) == set(wire.LIGHTS)
     assert set(properties["gesture"]["enum"]) == {None, *wire.GESTURES}
+    assert set(properties["sound"]["enum"]) == {None, *wire.SOUNDS}
 
 
 def test_the_contract_is_closed():
     """⛔ **開いた契約は、誰かが欄を足したことに気づかない形である。**"""
     schema = _schema()
     assert schema["additionalProperties"] is False
-    assert set(schema["required"]) == {"face", "light", "gesture"}
+    assert set(schema["required"]) == {"face", "light", "gesture", "sound"}
 
 
-def test_no_sound_field_anywhere():
-    """⛔ **存在しないチャンネルの欄を、契約に置かない。**"""
-    assert "sound" not in _schema()["properties"]
-    assert "sound" not in wire.Command.__dataclass_fields__
-    assert "sound" not in json.loads(wire.encode(wire.Command(light="dim")))
+def test_no_sound_field_is_missing_from_the_contract():
+    """⛔ **音の欄は、契約・符号器・モックの3か所に同時に在る。**
+
+    ⚠️ 2026-10-18 まで、この検査は「`sound` がどこにも無いこと」を確かめていた——
+    **欄が着いた日、同じ検査が反対を向く。** 無いことを守る検査ではなく、
+    **在ることを守る検査**に書き換えたのは、欄が先に着いて検査が後を追う形を作らないためである。
+    """
+    assert set(_schema()["properties"]) == {"face", "light", "gesture", "sound"}
+    assert "sound" in wire.Command.__dataclass_fields__
+    assert "sound" in json.loads(wire.encode(wire.Command(light="dim")))
 
 
 def test_the_firmware_names_the_same_words():
@@ -173,7 +209,7 @@ def test_the_firmware_names_the_same_words():
         path.read_text(encoding="utf-8")
         for path in sorted(FIRMWARE.glob("command_frame.*"))
     )
-    for word in (*wire.FACES, *wire.LIGHTS, *wire.GESTURES):
+    for word in (*wire.FACES, *wire.LIGHTS, *wire.GESTURES, *wire.SOUNDS):
         assert f'"{word}"' in source
 
 

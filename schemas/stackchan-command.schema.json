@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Stack-chan command",
-  "description": "One command frame on machine 2's wire (0.19.0). The frame carries symbols and no number for machine 2: a gesture is a name, not an angle, and the table that would turn one into the other is in no record. Closed by default, following the practice recorded for the Motion Intent: `additionalProperties: false`, and every field required, so a frame is self-describing and the device keeps no state about what it was not told. ⛔ There is no `sound` field: the speaker is a channel that does not exist yet, and a field placed in a contract before its channel exists is a blank that someone else's default will fill.",
+  "description": "One command frame on machine 2's wire (0.19.13). The frame carries symbols and no number for machine 2: a gesture is a name, not an angle, a sound is a name, not a frequency, and the tables that would turn either into numbers are in no record. Closed by default, following the practice recorded for the Motion Intent: `additionalProperties: false`, and every field required, so a frame is self-describing and the device keeps no state about what it was not told. ⚠️ `sound` arrived on 2026-10-18 with the speaker, and it is an event rather than a state: the light says what is on, the sound says what was just heard. A null in it means 'this frame is silent', not 'do not change the sound'.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["face", "light", "gesture"],
+  "required": ["face", "light", "gesture", "sound"],
   "properties": {
     "face": {
       "description": "The expression to show, or null for 'do not change the face'. ⚠️ These five names are the Pet's, and they were drawn once (`projects/pet/expressions.py`); this schema repeats them so that the device end has a contract to read, and `tests/test_stackchan_wire.py` refuses the day the two lists disagree.",
@@ -20,6 +20,11 @@
       "description": "The gesture the neck is asked to make, or null for 'the neck does not move in this frame'. ⛔ These five are candidate words, not rows in the vocabulary: a row is written the day a word becomes numbers on that machine, and that has not happened. ⚠️ A gesture is chosen only at a phase transition, and one that falls inside the body's floor is dropped rather than queued — so a late gesture never appears on this wire.",
       "type": ["string", "null"],
       "enum": ["look_up", "nod", "look_side", "rest", "recoil", null]
+    },
+    "sound": {
+      "description": "The sound to play once, or null for 'this frame is silent'. ⛔ These four are candidate words, not rows in the vocabulary: a row is written the day a word becomes numbers on that machine. ⚠️ A sound is an event, not a state — unlike the light, it is never re-sent with every frame, and null does not mean 'keep the last one'. The word-to-tone table lives in the firmware, where it was placed by ear on the unit in hand.",
+      "type": ["string", "null"],
+      "enum": ["hello", "pip", "chime", "fall", null]
     }
   }
 }

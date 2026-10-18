@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.5.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.6.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -12,15 +12,16 @@
 
 ## What the frame carries
 
-**One line of JSON per command**, and a command arrives when what the machine should show changes — a phase, a face, a light, or a chosen gesture. This is not a stream. ⚠️ **The neck moves only at a transition**: a gesture is chosen there and nowhere else. The contract is `schemas/stackchan-command.schema.json`, and both ends read it.
+**One line of JSON per command**, and a command arrives when what the machine should show changes — a phase, a face, a light, a chosen gesture, or a word to say. This is not a stream. ⚠️ **The neck moves only at a transition**: a gesture is chosen there and nowhere else. The contract is `schemas/stackchan-command.schema.json`, and both ends read it.
 
 | field | values | meaning |
 |---|---|---|
 | `face` | the Pet's five faces, or `null` | show this expression; `null` = do not change |
 | `light` | `off` / `dim` / `breathe` / `warm` / `alert` / `error` | always present, never `null` |
 | `gesture` | `look_up` / `nod` / `look_side` / `rest` / `recoil`, or `null` | move the neck; `null` = do not move |
+| `sound` | `hello` / `pip` / `chime` / `fall`, or `null` | play this word; `null` = this frame is silent |
 
-⛔ **There is no `sound` field.** The speaker is a channel that does not exist yet.
+⚠️ **`sound` is the one field that is an event and not a state**: `null` does not mean *keep the last word*, it means *say nothing*. ⛔ **The board knows the four words and nothing about when they are right** — the host decides that, and the mapping is `projects/stackchan/behaviors.py`.
 
 ## What the vendor's source records
 
@@ -143,3 +144,22 @@
 ⚠️ **A `-2` row shift was written into `face_bitmap.cpp` on the strength of the fourth report and then removed.** ⛔ **The nine tests in `tests/test_stackchan_face.py` did not catch it, because they were moved with it.** The file now draws the vendor's rows and carries a comment saying why no offset belongs there.
 
 **The record is `records/2026-10-18-the-face.md`, and the observation is its spine.**
+
+## The voice — 2026-10-18
+
+✅ **The board plays the fourth field, and the author heard all four words.** The amplifier is an **AW88298** at I²C `0x36`, on the bus the display already owns; its reset is **P0.2 on the AW9523**, so `display::pulse_amplifier_reset()` holds the pulse and `sound` calls back into it — **one bus, one owner**. The audio path is `I2S_NUM_0` as master, **24,000 Hz, 16-bit stereo**, MCLK 256 × fs.
+
+| what | the vendor's number | what this repository changed |
+|---|---|---|
+| the amplifier's table | eight registers written in order, `0x00` `0x55AA` first and 50 ms of silence after it | ⛔ **nothing — not one value was measured on this unit** |
+| the sample-rate code | `0x06` = `0x3CC8`, the code for 48,000 Hz | **`0x3CC5`** — rate code 5, put there by hand so that the code and the 24,000 Hz stream agree |
+| the volume | `0x0C` = `0x3064`, −18 dB | nothing; `bench volume <0..100>` rewrites the high byte only |
+| the pins | MCLK GPIO 0, BCLK 34, WS 33, DOUT 13 (DIN 14 unused) | nothing |
+
+⛔ **A rate code and a sample rate that disagree is a silent, wrong-pitch channel, and nothing on this board reports it** — which is why the one number changed is named here and in the record rather than left in the source.
+
+⚠️ **The four tones are choices, not measurements** — the same standing as the twelve LEDs' colours. `hello` rises, `pip` is one bright point, `chime` rises and rings longer, `fall` drops. **Nothing has judged them but one pair of ears**, and that judgement is only *it was audible* (`records/2026-10-18-the-voice.md`).
+
+⚠️ **`i2s_channel_write` returns when the DMA buffers have taken the samples, not when the note has finished** — so the board's `playing` → `done` lines are not note lengths, and must not be read as any.
+
+⛔ **`main/sound.cpp` is compiled by no check.** `idf.py build` is run by hand; a test builds `command_frame.cpp` and `face_bitmap.cpp`, and nothing here builds the I²S channel or the amplifier's bring-up.

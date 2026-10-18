@@ -12,6 +12,8 @@
 
 - **見せるものが変わったとき**——顔か光が、最後に伝えた値と違うとき;
 - **身振りが選ばれたとき**——`Decision.gesture` は遷移でしか選ばれない。**首は遷移でしか動かない**;
+- **音が選ばれたとき**——✅ **2026-10-18 から。** `Decision.sound` も遷移でしか選ばれない。
+  ⛔ **音は状態ではない**——だから最後に鳴らした語を覚えない。**光とはそこが違う**;
 - **プロセスで最初の判定のとき**——⚠️ **機体の状態は知られていない。** 1枠目は、
   部屋の状態を機体へ立てるためのものである。
 
@@ -20,8 +22,9 @@
 
 ## 数を持たない
 
-⛔ **`Frame` の3つの欄は、すべて語である**——`wire.FACES`・`wire.LIGHTS`・
-`wire.GESTURES` のどれか、あるいは `None`。**数は1つも無い**（`engine/backend/protocol_stackchan.py`）。
+⛔ **`Frame` の4つの欄は、すべて語である**——`wire.FACES`・`wire.LIGHTS`・
+`wire.GESTURES`・`wire.SOUNDS` のどれか、あるいは `None`。**数は1つも無い**
+（`engine/backend/protocol_stackchan.py`）。
 ⚠️ **語から数への変換は、この層の下でも上でもない**——それは、この個体を測った日に
 書かれるものであり、まだ書かれていない。
 """
@@ -34,15 +37,17 @@ from projects.stackchan.behaviors import Decision
 
 @dataclass(frozen=True)
 class Frame:
-    """**1つの枠。** ⛔ **3つの欄とも語であり、数ではない。**
+    """**1つの枠。** ⛔ **4つの欄とも語であり、数ではない。**
 
     ⚠️ `face` が `None` なら「変えない」であり、`gesture` が `None` なら「動かない」である。
-    **光は常に在る**——`light` は `None` にならない。
+    **光は常に在る**——`light` は `None` にならない。⚠️ `sound` が `None` なら
+    **「この枠は鳴らない」**である——顔や身振りと同じ綴りで、別の意味を持つ。
     """
 
     face: str | None
     light: str
     gesture: str | None
+    sound: str | None = None
 
 
 class Outbound:
@@ -70,6 +75,7 @@ class Outbound:
         face = decision.face.value if decision.face is not None else self._face
         light = decision.light.value
         gesture = decision.gesture
+        sound = decision.sound
 
         face_changed = face != self._face
         light_changed = light != self._light
@@ -78,13 +84,17 @@ class Outbound:
         self._face = face
         self._light = light
 
-        if not (first or face_changed or light_changed or gesture is not None):
+        if not (
+            first or face_changed or light_changed or gesture is not None
+            or sound is not None
+        ):
             return None
 
         return Frame(
             face=face if face_changed else None,
             light=light,
             gesture=gesture,
+            sound=sound,
         )
 
 

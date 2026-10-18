@@ -40,10 +40,23 @@ enum class Gesture : uint8_t {
   kRecoil,
 };
 
+// ⚠️ A sound is a word, not a frequency — the same rule as a gesture. The
+//    word-to-tone table lives in main/sound.cpp, beside the place it was placed
+//    by ear. ⛔ `kNone` means this frame is silent; unlike `Light` there is no
+//    "keep the last one", because a sound is an event.
+enum class Sound : uint8_t {
+  kNone,
+  kHello,
+  kPip,
+  kChime,
+  kFall,
+};
+
 struct Command {
   Face face;
   Light light;
   Gesture gesture;
+  Sound sound;
 };
 
 enum class ParseResult : uint8_t {

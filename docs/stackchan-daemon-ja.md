@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.12.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.13.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -111,10 +111,11 @@
 ✅ **0.19.1 から、すべての決定が `projects/stackchan/outbound.py` を通り**、枠が `None` でないとき、デーモンはそれを1行として書く:
 
 ```
-{"frame": "{\"face\":null,\"gesture\":null,\"light\":\"breathe\"}", "sent": false, "at": 6497.584270416, "session": "…"}
+{"frame": "{\"face\":null,\"gesture\":null,\"light\":\"breathe\",\"sound\":null}", "sent": false, "at": 6497.584270416, "session": "…"}
 ```
 
-- **枠は、機体の見せるものが変わったときに書く**——顔か光——**か、身振りが選ばれたとき、か、そのプロセスの最初の決定であるとき。** ⛔ **最初の決定は必ず出す。その前の機体の状態が知られていないからである**; 顔は枠自身の状態から埋めるので、機体は自分が何を映していたかを憶えておかなくてよい。
+- **枠は、機体の見せるものが変わったときに書く**——顔か光——**か、身振りが選ばれたとき、か、音が名指されたとき、か、そのプロセスの最初の決定であるとき。** ✅ **4番目の鍵は 0.19.13 に来た**——必須であり、`null` は*この枠は黙る*を意味する。⛔ **最後のものを保て、ではない。** **音は事象であり、身振りも事象であり、顔と光は状態である**——枠のあいだ覚えられるのは状態だけである。
+- ⚠️ **音は既定で切れている**（`--sound on|off`）。著者の決定であり、これを入れたことで機体が頼まれずに喋り出してはならない。⛔ **スイッチが切れていても、鍵は `null` として書かれる**——枠の形はどちらでも同じであり、基板が「なぜ鳴らなかったか」を推し量ることはない。⛔ **最初の決定は必ず出す。その前の機体の状態が知られていないからである**; 顔は枠自身の状態から埋めるので、機体は自分が何を映していたかを憶えておかなくてよい。
 - ⛔ **事象の理由は状態の変化を仕切らない**ので、規則は理由ではなく状態を読む。`blocked` の中の `PostToolUse` は、理由 `OBSERVED` で `working` へ戻り、光は動かないことがある; 懸念は光を変え、段階を変えない。
 - ⚠️ **これは流れではない。** 観測された走りでは、最初の枠に続いた `PreToolUse` は2行目を書かなかった。
 - **その行は符号器のものである**——`engine/backend/protocol_stackchan.py`、`tests/test_stackchan_wire.py` が押さえるのと同じもの——だから**ログが `schemas/stackchan-command.schema.json` からずれることはない。**
@@ -132,7 +133,7 @@ frame: light=warm face=greeting (no renderer yet)
 frame: gesture perk refused — no gesture -> angle table exists
 ```
 
-  ⇒ **デーモンのログは `{"face":"greeting","gesture":"perk","light":"warm"}` を `"sent": true` 付きで保持し、基板は同じ語を印字した。** ⛔ **身振りはその日に拒まれた**——`command_frame.cpp` は角度が測られるまですべての身振りを拒み、測られたのはその日のうちだった——**そしてその拒否は光を止めなかった。** ⚠️ **そのログの語は、当時のプロトコルが運んでいた語である**: 著者が 2026-10-18 のうちに5つの身振りすべてを改名したとき、`perk` は `look_up` になった（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）。
+  ⇒ **デーモンのログは `{"face":"greeting","gesture":"perk","light":"warm"}` を `"sent": true` 付きで保持し、基板は同じ語を印字した。** ⛔ **身振りはその日に拒まれた**——`command_frame.cpp` は角度が測られるまですべての身振りを拒み、測られたのはその日のうちだった——**そしてその拒否は光を止めなかった。** ⚠️ **そのログの語は、当時のプロトコルが運んでいた語である**: 著者が 2026-10-18 のうちに5つの身振りすべてを改名したとき、`perk` は `look_up` になった（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）。⚠️ **その2行は4番目の鍵より前のものである**ので、どちらも `sound` を運ばない; 0.19.13 以降に書かれた枠は必ず運ぶ。
 - ⚠️ **経路は身元ではない。** 1台の基板で、ハングの前は `/dev/cu.usbmodem1101`、1度の抜き差しの後は `/dev/cu.usbmodem101` だった——**16分違いである。** 導入済みの plist は2つ目を名指しする; **抜き差しが3つ目を名指ししても、デーモンは `sent: false` を記録して続ける。** ⇒ **この導入についてケーブルが無効にできるのは、plist のポートだけである。**
 - ⛔ **ここではポートを開いたままにしない。それは限界でもある**: 行は行列に入らず、他のプログラムがポートを持つあいだに書かれた枠は、送られなかったものとして記録される。**どちらにせよ、部屋は事象に答える。**
 - ⚠️ **DTR と RTS を立てる読み取り手は、リセットである。** `pyserial` でこのコンソールを開くと基板は起動途中にリセットし、ケーブルを抜き差しするまで ROM は答えなくなった; **デーモン自身の `os.open` の経路を単独で走らせたときは、どちらも起きなかった。** このコンソールを見たいときは、`os.open` と生の `termios` を使うこと。
@@ -154,7 +155,7 @@ frame: gesture perk refused — no gesture -> angle table exists
 
 **ここで決まっていないこと:**
 
-- ✅ **枠は決まった（0.19.0）。そしてこの頁は、いまもそれを所有しない**——ASCII の JSON 1行、`face` / `light` / `gesture`、`schemas/stackchan-command.schema.json` にあり、`engine/backend/protocol_stackchan.py` が符号化する。✅ **0.19.1 からデーモンはその符号器を呼び、渡すはずの行を書く。** ✅ **0.19.8 から伝送路も決まった: デーモンはその行を基板のコンソールへ書き、枠ごとに1回開き、導入済みの plist が経路を名指しする**（[伝送路](#伝送路)を見よ）。✅ **そして同じ日のうちに、`projects/stackchan-firmware/` は受け取った身振りを演じる**——この個体で測った5つの姿勢——**ので、身振りを運ぶ枠が頭を動かす**（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）; ✅ **そして 0.19.11 から、エンジンは著者が受け入れるほど滑らかにこれを動かす**——ファームの書き方を純正自身の呼び出しに変えたあとの `projects/stackchan/neck/`（`records/2026-10-18-the-neck.md`）;
+- ✅ **枠は決まった（0.19.0）。そしてこの頁は、いまもそれを所有しない**——ASCII の JSON 1行、`face` / `light` / `gesture` / `sound`、`schemas/stackchan-command.schema.json` にあり、`engine/backend/protocol_stackchan.py` が符号化する。✅ **0.19.1 からデーモンはその符号器を呼び、渡すはずの行を書く。** ✅ **0.19.8 から伝送路も決まった: デーモンはその行を基板のコンソールへ書き、枠ごとに1回開き、導入済みの plist が経路を名指しする**（[伝送路](#伝送路)を見よ）。✅ **そして同じ日のうちに、`projects/stackchan-firmware/` は受け取った身振りを演じる**——この個体で測った5つの姿勢——**ので、身振りを運ぶ枠が頭を動かす**（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）; ✅ **そして 0.19.11 から、エンジンは著者が受け入れるほど滑らかにこれを動かす**——ファームの書き方を純正自身の呼び出しに変えたあとの `projects/stackchan/neck/`（`records/2026-10-18-the-neck.md`）;
 - 待機時と停止後にファームウェアが何をするか;
 - 2つ目の体——機体ごとの2つ目のデーモン——が何か違うものを要するか。
 

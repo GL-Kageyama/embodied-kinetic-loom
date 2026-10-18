@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.12.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.13.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -111,10 +111,11 @@
 ✅ **自 0.19.1 起，每一个决定都经过 `projects/stackchan/outbound.py`**，当帧不是 `None` 时，守护进程把它写成一行:
 
 ```
-{"frame": "{\"face\":null,\"gesture\":null,\"light\":\"breathe\"}", "sent": false, "at": 6497.584270416, "session": "…"}
+{"frame": "{\"face\":null,\"gesture\":null,\"light\":\"breathe\",\"sound\":null}", "sent": false, "at": 6497.584270416, "session": "…"}
 ```
 
-- **帧在机体该显示的东西发生变化时写下**——脸或光——**或者选中了身势，或者它是这个进程的第一个决定。** ⛔ **第一个决定一定发出，因为在那之前的机体状态是未知的**; 脸由帧自身的状态补上，所以机体不必记住自己曾映着什么。
+- **帧在机体该显示的东西发生变化时写下**——脸或光——**或者选中了身势，或者点名了声音，或者它是这个进程的第一个决定。** ✅ **第四个键在 0.19.13 到来**，而且是必需的：`null` 意味着*这一帧沉默*。⛔ **不是*保持最后一个*。** **声音是事件，身势也是事件；脸与光是状态**——帧与帧之间被记住的只有状态。
+- ⚠️ **声音默认关闭**（`--sound on|off`），这是作者的决定：安装它不该让一台机器不请自来地开口。⛔ **开关关闭时，键仍然被写下，作为 `null`**——无论哪种情形帧的形状都相同，板子不必去猜为什么没有播放。⛔ **第一个决定一定发出，因为在那之前的机体状态是未知的**; 脸由帧自身的状态补上，所以机体不必记住自己曾映着什么。
 - ⛔ **事件的理由并不划分状态变化**，所以规则读的是状态，不是理由。`blocked` 中的 `PostToolUse` 以理由 `OBSERVED` 回到 `working`，光却可能不动; 担忧改变光，不改变阶段。
 - ⚠️ **这不是流。** 在观测到的那次运行里，紧随第一个帧的 `PreToolUse` 没有写下第二行。
 - **那一行属于编码器**——`engine/backend/protocol_stackchan.py`，与 `tests/test_stackchan_wire.py` 所守的是同一个——**所以日志不会偏离 `schemas/stackchan-command.schema.json`。**
@@ -132,7 +133,7 @@ frame: light=warm face=greeting (no renderer yet)
 frame: gesture perk refused — no gesture -> angle table exists
 ```
 
-  ⇒ **守护进程的日志以 `"sent": true` 保持着 `{"face":"greeting","gesture":"perk","light":"warm"}`，而板子印出了同样的话。** ⛔ **身势在那一天被拒绝了**——`command_frame.cpp` 在角度被测量之前拒绝每一个身势，而角度就在同一天被测了出来——**而这次拒绝没有让光停下。** ⚠️ **日志里的那个词，是当时协议所运的词**: 作者在 2026-10-18 当天把五个身势全部改名时，`perk` 变成了 `look_up`（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）。
+  ⇒ **守护进程的日志以 `"sent": true` 保持着 `{"face":"greeting","gesture":"perk","light":"warm"}`，而板子印出了同样的话。** ⛔ **身势在那一天被拒绝了**——`command_frame.cpp` 在角度被测量之前拒绝每一个身势，而角度就在同一天被测了出来——**而这次拒绝没有让光停下。** ⚠️ **日志里的那个词，是当时协议所运的词**: 作者在 2026-10-18 当天把五个身势全部改名时，`perk` 变成了 `look_up`（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）。⚠️ **那两行早于第四个键**，所以都不携带 `sound`；0.19.13 之后写下的帧一定携带它。
 - ⚠️ **路径不是身份。** 在同一块板子上，挂起之前是 `/dev/cu.usbmodem1101`，一次重新插拔之后是 `/dev/cu.usbmodem101`——**相隔十六分钟。** 已安装的 plist 指名第二个; **下一次插拔可能指名第三个，而守护进程会记下 `sent: false` 继续走。** ⇒ **关于这个安装，一根线缆能否定掉的，只有 plist 里的端口。**
 - ⛔ **这里不把端口一直打开。那同时也是限度**: 行不排队，所以在别的程序持有端口时写下的帧，被记录为未发送。**无论哪种情况，房间都会回答事件。**
 - ⚠️ **一个拉起 DTR 和 RTS 的读取方，就是一次复位。** 用 `pyserial` 打开这个控制台，让板子在启动途中复位，ROM 直到线缆拔出又插回才重新回答; **单独运行守护进程自己的 `os.open` 路径时，两件事都没有发生。** 想看这个控制台，就用 `os.open` 和原始 `termios`。
@@ -154,7 +155,7 @@ frame: gesture perk refused — no gesture -> angle table exists
 
 **在这里未决定的:**
 
-- ✅ **成帧已经定了（0.19.0），而这一页仍然不拥有它**——一行 ASCII JSON，`face` / `light` / `gesture`，在 `schemas/stackchan-command.schema.json` 里，由 `engine/backend/protocol_stackchan.py` 编码。✅ **自 0.19.1 起，守护进程调用那个编码器。** ✅ **自 0.19.8 起传输路径也定了: 守护进程把那一行写进板子的控制台，每帧打开一次，安装的 plist 点名路径。** ✅ **而自同一天更晚的时候起，`projects/stackchan-firmware/` 会演出它收到的身势**——在这台个体上测得的五个姿态——**所以承载身势的帧会转动头部**（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）; ✅ **而自 0.19.11 起，引擎把它驱动得足够平滑，作者接受了这个运动**——固件的写法改成原厂自身的调用之后的 `projects/stackchan/neck/`（`records/2026-10-18-the-neck.md`）;
+- ✅ **成帧已经定了（0.19.0），而这一页仍然不拥有它**——一行 ASCII JSON，`face` / `light` / `gesture` / `sound`，在 `schemas/stackchan-command.schema.json` 里，由 `engine/backend/protocol_stackchan.py` 编码。✅ **自 0.19.1 起，守护进程调用那个编码器。** ✅ **自 0.19.8 起传输路径也定了: 守护进程把那一行写进板子的控制台，每帧打开一次，安装的 plist 点名路径。** ✅ **而自同一天更晚的时候起，`projects/stackchan-firmware/` 会演出它收到的身势**——在这台个体上测得的五个姿态——**所以承载身势的帧会转动头部**（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）; ✅ **而自 0.19.11 起，引擎把它驱动得足够平滑，作者接受了这个运动**——固件的写法改成原厂自身的调用之后的 `projects/stackchan/neck/`（`records/2026-10-18-the-neck.md`）;
 - 固件在待机时与停止后做什么;
 - 第二个身体——每台机器第二个守护进程——是否需要不同的东西。
 

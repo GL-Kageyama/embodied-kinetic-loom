@@ -193,7 +193,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The check that arrived before the second wire (2026-10-18)
 
-**`projects/stackchan/` arrived, and with it the layer above the wire — events to phases, faces and lights, with no numbers for machine 2.** Thirty-four tests were added; the count moved from 281 to 315 — **then twenty-four more with the daemon, twenty-one with its client, and twenty-five with the wire to machine 2, moving it to 385** — **then ten more with the outbound frame and two more with the daemon that logs it, moving it to 397.** **They are check 13, and it is of a sixth kind**: not a trajectory, not a drawing or a directory or a joint, not bookkeeping, not the boundary, not the words — **it is a check on a decision that is upstream of the `Motion Intent` and therefore has no trajectory to check.**
+**`projects/stackchan/` arrived, and with it the layer above the wire — events to phases, faces and lights, with no numbers for machine 2.** Thirty-four tests were added; the count moved from 281 to 315 — **then twenty-four more with the daemon, twenty-one with its client, and twenty-five with the wire to machine 2, moving it to 385** — **then ten more with the outbound frame and two more with the daemon that logs it, moving it to 397.** ⚠️ **The three tables below carry today's counts, not that day's** — the voice added one to the first, three to the third and three to the fourth — **and the chain above stays the arrival's, because a chain rewritten at its tail stops being a record.** **They are check 13, and it is of a sixth kind**: not a trajectory, not a drawing or a directory or a joint, not bookkeeping, not the boundary, not the words — **it is a check on a decision that is upstream of the `Motion Intent` and therefore has no trajectory to check.**
 
 **What it holds:**
 
@@ -205,7 +205,8 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | three failures in a row raise the light and not the face; `angry` is only `StopFailure` | `test_stackchan_behaviors.py` | the product decision that a failing test is not an occasion for anger |
 | **the gaze is single and sticky over two and three windows** — a person's act moves it, a tool call and a background `Stop` do not, a background `PermissionRequest` steals it | `test_stackchan_behaviors.py` | ⚠️ **windows share one neck**; alternating would land inside the one-second floor |
 | a gesture inside the cooldown is dropped, and the light still changes | `test_stackchan_behaviors.py` | ⚠️ **1.0 s is borrowed from the 10/04 unit**, not measured on this one |
-| sound is off by default and follows transitions only | `test_stackchan_behaviors.py` | the speaker has never been verified on this unit |
+| sound is off by default, and carries one word on four of the six transitions | `test_stackchan_behaviors.py` | ✅ **since 2026-10-18 the speaker has been played on this unit, and the author heard all four words** |
+| every sound word the layer can choose is one the wire's closed set names | `test_stackchan_behaviors.py` | ⛔ **two tables of the same four words would drift**, and the wire's is the one the board reads |
 | no machine-1 name or number is in the package | `test_stackchan_behaviors.py` | over **AST identifiers and numeric constants**, not text — and it also asserts that no `motions/` directory exists |
 | the parser builds in three languages, and the help differs | `test_stackchan_behaviors.py` | the same assertion `test_strings.py` makes for the Pet's entry point |
 
@@ -238,22 +239,24 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | **one daemon carries the phase across two separate hook processes** | `test_stackchan_hook_client.py` | ⛔ **this is why the bridge exists** — `Companion` holds state, and a hook does not |
 | **two windows through two clients keep one gaze, and a background `Stop` is `distant`** | `test_stackchan_hook_client.py` | the focus rule, asserted across processes rather than inside one |
 
-**Twenty-five more hold the wire to machine 2 — the frame a gesture would cross on:**
+**Twenty-eight more hold the wire to machine 2 — the frame a gesture would cross on:**
 
 | the check | where | what it is for |
 |---|---|---|
-| every symbol round-trips — the six face values (five and `null`) × six lights × the six gesture values | `test_stackchan_wire.py` | ⚠️ **216 frames counted, 150 of them carrying no `null`**, and not one carries a number |
+| every symbol round-trips — the six face values (five and `null`) × six lights × the six gesture values × the five sound values (four and `null`) | `test_stackchan_wire.py` | ⚠️ **1,080 frames counted, 125 of them carrying no `null`**, and not one carries a number |
 | a frame is one ASCII line, and the two nullable fields are present as `null` | `test_stackchan_wire.py` | ⛔ **a missing field is filled by the receiver's memory**; `null` is a value |
 | an unknown key is refused — a `prompt` cannot ride along | `test_stackchan_wire.py` | the same rule the socket holds, asserted on the wire |
 | an unknown value is refused in each field | `test_stackchan_wire.py` | ⛔ **a word outside the table is outside the vocabulary** |
 | `light` is required and never `null`; malformed, two-line and over-long input are refused | `test_stackchan_wire.py` | the light is the one channel that is always on |
+| **`sound` is required, may be `null`, and its values are four words** | `test_stackchan_wire.py` | ⛔ **`null` is *this frame is silent*, not *keep the last one*** — a sound is an event, and the receiver must not remember it |
+| **a sound is a word and not a number** | `test_stackchan_wire.py` | ⛔ **`1000` would be a frequency**, and a frequency has no place on this wire |
 | the encoder refuses what the decoder refuses | `test_stackchan_wire.py` | ⛔ **two rules would let one side be fixed alone** |
 | the schema, the codec and the firmware's literals name the same words | `test_stackchan_wire.py` | the contract is a copy in three places, and this is where it rings |
 | the firmware source has no angle for either machine | `test_stackchan_wire.py` | ⛔ **a guessed angle is indistinguishable from a measured one in the source** |
 | the wire imports nothing but `json` and `dataclasses` | `test_stackchan_wire.py` | no clock, no socket, no environment — and ⛔ **no import of machine 1's protocol** |
 | the mock records and answers nothing; `send` returns `None` | `test_stackchan_wire.py` | ⚠️ **green means the protocol computes, not that anything moved** |
 
-**Ten more hold the frame the room would send — the last seam before a wire that does not exist:**
+**Thirteen more hold the frame the room would send — the last seam before a wire that does not exist:**
 
 | the check | where | what it is for |
 |---|---|---|
@@ -261,10 +264,12 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | a decision that changes nothing emits no frame | `test_stackchan_outbound.py` | ⛔ **a hundred evidence events produce one frame** — this is not a stream |
 | a change of light alone emits a frame carrying no face | `test_stackchan_outbound.py` | ⛔ **the reason does not partition state changes** — `PostToolUse` returns `blocked` to `working` with reason `OBSERVED` |
 | a gesture alone emits a frame | `test_stackchan_outbound.py` | the neck is the one channel that is not part of the state |
+| **a sound alone emits a frame, and the frame is not repeated** | `test_stackchan_outbound.py` | ⛔ **a sound is an event and not part of the state** — `Outbound` remembers no sound, where it remembers the light |
+| **each transition carries its own word, and two are silent** | `test_stackchan_outbound.py` | ⚠️ **`UserPromptSubmit` and `SessionEnd` say nothing** — *a transition makes a sound* is not the rule |
 | every emitted frame parses against the contract, and round-trips on the wire | `test_stackchan_outbound.py` | the frame is a `Frame`, not a sentence, and the codec is the only spelling of it |
 | **no number crosses** | `test_stackchan_outbound.py` | ⛔ **every field is a word from a closed table or `null`** |
 
-✅ **And since 0.19.8 a transport exists** — `--port PATH`, one open per frame — so *the daemon opens no transport* is no longer true. ⛔ **What is still true is that no test opens a device**: the four port tests open a regular file, and the delivery to the board was observed by hand, once. **These forty-one tests** (twenty-five on the wire, ten on the frame, six on the daemon's frame row and its port) **hold a frame, a contract and a way out of the process; they hold no machine.**
+✅ **And since 0.19.8 a transport exists** — `--port PATH`, one open per frame — so *the daemon opens no transport* is no longer true. ⛔ **What is still true is that no test opens a device**: the four port tests open a regular file, and the delivery to the board was observed by hand, once. **These forty-seven tests** (twenty-eight on the wire, thirteen on the frame, six on the daemon's frame row and its port) **hold a frame, a contract and a way out of the process; they hold no machine.**
 
 ⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **The layer has been registered as a hook since 2026-10-18**, and the phase, the timers and the gaze live inside one process, so that registration is a client and a daemon rather than the CLI. **Both ends of that bridge exist, and both are installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client — **but this directory tests the two processes, not the installation.** ⛔ **Nothing here rings on the launchd job or on `settings.json`:** an installation is a place on one host, and it is recorded on `docs/stackchan-daemon.md`, not checked. ✅ **And since 2026-10-18 the installed daemon writes the frame both ways** — as a log row and, because the plist names a port, to the board's console — **with `sent: true` when the host's tty took the whole line.** ✅ **The board printed the same frame from its own console**, which is what makes it delivery rather than a write; ⛔ **and the board refused the gesture, exactly as its source says it must.**
 
@@ -290,7 +295,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The machine's own parser, compiled and run (0.19.8)
 
-✅ **`tests/test_stackchan_frame_parser.py` compiles `projects/stackchan-firmware/command_frame.cpp` with `clang++` or `g++` and runs it** — fourteen claims about which lines the parser accepts and which it refuses.
+✅ **`tests/test_stackchan_frame_parser.py` compiles `projects/stackchan-firmware/command_frame.cpp` with `clang++` or `g++` and runs it** — seventeen claims about which lines the parser accepts and which it refuses.
 
 | the check | where | what it is for |
 |---|---|---|
@@ -299,7 +304,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | every gesture word the contract names parses — and none of them is played here | `test_stackchan_frame_parser.py` | ⛔ **`apply_command` is a stub and `main.cpp` is never compiled by this test**, so the measured posture table that plays a gesture is checked by no check at all |
 | the enum still matches the words the schema names | `test_stackchan_frame_parser.py` | the contract is a copy in three places, and this is the second place it rings |
 
-⛔ **It does not build the firmware.** `main.cpp`, `leds.cpp` and `servo.cpp` are never compiled here; `idf.py build` was run by hand on 2026-10-18 and no check repeats it. **What this test is for is the gap it was written into**: a copy checked against a copy had passed while the parser refused every frame in the only place that mattered.
+⛔ **It does not build the firmware.** `main.cpp`, `leds.cpp`, `servo.cpp`, `display.cpp` and `sound.cpp` are never compiled here; `idf.py build` was run by hand on 2026-10-18 and no check repeats it. **What this test is for is the gap it was written into**: a copy checked against a copy had passed while the parser refused every frame in the only place that mattered.
 
 ## The engine's trajectory, streamed to the machine (0.19.10)
 
@@ -336,6 +341,21 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | `happy` and `greeting` are one drawing, and the other four are distinct | `test_stackchan_face.py` | the host decided two words share a face; the screen does not quietly disagree |
 
 ⛔ **What it cannot see is where the defect was.** `display.cpp` — the SPI driver, the panel's init sequence, the two I2C rails, and the DMA — **is compiled by no check.** `idf.py build` is run by hand, and on 2026-10-18 a tear lived in it for four rounds of reporting while this directory stayed green: the eight-row chunk buffer was refilled before the DMA had finished reading it, so *every shape on the screen had a thinner copy of itself below it*, and the copy sat further below the lower the shape was. **The drawing was right the whole time; what was wrong was the wire underneath it.** ⇒ **A `-2` row shift was briefly written into `face_bitmap.cpp` on the strength of the symptom, and removed again** — the comment where it stood records why it must not come back. ⛔ **And these tests did not catch it, because they were moved with it**: the row boxes were re-pinned to the shifted drawing and the suite stayed green. **A test written from the same belief as the code cannot be the check on that belief** — what caught it was one photograph, on the glass.
+
+## The voice — a word that leaves the board (0.19.13)
+
+✅ **The fourth field arrived, and the board plays it.** Eleven tests were added — **three on the wire, three on the frame, one on the layer, and four rows in the parser's table** — and the count moved from **502 to 513**.
+
+| the check | where | what it is for |
+|---|---|---|
+| `sound` is a required key, may be `null`, and its values are the four words | `test_stackchan_wire.py` | ⛔ **a missing key is refused like the other three** — a field the receiver fills in is a field that can be wrong silently |
+| a sound is a word, not a number | `test_stackchan_wire.py` | ⛔ **a frequency has no place on this wire** — the word-to-tone table is the board's |
+| a sound alone is a frame, and the sound is not remembered | `test_stackchan_outbound.py` | ⛔ **`Outbound` remembers the face and the light; it must not remember the sound**, because a sound is an event |
+| each transition carries its own word, and two transitions are silent | `test_stackchan_outbound.py` | ⚠️ **`UserPromptSubmit` and `SessionEnd` say nothing** |
+| the sound switch is off by default, and the words it lets through are the wire's four | `test_stackchan_behaviors.py` | ⛔ **two lists of four words would drift**; the wire's is the one the board reads |
+| a frame without `sound` is refused by the board's own parser, and `"horn"` is an unknown value | `test_stackchan_frame_parser.py` | the board refuses what the host's decoder refuses, spoken by the other end |
+
+⛔ **What none of them can see is the amplifier.** `sound.cpp` — the AW88298's register table, its reset line on the display's expander, the I2S channel and the four tones — **is compiled by no check**, and no test here opens a device. ⚠️ **The tones are choices, not measurements**, and the only thing that has judged them is one pair of ears: **on 2026-10-18 the board played all four from `bench sound`, and the author heard all four** (`projects/stackchan-firmware/records/2026-10-18-the-voice.md`). ⛔ **That says a sound was made. It says nothing about pitch, loudness, or whether a word suits its transition.**
 
 ## The rule that holds this directory — applied to us
 
