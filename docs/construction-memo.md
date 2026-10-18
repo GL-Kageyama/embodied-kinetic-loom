@@ -67,6 +67,21 @@
 
 ⚠️ **2026-10-18: and 0.19.11, still not a rung — the ceiling was ours.** `engine/trajectory/profile.py` gained `Spring(sharpness)`, the shape the stock firmware moved the neck with, and the neck's edge can stream it (`--profile spring --sharpness`). ⛔ **The 40°/s that 0.19.10 recorded as the servo's limit was `speed=100` — a cap the firmware was writing.** Measured on the unit with one goal each way: the stock's call (`time=20, speed=0`) moved 112 counts (35°) in under 200 ms, about 175°/s; ours (`time=0, speed=100`) took about 1.0 s. **The firmware now writes the stock's call**, the same seven segments were replayed at one-third the length — 228 poses, 410 applied on the board, 0 refused, 0 clamped — **and the author judged it 「かなり良い。これでOKだと思う。」** **The record is `projects/stackchan-firmware/records/2026-10-18-the-neck.md`.** ⛔ **0.20.0 has not started.**
 
+## The remaining work — the product, not the wire
+
+⚠️ **The ladder above ends at 0.20.0, and the Pet does not.** The ladder is about opening a port; the product is a face, a voice and a body that move together when something happens. **The order below is the author's ruling of 2026-10-18 (「推奨で進めよう」), and it is the only thing in this section that is not derivable from another page.**
+
+| # | what is missing | the work | gated by |
+|---|---|---|---|
+| **1** | **machine 1 has never been touched** — the last rung, 0.20.0 | `engine/backend/serial.py`, after the four items of `docs/first-contact.md` | the DOF box and the author in the same room |
+| **2** | **the face is not drawn and there is no voice** — the board prints `no renderer yet` (`main/main.cpp`), the five faces live only on the host (`projects/pet/`), and `sound` does not exist in the wire | a display renderer in the firmware, the five faces drawn from the `face=` word the wire already carries; then a `sound` field, its schema, its codec and the board's amp — inside quiet hours 21:00–05:00 | nothing: machine 2 and this host only |
+| **3** | **the join is missing** — a hook event reaches the frame (face, light, gesture) and a gesture is still one write and a stop (「動きが硬い」); the smooth neck runs only when `projects/stackchan/neck/` is typed by hand | the daemon — or a child of it — streams the pose line for the same event on the same clock: one happening moves the face, the lights and the neck | stages 1–2, and one decision: whether the daemon holds a child or the hook calls the neck edge |
+| **4** | **the record of the goal** — four records exist (arrival, gestures, lights, neck), and none of them is the goal | observation written as those four are: the eye first, the program's numbers inside it | stages 2–3 moving at all |
+
+**The order is 2 → 3 → 1 → 4**, unless a day in front of the DOF box arrives first — then 1 goes before the others, because the hours with the machine in the room cannot be moved.
+
+⛔ **The fine numbers wait for the product to move.** The landing's six to eight counts, `Spring(sharpness=5.0)` and `kPoseTimeMs` do not change whether anything moves; ⚠️ **the landing offset is the one of the three written down as unexplained** (`projects/stackchan-firmware/records/2026-10-18-the-neck.md`), so it is closed once, after stage 3, so that the record does not stay wrong.
+
 ## The traps
 
 ⚠️ **Ordered by how much time each one costs.** Every one of these was paid for once already.
