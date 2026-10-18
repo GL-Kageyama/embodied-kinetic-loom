@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.24.0 | canonical: tests/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.25.0 | canonical: tests/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Thirty-two files, five hundred and forty tests, all green — measured 2026-10-19.**
+**Thirty-three files, five hundred and seventy-three tests, all green — measured 2026-10-19.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -394,6 +394,27 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | every gesture asks once and uses what it hears | ⛔ **no cached answer and no background schedule** — the console is also the human's |
 
 ⛔ **None of these tests opens a device.** The port is a file, or a FIFO. ⇒ **How fast the board answers is not measured here** — the measured answer on the unit took about 0.22 s — and ⚠️ **whether a position ever comes back is a hardware question this suite cannot ask.** On 2026-10-19 it did not: the console answered, the servo bus did not.
+
+## The quiet hours (0.19.25)
+
+**`projects/stackchan/quiet.py` is the rule, and `test_stackchan_quiet.py` holds it with thirty-three claims.**
+
+⚠️ **Three layers are measured separately, because they fail separately** — the rule, the core that closes only the `sound` field, and the edge that reads the wall clock and passes the hour.
+
+| the check | what it is for |
+|---|---|
+| the rule is 21 to 5 | ⚠️ **the author's rule, and the only place both numbers live** |
+| all twenty-four hours have an answer, one at a time | ✅ **both ends are counted**: 21:00 is quiet, 05:00 is day |
+| an hour that is not an hour is refused | ⛔ **24 and −1 are the reader's mistake**, and the rule does not answer them with another answer |
+| a bool is not an hour | ⚠️ `True` is also `1` in Python; **that is not a reason to read it as one o'clock** |
+| quiet closes the sound and nothing else | ⛔ **the face, the light, the gesture and the phase equal the loud decision's** — quiet is not absence |
+| a sound that was off stays off | **the two gates both close**, and quiet does not restore a switch the author turned off |
+| all four words are closed | ⚠️ **a gate that closes one word is not a gate** |
+| the edge asks the rule with the hour it was given | ✅ **an hour passed in measures the boundary without stopping a clock** |
+| without an hour the edge reads the wall clock | ⛔ **the default path is walked once with the clock replaced** — otherwise the check changes its answer at midnight |
+| the rule is named once | ⚠️ `21` and `5` live in `quiet.py`; **`__main__.py` carries no number** |
+
+⛔ **Nothing here opens a port, and nothing here hears anything.** A closed field is counted; **whether the speaker is silent is not something a host can measure** — the ear is the instrument, and it has not yet heard a quiet night.
 
 ## The rule that holds this directory — applied to us
 

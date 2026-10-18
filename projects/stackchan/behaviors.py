@@ -39,6 +39,10 @@
 ⛔ **「無音モード」という名前は無い。** サーボは鳴る。
 **音と運動は別の軸であり、1つの enum に畳まない。**
 
+⚠️ **スピーカーには、もう1つ外からの軸がある**（2026-10-19）——**静かな時間**である。
+21:00–05:00 は `quiet=True` として縁から来て、**`sound` の欄だけを閉じる**
+（`quiet.py`）。⛔ **顔も光も首も従わない。** **静かであることは、居ないことではない。**
+
 ## 窓が2つ以上あっても、部屋は1つである（要求、2026-10-18）
 
 ⚠️ **VSCode の窓を2つ以上並べ、複数のセッションが同時に走ることがある。**
@@ -291,11 +295,15 @@ class Companion:
 
     # -- 事象 ---------------------------------------------------------------
 
-    def offer(self, event: str, at: float) -> Decision:
+    def offer(self, event: str, at: float, quiet: bool = False) -> Decision:
         """**事象を1つ受け取り、判定を返す。** 時計は読まない。
 
         ⛔ **33のすべてが、まず生存の証拠である。** 段階が `resting` なら、
         **種類に関わらず起きる**——**無視される事象でも、セッションは生きている。**
+
+        ⚠️ **`quiet` は音の欄だけを閉じる**（21:00–05:00、`quiet.py`）。
+        **顔も光も首も従わない**——無音の時間であり、**存在しない時間ではない。**
+        ⛔ **時刻そのものは持たない。** 時を読むのは縁であり、ここへは真偽で来る。
         """
         reaction = hooks.classify(event)
         self._advance(at)
@@ -304,7 +312,7 @@ class Companion:
         self._idle_until = at + IDLE_SECONDS
 
         if reaction.kind is hooks.Kind.TRANSITION:
-            return self._transition(event, at)
+            return self._transition(event, at, quiet)
 
         woke_face = None
         if self._phase is Phase.RESTING:
@@ -335,7 +343,7 @@ class Companion:
             gesture=None, body=BODY_NONE, sound=None, reason=DISTANT,
         )
 
-    def _transition(self, event: str, at: float) -> Decision:
+    def _transition(self, event: str, at: float, quiet: bool) -> Decision:
         # ⚠️ **音は、この4つの遷移に1つずつ在る。** `UserPromptSubmit` は鳴らない——
         #    人はいま自分で喋った。`SessionEnd` も鳴らない——去る窓に声をかけない。
         # ⛔ **音は体の下限に従わない。** 別の軸である（「音と運動は別」）。
@@ -402,7 +410,7 @@ class Companion:
 
         return self._decision(
             event, face=self._face, light=self._light,
-            gesture=gesture, body=body, sound=self._sound(sound), reason=ACTED,
+            gesture=gesture, body=body, sound=self._sound(sound, quiet), reason=ACTED,
         )
 
     def _evidence(self, event: str, at: float, woke_face: State | None) -> Decision:
@@ -467,14 +475,18 @@ class Companion:
         self._last_body = at
         return name, BODY_GESTURE
 
-    def _sound(self, word: str | None) -> str | None:
+    def _sound(self, word: str | None, quiet: bool = False) -> str | None:
         """**音の欄を決める。** ⚠️ **切られていれば、語は選ばれない。**
 
         ⛔ **「切っている」を語にしない。** `None` は「鳴らない」であり、
         切られていることも、この事象が音を持たないことも、同じ1つの値で言える。
         2つを区別する必要が出た日に、欄が1つ増える——**いまは区別しない。**
+
+        ⚠️ **静かな時間も同じ1つの値になる**（`quiet=True` → `None`）。
+        ✅ **2026-10-19 に足した**——**夜を守る方法が「音を切る」しか無かった**ためである。
+        ⛔ **それでも2つを区別しない。** 区別が要る日は、欄が1つ増える。
         """
-        if not self.sound:
+        if not self.sound or quiet:
             return None
         return word
 
@@ -551,18 +563,21 @@ class Focus:
         self._release_if_quiet(at)
         return self.companion.tick(at)
 
-    def offer(self, session: str, event: str, at: float) -> Decision:
+    def offer(self, session: str, event: str, at: float,
+              quiet: bool = False) -> Decision:
         """**窓を名乗る事象を1つ受け取る。**
 
         ⚠️ **注目が誰にも無ければ、その事象を出した窓が取る**——起動直後でも、
         前の持ち主が黙った後でも同じである。**窓の数は2に限らない。**
+
+        ⚠️ **`quiet` は、持ち主の事象にだけ渡る。** 背後の窓は元より鳴らない。
         """
         self._release_if_quiet(at)
 
         if self._held is None or session == self._held:
             self._held = session
             self._quiet_until = at + IDLE_SECONDS
-            decision = self.companion.offer(event, at)
+            decision = self.companion.offer(event, at, quiet=quiet)
             # ⚠️ **`SessionEnd` は、持ち主を空ける。** 去った窓を見続けない。
             if decision.phase is Phase.RESTING:
                 self._held = None
@@ -572,7 +587,7 @@ class Focus:
         if event in STEALS:
             self._held = session
             self._quiet_until = at + IDLE_SECONDS
-            return self.companion.offer(event, at)
+            return self.companion.offer(event, at, quiet=quiet)
 
         return self.companion.witness(event, at)
 

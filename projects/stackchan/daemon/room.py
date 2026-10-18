@@ -140,9 +140,14 @@ class Room:
         """**次に目を覚ますべき時刻。** `None` なら、事象だけを待つ。"""
         return self._focus.deadline
 
-    def offer(self, session: str, event: str, at: float) -> Decision:
-        """**窓を名乗る事象を1つ受け取り、判定を返す。**"""
-        return self._focus.offer(session, event, at)
+    def offer(self, session: str, event: str, at: float,
+              quiet: bool = False) -> Decision:
+        """**窓を名乗る事象を1つ受け取り、判定を返す。**
+
+        ⚠️ **`quiet` は、縁が読んだ「静かな時間」である**（`quiet.py`）。
+        ⛔ **ここで時計を読まない**——時刻は値で来る。**同じ値なら、同じ返事である。**
+        """
+        return self._focus.offer(session, event, at, quiet=quiet)
 
     def tick(self, at: float) -> Decision | None:
         """**事象の無い時刻を1つ進める。** 何も変わらなければ `None`。"""

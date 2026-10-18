@@ -16,6 +16,10 @@
 握ったままのデーモンは `bench` と `idf.py flash` の間に座り込む。
 ⚠️ **`--port` が無いとき、`sent` は今まで通り `False` である。**
 
+⚠️ **そして 2026-10-19 から、音には時刻の門がある**——21:00–05:00 は静かな時間であり、
+`sound` の欄が閉じる（`quiet.py`）。⛔ **顔も光も首は従わない。**
+**静かであることは、居ないことではない。**
+
 ✅ **そして 0.19.14 から、首は同じ輪で動く**——遷移が身振りを選んだとき、
 デーモンは `neck/` の純粋な予定表を1つ持ち、**同じ `at` から姿勢の行を流す**。
 ⚠️ **枠と姿勢の行で、同じ身振りを2度動かさない**: 流すとき、枠の `gesture` は `None` である
@@ -30,6 +34,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import select
@@ -45,6 +50,7 @@ from projects.stackchan.behaviors import Decision
 from projects.stackchan.neck import gestures, readback
 from projects.stackchan.neck.stream import Stream
 from projects.stackchan.outbound import Frame, Outbound
+from projects.stackchan.quiet import is_quiet
 
 from .room import (
     CLIENT_TIMEOUT,
@@ -416,6 +422,21 @@ def deliver(frame: Frame, at: float, session: str | None, port: str | None) -> N
     emit(frame_row(line, at, session, sent))
 
 
+def decide(room: Room, session: str, event: str, at: float,
+           hour: int | None = None) -> Decision:
+    """**事象1つを、部屋に渡す。** ⚠️ **静かな時間は、この縁が読む。**
+
+    ⛔ **中核は時計を持たない**（`room.py`）。`quiet.py` の規則が**真偽として**渡り、
+    **音の欄だけを閉じる**——顔も光も首も従わない。
+
+    ⚠️ **`hour` は試験のために在る。** 渡さなければ、**壁時計のローカル時を1度読む**。
+    ⇒ **渡せば、その時が結論を決める**——**時計を止めずに、境界を測れる。**
+    """
+    if hour is None:
+        hour = datetime.datetime.now().hour
+    return room.offer(session, event, at, quiet=is_quiet(hour))
+
+
 def handle(connection: socket.socket, room: Room, outbound: Outbound, neck: Neck,
            at: float) -> None:
     """**1つの接続を読む。** ⚠️ **行が届かなければ、待ち続けずに閉じる。**"""
@@ -449,7 +470,7 @@ def handle(connection: socket.socket, room: Room, outbound: Outbound, neck: Neck
         reply(connection, refusal(exc.code))
         return
 
-    decision = room.offer(session, event, at)
+    decision = decide(room, session, event, at)
     payload = row(decision, at, session)
     emit(payload)
 
@@ -518,7 +539,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--motion", choices=("on", "off"), default="on",
                         help="whether the neck channel chooses gestures (default: on)")
     parser.add_argument("--sound", choices=("on", "off"), default="off",
-                        help="whether the speaker channel is on (default: off)")
+                        help="whether the speaker channel is on (default: off); "
+                             "the quiet hours 21:00-05:00 still close it")
     return parser
 
 
