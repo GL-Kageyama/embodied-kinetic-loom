@@ -21,8 +21,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .protocol_stackchan import Command, decode
+from .protocol_stackchan_pose import Pose, decode as decode_pose
 
-__all__ = ["MockStackchan"]
+__all__ = ["MockStackchan", "MockStackchanPose"]
 
 
 @dataclass
@@ -51,4 +52,30 @@ class MockStackchan:
 
     def count(self) -> int:
         """**届いた枠の数。** ⚠️ **これは「動いた回数」ではない。**"""
+        return len(self.sent)
+
+
+@dataclass
+class MockStackchanPose:
+    """⚠️ **2本目の線の Mock——姿勢を、順に積むだけの器である。**
+
+    ⛔ **1つ目の Mock と同じ性格であり、同じ但し書きが掛かる:**
+    **緑はプロトコルの緑であり、機体の緑ではない。** そして、**20 ms ごとに目標を
+    書き換え続けることが、この個体で生き延びるかは、まだ測られていない**——
+    `MOVE_SETTLE = 1.0` は、走っている最中に次の指令が来ると両軸を落とした
+    （`docs/construction-memo.md` の罠）。⛔ **この Mock は、その罠について何も言わない。**
+    """
+
+    sent: list[Pose] = field(default_factory=list)
+
+    def send(self, line: bytes) -> None:
+        """**1行を受け取り、読めたら積む。** ⛔ **返事は無い。**"""
+        self.sent.append(decode_pose(line))
+
+    def last(self) -> Pose | None:
+        """**最後に届いた姿勢。** まだ何も届いていなければ `None`。"""
+        return self.sent[-1] if self.sent else None
+
+    def count(self) -> int:
+        """**届いた行の数。** ⚠️ **これは「動いた回数」ではない。**"""
         return len(self.sent)

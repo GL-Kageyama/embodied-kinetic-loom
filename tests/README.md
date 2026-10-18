@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.15.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.16.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Twenty-seven files, three hundred and ninety-seven tests, all green — measured 2026-10-18.**
+**Twenty-eight files, four hundred and thirty-nine tests, all green — measured 2026-10-18.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -263,6 +263,26 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 ⛔ **And the wire is not connected to anything.** The daemon opens the codec and writes the line it would send, but **it opens no transport** — no socket to a device, no serial port, no board. **These thirty-seven tests** (twenty-five on the wire, ten on the frame, two on the daemon's frame row) **hold a frame and a contract; they hold no machine.**
 
 ⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **The layer has been registered as a hook since 2026-10-18**, and the phase, the timers and the gaze live inside one process, so that registration is a client and a daemon rather than the CLI. **Both ends of that bridge exist, and both are installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client — **but this directory tests the two processes, not the installation.** ⛔ **Nothing here rings on the launchd job or on `settings.json`:** an installation is a place on one host, and it is recorded on `docs/stackchan-daemon.md`, not checked. ✅ **And since 2026-10-18 the installed daemon writes the frame row as well** — the line it would send, with `sent` false — **and that was observed on a real hook event.** ⛔ **What was observed is a line in a log, not a movement.**
+
+## A second line type, and what it does not cover (0.19.6)
+
+**`engine/backend/protocol_stackchan_pose.py` arrived — the line a host would write every tick.** Forty-two tests were added; the count moved from 397 to 439. ⛔ **It is not the transition frame, and the two are kept apart on their first word** (`pose` against `{`): that one is written when the visible state changes and carries symbols; this one is written every tick and carries numbers — **mix them and the frequent line buries the rare one.**
+
+| the check | where | what it is for |
+|---|---|---|
+| 7 × 7 poses round-trip, both bounds included | `test_stackchan_pose_wire.py` | ⚠️ **the endpoints are in the grid, not only the middle** |
+| the checksum is hand-computable — `pose 50 894` is `*01` | `test_stackchan_pose_wire.py` | ⛔ **the same three lines can be written in C++ on the board**; a check nobody can recompute is a number a reader has to trust |
+| a corrupted byte is refused as `bad-checksum` | `test_stackchan_pose_wire.py` | ⛔ **12.5° of error would otherwise move** — the machine's own envelope does not catch it, because the corruption stays inside the range |
+| `50` → `05` is refused by the canonical-spelling rule, not by the sum | `test_stackchan_pose_wire.py` | ⚠️ **a sum does not catch a transposition**; pinning one spelling closes the part of it that can be closed |
+| `123` → `321` is accepted | `test_stackchan_pose_wire.py` | ⛔ **a named limit, asserted so that no one later mistakes it for a property** |
+| a line of the other kind is refused as `not-pose` | `test_stackchan_pose_wire.py` | the two line types cannot be read as each other |
+| both fields are always present; half a pose and a spare field are refused | `test_stackchan_pose_wire.py` | ⛔ **a missing field is filled by the receiver's last value** |
+| the contract's pattern accepts every line the codec writes, and refuses the rest | `test_stackchan_pose_wire.py` | ⚠️ **the contract sees shape and the codec sees the sum; neither covers the other** |
+| the module imports only `dataclasses`, `typing` and two files of its own layer | `test_stackchan_pose_wire.py` | no clock, no socket, no environment — and ⛔ **no import of machine 1's protocol** |
+| neither machine 1's numbers nor this unit's zero points are in the source | `test_stackchan_pose_wire.py` | ⛔ **the zero points are the machine's and live in its NVS**; here they would be a copy, and a copy is this repository's own definition of a defect |
+| the mock records and answers nothing | `test_stackchan_pose_wire.py` | ⚠️ **green is the protocol's, not the machine's** |
+
+⛔ **What it does not cover.** **No board reads this line** — `projects/stackchan-firmware/` has not one line of it, so the 20 ms tick, the refusal of `bench` while poses stream, and the 500 ms silence that releases torque are **decisions with nothing behind them**. **20 ms has not been survived on this unit**, and the one datapoint on record, `MOVE_SETTLE = 1.0`, is that a command arriving mid-move took both axes down. **The order of the two fields is invisible to the checksum**: a line with yaw and pitch swapped is well-formed, and the head moves wrongly. **And nothing here is connected to anything** — `sent` is still `False`.
 
 ## The rule that holds this directory — applied to us
 

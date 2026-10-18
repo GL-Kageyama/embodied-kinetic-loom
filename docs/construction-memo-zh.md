@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.12.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.13.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
 
 **Language:** [English](construction-memo.md) | [日本語](construction-memo-ja.md) | [中文](construction-memo-zh.md)
 
@@ -20,8 +20,8 @@
 | 自由度 | **三个**——`pitch` / `roll` / `yaw` | **两个**——yaw 和 pitch。⛔ **没有 roll** |
 | 数 | **10bit 的计数**——中立 `512`、包络 `190–833` | ⛔ **进的是度，出的是舵机自己的计数。** ⚠️ **两者的换算，任何记录里都没有** |
 | 主机 → 机体 | 厂商的协议（串口或 HID） | ⛔ **手边这台上没有** |
-| 它的数住在代码的哪里 | `engine/backend/protocol.py`——`DofRealityWire`、`DOF_REALITY_ENVELOPE` | ⛔ **哪里都没有。模块不存在** |
-| 本仓库为它持有的东西 | 电线与 Mock | 电线之上的层——从事件到脸。⛔ **没有数字，也没有运动** |
+| 它的数住在代码的哪里 | `engine/backend/protocol.py`——`DofRealityWire`、`DOF_REALITY_ENVELOPE` | ✅ `engine/backend/protocol_stackchan_pose.py`——度的十分之一与协议的界。⛔ **零点与「度到计数」的换算，仍然不在任何模块里**——**它们属于机体，住在它的 NVS 里** |
+| 本仓库为它持有的东西 | 电线与 Mock | 电线之上的层——从事件到脸——**以及自 0.19.6 起，第二种运数的行**。⛔ **没有运动: 没有任何基板读它** |
 | 它的清单 | `docs/first-contact.md` | `docs/first-contact-stackchan.md` |
 | 从本仓库送出的值到达过吗 | ⛔ **没有** | ⛔ **没有** |
 | 它动过吗 | 在这里不知道 | ✅ **动过**——厂商的 SETUP 向导把它驱回原位，作者看见了（2026-10-15） |
@@ -54,6 +54,8 @@
 ⚠️ **2026-10-18，还有 0.19.4，它也不是一级——第一次抵达，而且它是本仓库的东西第一次真正到达机体。** `projects/stackchan-firmware/` 被构建（`build/stackchan-vessel.bin`，272,976 字节），写在 `0x510000`，核对哈希后运行；一条打入其控制台的命令把头的 40°，缓缓地、一格一格地转了过去。⛔ **它不是通过一个帧抵达的**——引擎没有跑，没有读 `Motion Intent`，每一个身势仍然被拒绝。✅ **记录在 `projects/stackchan-firmware/records/2026-10-18-first-arrival.md`，它是 0.17.0 时还空着的容器的第一条。** ⛔ **0.20.0 没有开始，传输路径仍然没有选定。**
 
 ⚠️ **2026-10-18，还有 0.19.5，它也不是一级——舵机的 time 字段：测了，被否掉了。** 台架命令 `bench timed <yaw_deg> <time> [speed]` **只写一次**目标——带着 time 与 speed——**然后每 200 ms 读一次轴。** ⛔ **两次试次里，time 字段都没有决定移动时间；决定它的是 speed**——而且**两次都恰好停在距目标 6 个计数处**：读起来是固定的偏移，但与间隙、与回读都还没有分开。 ⇒ **在这台机器上，柔和不能委托给舵机**——只能由**主机持续写插值后的目标**，那就是 `engine/trajectory/`，**而它在机器2上至今一次也没有跑过。** ⛔ **0.20.0 没有开始，传输路径仍然没有选定。**
+
+⚠️ **2026-10-18，还有 0.19.6。它也不是一级——第二种行，而基板那一端并不存在。** `engine/backend/protocol_stackchan_pose.py` 每个刻度运一个姿势: `pose <yaw_tenths> <pitch_tenths>*<CC>`，度的十分之一，**两栏始终都在**，拼写只有一种，两位的和，以及一个两轴的 `Wire`。⛔ **它不是迁移的帧**——那一行运符号，这一行运数，**两者靠第一个词分开: 混在一起，频繁的行会埋掉稀少的行。** ⛔ **没有任何基板读它**，所以 **20 ms 的刻度、姿势流动期间对 `bench` 的拒绝、沉默 500 ms 后释放扭矩，都是背后空无一物的决定。** **传输路径仍未选定，0.20.0 仍未开始。**
 
 ## 踩过的陷阱
 

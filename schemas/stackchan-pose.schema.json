@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Stack-chan pose line",
+  "description": "One pose on machine 2's second line type (0.19.6): `pose <yaw_tenths> <pitch_tenths>*<CHECK>` — one ASCII line per tick, both fields always present, tenths of a degree as canonical integers (no leading zero, no `-0`, no `+`). ⛔ This is not the transition frame (`stackchan-command.schema.json`): that one is written when the device's visible state changes and carries symbols; this one is written every tick and carries numbers. They are kept apart because a mixing would let the frequent line bury the rare one. ⛔ Degrees, not the servo's raw counts: the unit's zero points live in its own NVS and are per-unit, so a host that baked them in would move the machine's numbers outside the machine. The two fields are ordered — the first is yaw, the second is pitch — and ⛔ the order is a convention the checksum cannot see: a line with the fields swapped is well-formed and would move the head wrongly. The checksum is the low byte of the sum of every byte before the `*`, as two uppercase hex digits; it catches a corrupted byte, and it does not catch a transposition of two digits (`50` -> `05`), which is why the spelling is pinned to one canonical form. A CRC would catch more and costs more lines on the board.",
+  "type": "string",
+  "maxLength": 64,
+  "pattern": "^pose -?[0-9]{1,4} -?[0-9]{1,4}\\*[0-9A-F]{2}\\n$"
+}

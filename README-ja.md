@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.20.0 | canonical: README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.21.0 | canonical: README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -36,7 +36,7 @@
 
 ✅ **そして 2026-10-18、2台目の機体のために、電線の上の層ができた。** `projects/stackchan/` は Claude Code のフック事象を、6つの段階・Pet の5つの顔・6つの光・5つの候補の身振りに変える——⛔ **そして何も送らない。あの機体の数が1つも測られていないからである。** **2つ以上の窓が同時に走るときも、首は1つの窓に保たれる。** それは Stack-chan の道のうち、ファームを焼く前に検査できる部分である。 ⚠️ **その状態を保つデーモンが、いま在る**——`projects/stackchan/daemon/`、純粋な中核とソケットの縁——**そしてフックが走らせるクライアントも在る**——`projects/stackchan/hook/`、1事象につき1プロセスであり、黙って 0 で終わる。✅ **どちらも 2026-10-18 に設置された**: launchd のユーザーエージェントがログイン時にデーモンを起動し、`~/.claude/settings.json` の33のフック事象すべてがクライアントを呼ぶ。✅ **そして同じ日に、電線がソースとして在る**——`engine/backend/protocol_stackchan.py` が ASCII の1行を組み、`schemas/stackchan-command.schema.json` が両端の読む契約であり、`projects/stackchan-firmware/` がそれを解析し、**すべての身振りを拒む**。✅ **そして 0.19.1 から、部屋は渡すはずの枠を書く**——`projects/stackchan/outbound.py` が見える状態を差分で取り、デーモンが `{"frame": …, "sent": false}` をログに書く。⛔ **ログの1行は電線ではない**: 機体へは何も送らない——伝送路は選ばれておらず、デーモンは1本も開かない。✅ **2026-10-18 に起きたことは、それより狭く、しかし起きた**: `projects/stackchan-firmware/` がビルドされ、`0x510000` に書かれ、頭が回った——**コンソールに打ち込んだベンチのコマンドによってであり、枠によってではない。** 記録は `projects/stackchan-firmware/records/2026-10-18-first-arrival.md` である。
 
-⚠️ **核心とバックエンドと Pet の画面と運動、Stack-chan の振る舞いの層とそのデーモンと外向きの枠とその電線は緑である**——**27ファイル・397テスト、実測 2026-10-18**——**そして緑は、機構が「言われたとおりに計算した」ことを意味する。** **何かが「そこに居る」ことについては、何も意味しない。**
+⚠️ **核心とバックエンドと Pet の画面と運動、Stack-chan の振る舞いの層とそのデーモンと外向きの枠とその電線は緑である**——**28ファイル・439テスト、実測 2026-10-18**——**そして緑は、機構が「言われたとおりに計算した」ことを意味する。** **何かが「そこに居る」ことについては、何も意味しない。**
 
 ## 機体を繋ぐ前に
 
@@ -50,8 +50,8 @@
 .claude-plugin/     plugin.json と marketplace.json——1つの版を運ぶべき2つのファイル
 docs/               文書。英語が正典で、-ja と -zh のミラーが隣に並ぶ
 tools/              check_i18n.py——ミラー。check_vocabulary.py——語彙の表。purity.py——禁止輸入の一覧
-tests/              試験——27ファイル・397テスト
-schemas/            motion-intent.schema.json——Motion Intent の型。stackchan-command.schema.json——機体2への枠
+tests/              試験——28ファイル・439テスト
+schemas/            motion-intent.schema.json——Motion Intent の型。stackchan-command.schema.json——機体2への枠。stackchan-pose.schema.json——刻みごとの姿勢の行
 engine/             決定論的な核心。⚠️ LLM を呼ばず、揺れるものを import しない
 engine/backend/     送る側——プロトコル、周期、門、軸の対応、送信、Mock
 skills/             唯一の書き手——Motion Intent を書く Skill

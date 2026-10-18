@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.20.0 | canonical: README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.21.0 | canonical: README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -36,7 +36,7 @@ This repository holds what the engine *is*, what must never be assumed about the
 
 ✅ **And since 2026-10-18 there is a layer above the wire for the second machine.** `projects/stackchan/` turns Claude Code's hook events into six phases, the Pet's five faces, six lights and five candidate gestures — ⛔ **and sends nothing, because no number for that machine has been measured.** It keeps one neck on one window when two or more run at once. It is the part of the Stack-chan route that can be verified before a firmware is burned. ⚠️ **The daemon that will hold its state exists** — `projects/stackchan/daemon/`, a pure core and a socket edge — **and so does the client a hook runs** — `projects/stackchan/hook/`, one process per event, silent and exit 0. ✅ **Both are installed as of 2026-10-18**: a launchd user agent starts the daemon at login, and all thirty-three hook events in `~/.claude/settings.json` call the client. ✅ **And since the same day the wire exists as source** — `engine/backend/protocol_stackchan.py` frames one ASCII line, `schemas/stackchan-command.schema.json` is the contract both ends read, and `projects/stackchan-firmware/` parses it and **refuses every gesture**. ✅ **And since 0.19.1 the room writes the frame it would send** — `projects/stackchan/outbound.py` diffs the visible state, and the daemon logs `{"frame": …, "sent": false}`. ⛔ **A line in a log is not a wire**: nothing is sent to a machine — the transport is not chosen, and the daemon opens none. ✅ **What did happen on 2026-10-18 is narrower and it did happen**: `projects/stackchan-firmware/` was built, written at `0x510000`, and the head turned — **under a bench command typed into its console, not under a frame.** The record is `projects/stackchan-firmware/records/2026-10-18-first-arrival.md`.
 
-⚠️ **The core, the backend, the Pet's screen and motion, the Stack-chan behaviour layer, its daemon, its outbound frame and its wire are green — twenty-seven files, three hundred and ninety-seven tests, measured 2026-10-18 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
+⚠️ **The core, the backend, the Pet's screen and motion, the Stack-chan behaviour layer, its daemon, its outbound frame and its wire are green — twenty-eight files, four hundred and thirty-nine tests, measured 2026-10-18 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
 
 ## Before you connect a machine
 
@@ -50,8 +50,8 @@ This repository holds what the engine *is*, what must never be assumed about the
 .claude-plugin/     plugin.json and marketplace.json — the two files that must carry one version
 docs/               the documents, canonical English with -ja and -zh mirrors beside them
 tools/              check_i18n.py — the mirrors; check_vocabulary.py — the vocabulary table; purity.py — the forbidden imports
-tests/              the suites — twenty-seven files, three hundred and ninety-seven tests
-schemas/            motion-intent.schema.json — the Motion Intent type; stackchan-command.schema.json — the frame to machine 2
+tests/              the suites — twenty-eight files, four hundred and thirty-nine tests
+schemas/            motion-intent.schema.json — the Motion Intent type; stackchan-command.schema.json — the frame to machine 2; stackchan-pose.schema.json — its per-tick pose line
 engine/             the deterministic core. ⚠️ It calls no LLM and imports nothing that varies
 engine/backend/     the sending side — protocol, cycle, gate, axis map, transmitter, mock
 skills/             the one writer — the skill that writes a Motion Intent
