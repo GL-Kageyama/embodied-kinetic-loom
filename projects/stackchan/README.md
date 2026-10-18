@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.13.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.14.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -158,7 +158,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - ⛔ **A short write stops the stream**, and the row says `sent: false`. The next gesture starts again from the last pose that was written.
 - ⛔ **The stream holds the port for one gesture, not for one pose** (0.19.15). A frame is still one `os.open`/`os.write`/`os.close` with nothing held between frames; **a stream opens the port once, writes each pose under a `PORT_WAIT = 0.5` bound, and closes it at the summary.** ⚠️ **The first shape was measured to wedge the daemon**: at 50 Hz, open/write/close blocked inside `open()` at the fourth or fifth attempt, where no signal could reach it. **A port that takes nothing ends the stream; a port that cannot be opened leaves the gesture in the frame for the board.**
 
-⚠️ **The mechanism is measured once on the unit; the eye is not in it yet.** On 2026-10-19 the stream was replayed live with a reader attached to the console. The board printed `pose: stream started — goals on the present positions (yaw 504, pitch 780), torque on`, then after the silence `pose: stream lost after 500 ms — torque released` and `pose: 23 applied, 0 refused, 0 clamped`; the daemon's summary for that gesture was `{"neck": "look_side", "applied": 23, "late": 19, "held": 29}`. ⛔ **19 of the 23 were applied late** — the board's main loop still held the previous gesture. ⛔ **Whether the head visibly moved is not written down yet**, and that takes an eye, because a record's spine is what was observed (`CLAUDE.md`).
+⚠️ **The mechanism is measured once on the unit, and then the eye arrived.** On 2026-10-19 the stream was replayed live with a reader attached to the console. The board printed `pose: stream started — goals on the present positions (yaw 504, pitch 780), torque on`, then after the silence `pose: stream lost after 500 ms — torque released` and `pose: 23 applied, 0 refused, 0 clamped`; the daemon's summary for that gesture was `{"neck": "look_side", "applied": 23, "late": 19, "held": 29}`. ⛔ **19 of the 23 were applied late** — the board's main loop still held the previous gesture. ✅ **Later the same day, with the installed daemon running, the author said 「さっき首が動いていたよ」** — the neck had moved from a hook event. **The record is `projects/stackchan-firmware/records/2026-10-19-the-join.md`**, and ⛔ **which of the two streamed gestures in those minutes the eye caught is not established by it.**
 
 ## What the hook still needs
 

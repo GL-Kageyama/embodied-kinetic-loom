@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.13.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.14.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -158,7 +158,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - ⛔ **短い書き込みは流れを止め**、行は `sent: false` になる。次の身振りは、書いた最後の姿勢から始め直す。
 - ⛔ **流れは1つの身振りのあいだポートを保持し、姿勢ごとには開かない**（0.19.15）。枠はいまも `os.open`/`os.write`/`os.close` を1回ずつで、枠と枠のあいだは何も持たない; **流れはポートを1度開き、各姿勢を `PORT_WAIT = 0.5` の上限の下で書き、要約で閉じる。** ⚠️ **最初の形がデーモンを固まらせることが測られた**: 50 Hz で open/write/close を繰り返すと4度目か5度目で `open()` の中で塞がり、そこへ信号は届かない。**何も受け取らないポートは流れを終わらせ、開けないポートは身振りを枠に残して基板に委ねる。**
 
-⚠️ **機構は機体で1度測られたが、目はまだそこに無い。** 2026-10-19、コンソールに読み取り手を付けて、流れを生で再生した。基板は `pose: stream started — goals on the present positions (yaw 504, pitch 780), torque on` と印字し、沈黙の後に `pose: stream lost after 500 ms — torque released` と `pose: 23 applied, 0 refused, 0 clamped` と印字した; その身振りについてデーモンの要約は `{"neck": "look_side", "applied": 23, "late": 19, "held": 29}` だった。⛔ **23のうち19が遅れて適用された**——基板のメインループがまだ前の身振りを抱えていた。⛔ **首が目に見えて動いたかどうかは、まだ書かれていない**、そしてそれは目を要する——記録の背骨は観察されたことなので（`CLAUDE.md`）。
+⚠️ **機構は機体で1度測られ、その後、目が来た。** 2026-10-19、コンソールに読み取り手を付けて、流れを生で再生した。基板は `pose: stream started — goals on the present positions (yaw 504, pitch 780), torque on` と印字し、沈黙の後に `pose: stream lost after 500 ms — torque released` と `pose: 23 applied, 0 refused, 0 clamped` と印字した; その身振りについてデーモンの要約は `{"neck": "look_side", "applied": 23, "late": 19, "held": 29}` だった。⛔ **23のうち19が遅れて適用された**——基板のメインループがまだ前の身振りを抱えていた。✅ **同じ日の遅く、設置済みのデーモンが走る中、著者は言った——「さっき首が動いていたよ」**——首はフックの事象で動いていた。**記録は `projects/stackchan-firmware/records/2026-10-19-the-join.md`** であり、⛔ **同じ数分に流れた2つの身振りのどちらを目が捉えたかは、それでは確定しない。**
 
 ## フックにまだ要るもの
 

@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.13.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.14.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -158,7 +158,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - ⛔ **短的写入会停住流**，行变成 `sent: false`。下一个身势从写下的最后一个姿态重新开始。
 - ⛔ **流为一个身势持有端口，而不是每个姿态开一次**（0.19.15）。帧仍然是 `os.open`/`os.write`/`os.close` 各一次，帧与帧之间什么都不持有; **流只开一次端口，每个姿态在 `PORT_WAIT = 0.5` 的上限下写出，在要结时关上。** ⚠️ **第一种形式被测出会让守护进程卡死**: 在 50 Hz 下反复 open/write/close，会在第四次或第五次时卡在 `open()` 里，信号够不着那里。**什么也接收不了的端口会让流结束，打不开的端口会把身势留在帧里交给板子。**
 
-⚠️ **机构在机体上被测过一次，而眼睛还不在里面。** 2026-10-19，给控制台挂上读取方，把流实况重放了一遍。板子印出 `pose: stream started — goals on the present positions (yaw 504, pitch 780), torque on`，然后在沉默之后印出 `pose: stream lost after 500 ms — torque released` 和 `pose: 23 applied, 0 refused, 0 clamped`; 那个身势在守护进程那里的要结是 `{"neck": "look_side", "applied": 23, "late": 19, "held": 29}`。⛔ **二十三个里有十九个是延迟才应用的**——板子的主循环还抱着上一个身势。⛔ **脖子是否肉眼可见地动了，还没有被写下来**，而那需要眼睛——因为记录的脊梁是观察到的（`CLAUDE.md`）。
+⚠️ **机构在机体上被测过一次，然后眼睛来了。** 2026-10-19，给控制台挂上读取方，把流实况重放了一遍。板子印出 `pose: stream started — goals on the present positions (yaw 504, pitch 780), torque on`，然后在沉默之后印出 `pose: stream lost after 500 ms — torque released` 和 `pose: 23 applied, 0 refused, 0 clamped`; 那个身势在守护进程那里的要结是 `{"neck": "look_side", "applied": 23, "late": 19, "held": 29}`。⛔ **二十三个里有十九个是延迟才应用的**——板子的主循环还抱着上一个身势。✅ **同一天稍晚，在已安装的守护进程运行中，作者说「さっき首が動いていたよ」**——脖子从一个钩子事件动了。**记录是 `projects/stackchan-firmware/records/2026-10-19-the-join.md`**，而⛔ **同一几分钟里流出的两个身势，眼睛抓到的是哪一个，它不确定。**
 
 ## 钩子还缺什么
 
