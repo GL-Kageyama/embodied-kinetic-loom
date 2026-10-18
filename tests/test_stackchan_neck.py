@@ -17,6 +17,7 @@ import time
 import pytest
 
 from engine.backend.protocol_stackchan_pose import Pose, decode
+from engine.trajectory.profile import Spring
 from projects.stackchan.neck import motion as motion_of
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -129,6 +130,25 @@ def test_a_trapezoid_reaches_the_same_ends_a_different_way():
     assert _lines(straight) != _lines(fast)
 
 
+def test_a_spring_reaches_the_same_ends_with_its_speed_at_the_start():
+    """⚠️ **同じ両端・同じ長さで、間だけが違う。** ばねは早く動き出す。
+
+    2026-10-18、著者は純正の首を「ギュンギュン」、この首を「ジジジ」と言った。
+    読んだ純正はばねであり、**形の差は山の位置**である（`engine/trajectory/profile.py`）。
+    """
+    ends = (Pose(0, 500), Pose(350, 500))
+    jerk = motion_of(*ends, 1.0, 0.02)
+    spring = motion_of(*ends, 1.0, 0.02, profile=Spring(5.0))
+
+    assert jerk.steps[0].pose == spring.steps[0].pose
+    assert jerk.last.pose == spring.last.pose
+
+    quarter = len(jerk.steps) // 5
+    jerk_travelled = abs(jerk.steps[quarter].pose.yaw_tenths)
+    spring_travelled = abs(spring.steps[quarter].pose.yaw_tenths)
+    assert spring_travelled > 3 * jerk_travelled
+
+
 def test_a_pose_the_line_cannot_carry_is_refused():
     """⚠️ **プロトコルの枠は 1800**（機体の枠ではない）。ここで止まる。"""
     with pytest.raises(ValueError):
@@ -208,3 +228,20 @@ def test_the_edge_refuses_a_pose_the_line_cannot_carry():
     result = _run("--dry-run", "--start", "5000", "500", "--end", "350", "500")
     assert result.returncode == 2
     assert b"refused" in result.stderr
+
+
+def test_the_edge_can_stream_a_spring():
+    """⚠️ **縁は、名前だけでは決まらない族の数を、コマンド行から受け取る。**"""
+    result = _run("--dry-run", "--start", "0", "500", "--end", "350", "500",
+                  "--duration", "0.2", "--period", "0.02", "--profile", "spring")
+    assert result.returncode == 0, result.stderr
+    poses = [decode(line + b"\n") for line in result.stdout.splitlines()]
+    assert poses[0] == Pose(0, 500)
+    assert poses[-1] == Pose(350, 500)
+
+
+def test_the_edge_refuses_a_sharpness_at_or_below_one():
+    result = _run("--dry-run", "--start", "0", "500", "--end", "350", "500",
+                  "--profile", "spring", "--sharpness", "1.0")
+    assert result.returncode == 2
+    assert b"sharpness" in result.stderr

@@ -4,7 +4,7 @@
 
 # tests/
 
-**Thirty files, four hundred and eighty-three tests, all green — measured 2026-10-18.**
+**Thirty files, four hundred and ninety-three tests, all green — measured 2026-10-18.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -286,7 +286,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | neither machine 1's numbers nor this unit's zero points are in the source | `test_stackchan_pose_wire.py` | ⛔ **the zero points are the machine's and live in its NVS**; here they would be a copy, and a copy is this repository's own definition of a defect |
 | the mock records and answers nothing | `test_stackchan_pose_wire.py` | ⚠️ **green is the protocol's, not the machine's** |
 
-⛔ **What it does not cover.** ✅ **The board reads this line since 0.19.7** — `projects/stackchan-firmware/main/main.cpp` carries its own sum, its own spelling rules and its own limits — **and no test here reads that C++**: `idf.py build` is run by hand, and the only thing checking the two ends agree is the literal comparison in `test_stackchan_wire.py` for the *other* line. ⚠️ **20 ms has survived this unit once** — 678 poses over six round trips of ±5°, 0 refused, 0 clamped — **and that is one amplitude, not the failure mode**: the datapoint on record, `MOVE_SETTLE = 1.0`, is that a command arriving mid-move took both axes down, and six round trips did not reproduce it. **The order of the two fields is invisible to the checksum**: a line with yaw and pitch swapped is well-formed, and the head moves wrongly. ✅ **Since 0.19.10 a host in this repository writes these lines** — `projects/stackchan/neck/` — **and pose lines from here have crossed the wire**: 822 applied, 0 refused, 0 clamped, in seven segments on 2026-10-18.
+⛔ **What it does not cover.** ✅ **The board reads this line since 0.19.7** — `projects/stackchan-firmware/main/main.cpp` carries its own sum, its own spelling rules and its own limits — **and no test here reads that C++**: `idf.py build` is run by hand, and the only thing checking the two ends agree is the literal comparison in `test_stackchan_wire.py` for the *other* line. ⚠️ **20 ms has survived this unit once** — 678 poses over six round trips of ±5°, 0 refused, 0 clamped — **and that is one amplitude, not the failure mode**: the datapoint on record, `MOVE_SETTLE = 1.0`, is that a command arriving mid-move took both axes down, and six round trips did not reproduce it. **The order of the two fields is invisible to the checksum**: a line with yaw and pitch swapped is well-formed, and the head moves wrongly. ✅ **Since 0.19.10 a host in this repository writes these lines** — `projects/stackchan/neck/` — **and pose lines from here have crossed the wire**: 822 applied, 0 refused, 0 clamped, in seven segments on 2026-10-18. ⚠️ **A later run the same day replayed the same seven segments at one-third the length, after the firmware's write changed**: 410 applied (228 poses plus 182 held), 0 refused, 0 clamped.
 
 ## The machine's own parser, compiled and run (0.19.8)
 
@@ -303,7 +303,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The engine's trajectory, streamed to the machine (0.19.10)
 
-✅ **`projects/stackchan/neck/` arrived** — the first host in this repository that writes the pose line. **`motion.py` is the pure half**: two poses and a duration go in, and the samples `engine/trajectory/plan.py` produces come out, encoded by `protocol_stackchan_pose.encode` so there is one spelling of a line and not two. **`__main__.py` is the edge**: it follows each sample's own time with absolute deadlines and writes one line per tick with `os.open`/`os.write`/`os.close`, the daemon's path. **Twenty-six tests were added; the count moved from 457 to 483.**
+✅ **`projects/stackchan/neck/` arrived** — the first host in this repository that writes the pose line. **`motion.py` is the pure half**: two poses and a duration go in, and the samples `engine/trajectory/plan.py` produces come out, encoded by `protocol_stackchan_pose.encode` so there is one spelling of a line and not two. **`__main__.py` is the edge**: it follows each sample's own time with absolute deadlines and writes one line per tick with `os.open`/`os.write`/`os.close`, the daemon's path. **Twenty-nine tests now hold it: 0.19.11 added ten — seven in `test_profile.py` for the spring family, three here — and the count moved from 483 to 493.**
 
 | the check | where | what it is for |
 |---|---|---|

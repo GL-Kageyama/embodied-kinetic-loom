@@ -6,7 +6,7 @@
 **同じ入力なら、同じビット列が出る。**
 
     族
-      profile.py   機体へ降ろす族——端の速度がゼロのものだけ（min-jerk / 台形）
+      profile.py   機体へ降ろす族——端の速度がゼロのものだけ（min-jerk / 台形 / ばね）
       easing.py    表現の族——CSS の cubic-bezier。⛔ **機体へは通さない**
 
     操作
@@ -30,7 +30,7 @@ from .admit import Admission, Rejection, admit
 from .easing import CURVES, MAPPING_TO_MACHINE, cubic_bezier
 from .limits import ChannelLimits, Envelope, Violation, check_targets, check_trajectory
 from .plan import Sample, Trajectory, plan
-from .profile import MinJerk, Trapezoid, profile_of
+from .profile import MinJerk, Spring, Trapezoid, profile_of
 from .smooth import moving_average, smooth, smooth_channels
 
 __all__ = [
@@ -38,6 +38,6 @@ __all__ = [
     "CURVES", "MAPPING_TO_MACHINE", "cubic_bezier",
     "ChannelLimits", "Envelope", "Violation", "check_targets", "check_trajectory",
     "Sample", "Trajectory", "plan",
-    "MinJerk", "Trapezoid", "profile_of",
+    "MinJerk", "Spring", "Trapezoid", "profile_of",
     "moving_average", "smooth", "smooth_channels",
 ]

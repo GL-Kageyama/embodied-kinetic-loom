@@ -14,7 +14,8 @@ import math
 import pytest
 
 from engine.trajectory.profile import (
-    MinJerk, Trapezoid, min_duration, profile_of, segments, trapezoid_for_velocity,
+    MinJerk, Spring, Trapezoid, min_duration, profile_of, segments,
+    trapezoid_for_velocity,
 )
 
 
@@ -115,6 +116,91 @@ def test_trapezoid_area_is_one_for_every_accel_fraction():
         n = 20000
         area = sum(t.shape((i + 0.5) / n).velocity for i in range(n)) / n
         assert area == pytest.approx(1.0, rel=1e-4), r
+
+
+# --------------------------------------------------------------------------
+# ばね——機体2の純正ファームウェアが使っていた形（2026-10-18 に読んだ）
+# --------------------------------------------------------------------------
+
+
+def test_spring_hits_both_ends_with_zero_velocity():
+    """⛔ **切り取ったばねは、そのままでは端で速度ゼロにならない。** 補正がそれを消す。
+
+    ⚠️ **生のばねが `u = 1` でどれだけ動いているか**を、独立に計算して先に置く。
+    """
+    s = Spring(5.0)
+    raw_residual = 25.0 * math.exp(-5.0) / (1.0 - 6.0 * math.exp(-5.0))
+    assert s._residual() == pytest.approx(raw_residual)
+    assert raw_residual > 0.1  # ⚠️ 生のばねは、切り取り点でもこれを動いている
+
+    assert s.shape(0.0).position == pytest.approx(0.0)
+    assert s.shape(1.0).position == pytest.approx(1.0)
+    assert s.shape(0.0).velocity == pytest.approx(0.0, abs=1e-12)
+    assert s.shape(1.0).velocity == pytest.approx(0.0, abs=1e-12)
+
+
+def test_spring_position_is_monotone_and_velocity_never_negative():
+    """⛔ **補正は形を支配しない。** どの sharpness でも、戻らない・逆走しない。"""
+    for a in (1.5, 5.0, 12.0):
+        s = Spring(a)
+        ps, vs = [], []
+        for i in range(4001):
+            shape = s.shape(i / 4000)
+            ps.append(shape.position)
+            vs.append(shape.velocity)
+        assert all(b >= a_ for a_, b in zip(ps, ps[1:])), a
+        assert min(vs) >= 0.0, a
+
+
+def test_spring_area_is_one():
+    """⚠️ **正規化の意味は、面積が 1 であること。** 速度を積分して、距離になる。"""
+    s = Spring(5.0)
+    n = 40000
+    area = sum(s.shape((i + 0.5) / n).velocity for i in range(n)) / n
+    assert area == pytest.approx(1.0, rel=1e-6)
+
+
+def test_spring_peak_is_an_upper_bound_and_close():
+    """⚠️ **制限の検査に使う値だから、下から押さえてはいけない。**"""
+    s = Spring(5.0)
+    n = 20000
+    shapes = [s.shape(i / n) for i in range(n + 1)]
+    peak = s.peak()
+
+    assert max(x.velocity for x in shapes) <= peak.velocity + 1e-12
+    assert max(x.velocity for x in shapes) >= peak.velocity * 0.99
+
+    assert max(abs(x.acceleration) for x in shapes) <= peak.acceleration + 1e-12
+    assert max(abs(x.jerk) for x in shapes) <= peak.jerk + 1e-9
+
+
+def test_spring_puts_its_speed_at_the_start_not_the_middle():
+    """⚠️ **これが「ギュン」の正体である。** 同じ長さ・同じ端で、山の位置だけが違う。
+
+    20%地点で、ばねは min-jerk の4倍以上進んでいる。
+    """
+    s, m = Spring(5.0), MinJerk()
+    assert s.shape(0.2).position > 4.0 * m.shape(0.2).position
+
+    # ⚠️ 山は u = 1/a の近くに来る（min-jerk は u = 0.5）
+    assert s.shape(1.0 / s.sharpness).velocity > 0.9 * s.peak().velocity
+    assert m.shape(0.5).velocity > m.shape(0.2).velocity
+    assert s.shape(0.5).velocity < s.shape(0.2).velocity
+
+
+def test_spring_acceleration_is_NOT_zero_at_the_ends():
+    """⛔ **#1 の加速度の項で落ちる。** 台形と同じ側である——隠さずに書く。"""
+    s = Spring(5.0)
+    assert s.shape(0.0).acceleration != 0.0
+    assert s.shape(1.0).acceleration != 0.0
+    assert s.shape(0.0).acceleration > 0.0  # 始点で最大——**飛び出す**
+
+
+def test_spring_refuses_a_sharpness_at_or_below_one():
+    """⛔ **`a ≤ 1` では補正が形を支配する。** ばねではなくなるので、受け取らない。"""
+    for bad in (1.0, 0.5, 0.0, -1.0, math.inf, math.nan):
+        with pytest.raises(ValueError):
+            Spring(bad)
 
 
 # --------------------------------------------------------------------------

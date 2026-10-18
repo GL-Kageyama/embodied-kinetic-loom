@@ -64,7 +64,7 @@ def test_ease_in_out_is_slow_at_both_ends():
 
 def test_the_machine_family_does_not_contain_a_screen_curve():
     """⛔ **`bounce` も `elastic` も、機体の族ではない。** 名前で弾かれる。"""
-    assert PROFILES == ("min-jerk", "trapezoid")
+    assert PROFILES == ("min-jerk", "trapezoid", "spring")
     for name in ("bounce", "elastic", "back", "ease-in-out", "ease"):
         with pytest.raises(ValueError):
             profile_of(name)

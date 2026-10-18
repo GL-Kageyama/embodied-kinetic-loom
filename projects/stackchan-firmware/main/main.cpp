@@ -48,10 +48,17 @@ constexpr int kMaxLine = 256;
 constexpr int kPoseMaxTenths = 1800;        // the protocol's sanity bound
 constexpr int kPoseMaxLine = 64;            // the protocol's line bound, not the console's
 constexpr int64_t kPoseSilenceUs = 500000;  // 500 ms of silence releases torque
-// ⚠️ Measured on this unit, 2026-10-18 (0.19.5): speed=100 moved about
-//    127 counts/s, roughly 40 deg/s. ⛔ The speed is the servo's ceiling, not the
-//    trajectory: the host's goals arrive every 20 ms and are the governor.
-constexpr int kPoseSpeed = 100;
+// ⚠️ Measured on this unit, twice on 2026-10-18. First: speed=100 moved about
+//    127 counts/s, roughly 40 deg/s — and every pose stream was written with
+//    it. Second, against the vendor's own call: the same 112 counts (35 deg)
+//    took under 200 ms with time=20, speed=0 — about 560 counts/s.
+// ⛔ The speed field was the governor, not the host's reference: a 40 deg/s cap
+//    cannot carry a reference that asks for more, so the head lagged and then
+//    chased it. The stream now writes what the stock firmware writes
+//    (hal_servo.cpp: WritePos(id, angle, 20, 0)), so the host's reference is
+//    the governor in fact and the servo's own ceiling is the only backstop.
+constexpr int kPoseTimeMs = 20;  // the vendor's own value; measured: 112 counts in < 200 ms
+constexpr int kPoseSpeed = 0;    // 0 = the servo's own ceiling, not a cap of ours
 
 bool g_streaming = false;
 int64_t g_last_pose_us = 0;
@@ -887,8 +894,8 @@ void HandlePose(const char* line, int length) {
 
   const int yaw_raw = Clamp(RawFromAngle(g_yaw_zero, yaw), board::kRawMin, board::kRawMax);
   const int pitch_raw = Clamp(RawFromAngle(g_pitch_zero, pitch), board::kRawMin, board::kRawMax);
-  const bool written = scs::write_position(board::kYawId, yaw_raw, 0, kPoseSpeed) &&
-                       scs::write_position(board::kPitchId, pitch_raw, 0, kPoseSpeed);
+  const bool written = scs::write_position(board::kYawId, yaw_raw, kPoseTimeMs, kPoseSpeed) &&
+                       scs::write_position(board::kPitchId, pitch_raw, kPoseTimeMs, kPoseSpeed);
   if (!written) {
     // ⚠️ The clock is not advanced. A failed write is silence, and silence is
     //    what the watchdog is for.

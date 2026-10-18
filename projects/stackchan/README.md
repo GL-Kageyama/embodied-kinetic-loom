@@ -143,9 +143,9 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ⛔ **The two endpoints are named on the command line, in tenths of a degree, and that is on purpose**: the measured postures are the board's (`main/main.cpp`), and the package still holds no number for machine 2. **The pose line carries numbers; the transition frame does not.** This module writes the first, and the daemon writes the second.
 
-⚠️ **The duration is a real constraint, not a taste.** The servo follows at about 40°/s at `kPoseSpeed = 100`, and min-jerk peaks at 1.875× its average — so **a duration below about `degrees / 21` runs ahead of the head**: every line is applied, and the head is still travelling when the torque releases. That is what a 0.6 s move over 47° did on 2026-10-18. ⛔ **No test here can see it** — the tests have no servo.
+⚠️ **The duration is a real constraint, but the number changed on 0.19.11.** Until then this paragraph said the servo follows at about 40°/s — that was `speed=100`, **a cap the firmware was writing, not the servo's ceiling.** **Measured against the stock's own call (`time=20, speed=0`) on 2026-10-18: 112 counts (35°) in under 200 ms, about 175°/s.** ✅ **The firmware now writes the stock's call, and a reference may peak up to the servo's own limit — about `degrees / 93`.** The seven segments below were replayed at about `degrees / 60` (peak ≈112°/s). ⛔ **No test here can see any of it** — the tests have no servo.
 
-✅ **Measured on the unit the same day, at followable durations: seven segments, 822 poses applied, 0 refused, 0 clamped**, a 47° move ending one count from its target. ⚠️ **The author's judgement of the motion is not in this file; the last word on record is 「動きが硬い」.** What is tested is the mechanism: `tests/test_stackchan_neck.py`, twenty-six tests.
+✅ **Measured on the unit the same day: seven segments, 822 poses applied, 0 refused, 0 clamped**, a 47° move ending one count from its target. ✅ **And after the firmware's write changed, the same seven segments at one-third the length: 228 poses, 0 late, 410 applied on the board (228 plus 182 held), 0 refused, 0 clamped — and the author's judgement is 「かなり良い。これでOKだと思う。」** (`projects/stackchan-firmware/records/2026-10-18-the-neck.md`). What is tested is the mechanism: `tests/test_stackchan_neck.py`, twenty-nine tests.
 
 ## What the hook still needs
 

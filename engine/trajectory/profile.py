@@ -11,12 +11,13 @@
         acceleration =    Δ/d² · a(u)
         jerk =            Δ/d³ · j(u)      u = t/d
 
-⚠️ **そして2つは、同じ「機体の族」ではない。**
+⚠️ **そして3つは、同じ「機体の族」ではない。**
 
 | | 端の速度 | 端の加速度 | ジャーク |
 |---|---|---|---|
 | `min-jerk` | **ゼロ** | **ゼロ** | ⚠️ **端でゼロでない**（最大 60） |
 | `trapezoid` | **ゼロ** | ⛔ **ゼロでない**（±a） | ⛔ **角で無限大** |
+| `spring` | **ゼロ**（補正つき） | ⛔ **ゼロでない**（`a²/N`） | ⚠️ **始点で最大**（`2a³/N`） |
 
 ⇒ **`trapezoid` は、[02_調査/02] §9.6 の検査のうち
 #1（端の条件）の加速度の項と、#2（制限の非超過）のジャークの項で落ちる。**
@@ -32,7 +33,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-__all__ = ["MinJerk", "Trapezoid", "PROFILES", "profile_of", "segments"]
+__all__ = ["MinJerk", "Spring", "Trapezoid", "PROFILES", "profile_of", "segments"]
 
 
 # --------------------------------------------------------------------------
@@ -168,6 +169,94 @@ class Trapezoid:
 
 
 # --------------------------------------------------------------------------
+# ばね（臨界減衰）
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Spring:
+    """臨界減衰のばね——**機体2の純正ファームウェアが、この形で首を動かしていた。**
+
+    ⚠️ **これは推測ではなく、読んだものである。** `m5stack/StackChan`（`firmware-dev`、MIT）の
+    `firmware/main/stackchan/motion/servo.cpp` は、**50 Hz でばねを1ステップ積分し、
+    その瞬間の角度を1行書く。** 既定は stiffness 170・damping 26・mass 1（`2√170 = 26.1`、ほぼ臨界減衰）、
+    `speed` は `k = 10 + (speed/1000)² · 640` で硬さへ写像される。
+    ⇒ **骨格はこのリポジトリと同じである**（ホストが計算し、基板は適用するだけ）。
+    **違うのは曲線であって、階層ではない。**
+
+    ⚠️ **形の差は、山の位置である。**
+
+    | | 速度の山 | 動き出し |
+    |---|---|---|
+    | `min-jerk` | `u = 0.5`（真ん中） | 加速度ゼロから、そっと |
+    | `spring` | `u ≈ 1/a`（`a = 5` なら20%） | **加速度が始点で最大**——号令と同時に飛び出す |
+
+    ⛔ **生のばねは、有限の時間で速度ゼロにならない。** 臨界減衰の応答は
+    `x(u) = 1 − (1+au)e^{−au}` で、`u = 1` でも `v1 = a²e^{−a}/N` だけ動いている——
+    **切り取ったばねは、この族の規則（両端で速度ゼロ）を満たさない。**
+
+    ⇒ **末端速度を消す補正 `v1·u²(1−u)` を足して、この族に入れる。**
+    補正は位置を最大でも `0.148·v1` だけ動かす（`a = 5` で距離の約2.6%）——**形はばねのままである。**
+    補正の導関数は `u = 1` で `−v1` ちょうどなので、`s(0)=0`・`s(1)=1`・`s'(0)=s'(1)=0` が成り立つ。
+
+    ⚠️ **`a`（`sharpness`）は、長さではなく形のパラメータである**（`a = ωT`）。
+    **長さは `duration` が決め、`a` は山をどこへ置くかだけを決める。**
+    ⛔ **`a ≤ 1` は受け取らない**——そこでは補正が形を支配し、ばねではなくなる。
+
+    ⚠️ **`min-jerk` と違い、端で加速度がゼロでない。** 台形と同じ側であり、
+    **#1（端の条件）の加速度の項で落ちる。** それは隠さず、表に書く。
+    """
+
+    sharpness: float = 5.0
+    name: str = "spring"
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.sharpness) or self.sharpness <= 1.0:
+            raise ValueError(f"sharpness は有限で 1 より大きい: {self.sharpness!r}")
+
+    def _norm(self) -> float:
+        """`N = 1 − (1+a)e^{−a}`——**`u = 1` の生の応答を 1 にする。**"""
+        a = self.sharpness
+        return 1.0 - (1.0 + a) * math.exp(-a)
+
+    def _residual(self) -> float:
+        """`v1 = a²e^{−a}/N`——**打ち消すべき、末端の速度。**"""
+        a = self.sharpness
+        return a * a * math.exp(-a) / self._norm()
+
+    def shape(self, u: float) -> _Shape:
+        if not 0.0 <= u <= 1.0:
+            raise ValueError(f"u は [0,1] である: {u!r}")
+        a = self.sharpness
+        n = self._norm()
+        v1 = self._residual()
+        e = math.exp(-a * u)
+        # ⚠️ **補正 `v1·u²(1−u)` は、加速側に足され、末端で速度をちょうど打ち消す。**
+        return _Shape(
+            position=(1.0 - (1.0 + a * u) * e) / n + v1 * u * u * (1.0 - u),
+            velocity=a * a * u * e / n + v1 * (2.0 * u - 3.0 * u * u),
+            acceleration=a * a * (1.0 - a * u) * e / n + v1 * (2.0 - 6.0 * u),
+            jerk=a * a * a * (a * u - 2.0) * e / n - 6.0 * v1,
+        )
+
+    def peak(self) -> _Shape:
+        """**上限である。** 補正は山をわずかに動かすので、閉じた式は上から押さえる。
+
+        ⚠️ **制限の検査に使うのはこの値だから、下から押さえてはいけない。**
+        `tests/test_profile.py` が、標本の最大がこの値以下で、かつ近いことを確かめる。
+        """
+        a = self.sharpness
+        n = self._norm()
+        v1 = self._residual()
+        return _Shape(
+            position=1.0,
+            velocity=a / math.e / n + v1 / 3.0,  # 補正の導関数の最大は 1/3
+            acceleration=a * a / n + 2.0 * v1,   # 始点
+            jerk=2.0 * a * a * a / n + 6.0 * v1,  # 始点（大きさ）
+        )
+
+
+# --------------------------------------------------------------------------
 # 可到達性
 # --------------------------------------------------------------------------
 
@@ -238,7 +327,7 @@ def trapezoid_for_velocity(distance: float, duration: float,
     return Trapezoid(2.0 * (1.0 - 1.0 / ratio)), True
 
 
-PROFILES = ("min-jerk", "trapezoid")
+PROFILES = ("min-jerk", "trapezoid", "spring")
 
 
 def profile_of(name: str, **kw):
@@ -247,4 +336,6 @@ def profile_of(name: str, **kw):
         return MinJerk(**kw)
     if name == "trapezoid":
         return Trapezoid(**kw)
+    if name == "spring":
+        return Spring(**kw)
     raise ValueError(f"知らないプロファイルである: {name!r}（在るのは {PROFILES}）")

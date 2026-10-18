@@ -31,7 +31,9 @@ backend/
 
 **Because a screen and a machine want opposite things from a curve.**
 
-`Back`, `Elastic` and `Bounce` accelerate backwards before they move forwards. On a screen that reads as anticipation. On a machine it is an acceleration in the wrong direction. The expression family therefore stays in `easing.py`, and only the machine family — `min-jerk` and `trapezoid` — can be handed to `plan`.
+`Back`, `Elastic` and `Bounce` accelerate backwards before they move forwards. On a screen that reads as anticipation. On a machine it is an acceleration in the wrong direction. The expression family therefore stays in `easing.py`, and only the machine family — `min-jerk`, `trapezoid` and, since 0.19.11, `spring` — can be handed to `plan`.
+
+⚠️ **`Spring(sharpness)` is the shape the stock Stack-chan firmware moved its neck with**: a critically damped spring whose peak velocity sits at `u = 1/a` — front-loaded, unlike min-jerk's `u = 0.5`. ⛔ **A raw spring still has velocity at `u = 1`**, so the family's rule — zero velocity at both ends — is kept by one correction term, and the price is a nonzero end acceleration, which falls on the same check the trapezoid fails. **`sharpness` defaults to 5.0 and is the caller's number, not a measured one.**
 
 ⛔ **The mapping from one family to the other does not exist, and this engine does not invent it.** The design notes say of that mapping, in their own words, that it is a proposal and not a design. Writing it here would make it this repository's invention. `easing.MAPPING_TO_MACHINE` is therefore `None`, and a test asserts that it still is — so that the day someone writes it, the change is deliberate and visible.
 

@@ -64,8 +64,12 @@ def _tenths(value: float, name: str) -> int:
 
 
 def motion(starts: Pose, ends: Pose, duration: float, period: float,
-           profile: str = "min-jerk") -> Motion:
+           profile: object = "min-jerk") -> Motion:
     """`starts` から `ends` へ、`duration` 秒で動く標本列を組む。
+
+    ⚠️ **`profile` は名前でも、族の実体でもよい**——`engine/trajectory/profile.py` の
+    `Spring` のように、名前だけでは決まらない数を持つ族があるからである
+    （`Spring(sharpness=…)`）。**ここはその数を決めない。**
 
     ⛔ **端は厳密に置く。** `plan` が `k == 0` と `k == count-1` を両端そのものにするので、
     **10分の1度に戻したとき、始点と終点は入力と1つも違わない**（丸めは整数の上で閉じる）。

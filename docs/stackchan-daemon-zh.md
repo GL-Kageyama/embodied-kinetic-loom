@@ -154,7 +154,7 @@ frame: gesture perk refused — no gesture -> angle table exists
 
 **在这里未决定的:**
 
-- ✅ **成帧已经定了（0.19.0），而这一页仍然不拥有它**——一行 ASCII JSON，`face` / `light` / `gesture`，在 `schemas/stackchan-command.schema.json` 里，由 `engine/backend/protocol_stackchan.py` 编码。✅ **自 0.19.1 起，守护进程调用那个编码器。** ✅ **自 0.19.8 起传输路径也定了: 守护进程把那一行写进板子的控制台，每帧打开一次，安装的 plist 点名路径。** ✅ **而自同一天更晚的时候起，`projects/stackchan-firmware/` 会演出它收到的身势**——在这台个体上测得的五个姿态——**所以承载身势的帧会转动头部**（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）; ⛔ **它还做不到的是平滑地移动**，而作者对这个运动的说法是「動きが硬い」;
+- ✅ **成帧已经定了（0.19.0），而这一页仍然不拥有它**——一行 ASCII JSON，`face` / `light` / `gesture`，在 `schemas/stackchan-command.schema.json` 里，由 `engine/backend/protocol_stackchan.py` 编码。✅ **自 0.19.1 起，守护进程调用那个编码器。** ✅ **自 0.19.8 起传输路径也定了: 守护进程把那一行写进板子的控制台，每帧打开一次，安装的 plist 点名路径。** ✅ **而自同一天更晚的时候起，`projects/stackchan-firmware/` 会演出它收到的身势**——在这台个体上测得的五个姿态——**所以承载身势的帧会转动头部**（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）; ✅ **而自 0.19.11 起，引擎把它驱动得足够平滑，作者接受了这个运动**——固件的写法改成原厂自身的调用之后的 `projects/stackchan/neck/`（`records/2026-10-18-the-neck.md`）;
 - 固件在待机时与停止后做什么;
 - 第二个身体——每台机器第二个守护进程——是否需要不同的东西。
 

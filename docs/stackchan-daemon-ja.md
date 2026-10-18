@@ -154,7 +154,7 @@ frame: gesture perk refused — no gesture -> angle table exists
 
 **ここで決まっていないこと:**
 
-- ✅ **枠は決まった（0.19.0）。そしてこの頁は、いまもそれを所有しない**——ASCII の JSON 1行、`face` / `light` / `gesture`、`schemas/stackchan-command.schema.json` にあり、`engine/backend/protocol_stackchan.py` が符号化する。✅ **0.19.1 からデーモンはその符号器を呼び、渡すはずの行を書く。** ✅ **0.19.8 から伝送路も決まった: デーモンはその行を基板のコンソールへ書き、枠ごとに1回開き、導入済みの plist が経路を名指しする**（[伝送路](#伝送路)を見よ）。✅ **そして同じ日のうちに、`projects/stackchan-firmware/` は受け取った身振りを演じる**——この個体で測った5つの姿勢——**ので、身振りを運ぶ枠が頭を動かす**（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）; ⛔ **まだできないのは、滑らかに動くことである**、そして著者の言葉は「動きが硬い」;
+- ✅ **枠は決まった（0.19.0）。そしてこの頁は、いまもそれを所有しない**——ASCII の JSON 1行、`face` / `light` / `gesture`、`schemas/stackchan-command.schema.json` にあり、`engine/backend/protocol_stackchan.py` が符号化する。✅ **0.19.1 からデーモンはその符号器を呼び、渡すはずの行を書く。** ✅ **0.19.8 から伝送路も決まった: デーモンはその行を基板のコンソールへ書き、枠ごとに1回開き、導入済みの plist が経路を名指しする**（[伝送路](#伝送路)を見よ）。✅ **そして同じ日のうちに、`projects/stackchan-firmware/` は受け取った身振りを演じる**——この個体で測った5つの姿勢——**ので、身振りを運ぶ枠が頭を動かす**（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）; ✅ **そして 0.19.11 から、エンジンは著者が受け入れるほど滑らかにこれを動かす**——ファームの書き方を純正自身の呼び出しに変えたあとの `projects/stackchan/neck/`（`records/2026-10-18-the-neck.md`）;
 - 待機時と停止後にファームウェアが何をするか;
 - 2つ目の体——機体ごとの2つ目のデーモン——が何か違うものを要するか。
 

@@ -30,8 +30,14 @@ import time
 
 from engine.backend.protocol_stackchan import FrameRefused
 from engine.backend.protocol_stackchan_pose import Pose
+from engine.trajectory.profile import Spring
 
 from .motion import Motion, motion
+
+#: ⚠️ **純正ファームウェアのばねの、写した形である**（`servo.cpp` を読んだ、2026-10-18）。
+#: 山は `u = 1/a`——`a = 5` なら動きの20%地点。**長さは `--duration` が決める。**
+#: ⛔ **この数は機体の数ではない。** 著者の目が決めるまで、暫定である。
+DEFAULT_SHARPNESS = 5.0
 
 #: ⚠️ **この基板が受け取った刻みである**——2026-10-18、20 ms × 678 姿勢、断られたもの0。
 #: ⛔ **機体の数ではない。** 変えてよいが、変えたことは測り直すまで主張にならない。
@@ -137,7 +143,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--duration", type=float, default=DEFAULT_DURATION)
     parser.add_argument("--period", type=float, default=DEFAULT_PERIOD)
     parser.add_argument("--hold", type=float, default=DEFAULT_HOLD)
-    parser.add_argument("--profile", default="min-jerk", choices=("min-jerk", "trapezoid"))
+    parser.add_argument("--profile", default="min-jerk",
+                        choices=("min-jerk", "trapezoid", "spring"))
+    parser.add_argument("--sharpness", type=float, default=DEFAULT_SHARPNESS,
+                        help="spring only: the shape parameter a (peak speed at u = 1/a)")
     args = parser.parse_args(argv)
 
     if bool(args.port) == bool(args.dry_run):
@@ -145,8 +154,17 @@ def main(argv: list[str] | None = None) -> int:
 
     starts = Pose(yaw_tenths=args.start[0], pitch_tenths=args.start[1])
     ends = Pose(yaw_tenths=args.end[0], pitch_tenths=args.end[1])
+    profile = args.profile
+    if profile == "spring":
+        # ⚠️ **`spring` は名前だけでは決まらない**（`sharpness` を持つ）。ここで実体にする。
+        try:
+            profile = Spring(args.sharpness)
+        except ValueError as exc:
+            print(f"neck: {exc}", file=sys.stderr)
+            return 2
+
     try:
-        plan = motion(starts, ends, args.duration, args.period, profile=args.profile)
+        plan = motion(starts, ends, args.duration, args.period, profile=profile)
     except FrameRefused as exc:
         print(f"neck: refused: {exc}", file=sys.stderr)
         return 2
