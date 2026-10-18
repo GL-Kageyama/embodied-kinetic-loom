@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.10.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.11.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -131,6 +131,22 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ⚠️ **A window is written `window:EVENT@seconds`; a window left unwritten is `main`, so a one-window script reads as it did before.** ⚠️ **Times are supplied in the script, not read from a clock.** The script must not run backwards; a script that does is refused. That is what makes a run reproducible — and it is why the CLI is not the thing a hook calls (see below). ⚠️ **The trace shows the light and the body on every line, and the face drawing whenever a face changes**, so a refused gesture is still readable as a reaction.
 
+## The neck, moved by the engine (0.19.10)
+
+✅ **`projects/stackchan/neck/` is the first host in this repository that writes the pose line.** `motion.py` is pure: two poses and a duration go in, and `engine/trajectory` samples come out encoded by the wire's own encoder. `__main__.py` is the edge: it follows each sample's own time with absolute deadlines and writes one line per tick through `os.open`/`os.write`/`os.close`, the same path the daemon uses.
+
+```
+python3 -m projects.stackchan.neck --dry-run --start 80 500 --end 350 500 --duration 1.3
+python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
+    --start 80 500 --end 350 500 --duration 1.3 --period 0.02 --hold 0.8
+```
+
+⛔ **The two endpoints are named on the command line, in tenths of a degree, and that is on purpose**: the measured postures are the board's (`main/main.cpp`), and the package still holds no number for machine 2. **The pose line carries numbers; the transition frame does not.** This module writes the first, and the daemon writes the second.
+
+⚠️ **The duration is a real constraint, not a taste.** The servo follows at about 40°/s at `kPoseSpeed = 100`, and min-jerk peaks at 1.875× its average — so **a duration below about `degrees / 21` runs ahead of the head**: every line is applied, and the head is still travelling when the torque releases. That is what a 0.6 s move over 47° did on 2026-10-18. ⛔ **No test here can see it** — the tests have no servo.
+
+✅ **Measured on the unit the same day, at followable durations: seven segments, 822 poses applied, 0 refused, 0 clamped**, a 47° move ending one count from its target. ⚠️ **The author's judgement of the motion is not in this file; the last word on record is 「動きが硬い」.** What is tested is the mechanism: `tests/test_stackchan_neck.py`, twenty-six tests.
+
 ## What the hook still needs
 
 ⛔ **A Claude Code hook is one process per event. `Companion` is one object that keeps the phase, the timers and the cooldown between events.** Nothing here carries that state across processes.
@@ -243,8 +259,8 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ## What is not here
 
-- **No counts for machine 2.** The five gestures are words; the counts they become live with the machine (`projects/stackchan-firmware/main/main.cpp`, measured 2026-10-18), never in this package. `projects/pet/motions/greeting.json` is machine 1's counts, and borrowing it would make this layer claim motion that will not happen.
-- **No frame carrying a number.** ✅ **The transport exists and the board acts on a frame**, but what crosses is words — a face, a light, a gesture. **No count from this layer reaches the wire.**
+- **No counts for machine 2.** The five gestures are words; the counts they become live with the machine (`projects/stackchan-firmware/main/main.cpp`, measured 2026-10-18), never in this package. `projects/pet/motions/greeting.json` is machine 1's counts, and borrowing it would make this layer claim motion that will not happen. ⚠️ **`neck/` receives two poses as arguments** — the caller names them, and the package stores none.
+- **No frame carrying a number.** ✅ **The transport exists and the board acts on a frame**, but what crosses is words — a face, a light, a gesture. **No count from the layer above the wire reaches it.** ⚠️ **The pose line does carry numbers, and since 0.19.10 `neck/` writes it** — with both endpoints supplied by the caller, never chosen here.
 - **No display renderer, and no LED driver in this package.** ✅ **The twelve LEDs have a driver, and it is the firmware's** (`projects/stackchan-firmware/main/leds.cpp`) — this layer sends the word `warm` and never a pixel. **The display has none**: the face is still a meaning, and nothing in this package paints it.
 - **No sound.** `--sound on` names a channel that does not exist, and the speaker has never been verified on this unit.
 - **No head-touch input.** The sensor works on this unit (observed in AI.AGENT, 2026-10-18), but it is machine input, and a firmware would have to read it. **A hook is not a head.**

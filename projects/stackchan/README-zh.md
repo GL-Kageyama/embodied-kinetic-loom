@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.10.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.11.0 | canonical: projects/stackchan/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -131,6 +131,22 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ⚠️ **窗口写作 `窗口:事件@秒`；不写窗口就是 `main`，所以单窗口的剧本读起来与以前相同。** ⚠️ **时间由剧本给出，不从时钟读取。** 剧本不能倒流；倒流的剧本会被拒绝。这使一次运行可以复现——**也是 CLI 不是钩子所调用的东西的理由**（见下）。⚠️ **每一行都显示光和身体，脸改变时还显示脸的画**——**即使身势被丢弃，也仍然读得出反应。**
 
+## 脖子，由引擎来动（0.19.10）
+
+✅ **`projects/stackchan/neck/` 是本仓库里第一台写出姿态行的主机。** `motion.py` 是纯的：两个姿态与一个时长进去，`engine/trajectory` 的样本用电线自己的编码器编好后出来。`__main__.py` 是边缘：用绝对期限追每个样本自己的时刻，每个刻度用 `os.open`/`os.write`/`os.close` 写一行——和守护进程同一条路径。
+
+```
+python3 -m projects.stackchan.neck --dry-run --start 80 500 --end 350 500 --duration 1.3
+python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
+    --start 80 500 --end 350 500 --duration 1.3 --period 0.02 --hold 0.8
+```
+
+⛔ **两端在命令行上以十分之一度的整数被名指，这是有意的**：测得的姿态属于基板（`main/main.cpp`），而这个包依然不持有机器 2 的任何一个数。**姿态行运数，迁移帧不运数。** 这个模块写前者，守护进程写后者。
+
+⚠️ **时长是约束，不是口味。** 在 `kPoseSpeed = 100` 下舵机以约 40°/s 跟随，而 min-jerk 的峰是平均值的 1.875 倍——所以**比大约 `度 / 21` 更短的时长会跑到头的前面**：每一行都被应用了，而扭矩松开时头还在走。2026-10-18，47° 用 0.6 秒做的正是这件事。⛔ **这里的任何测试都看不见它**——测试没有舵机。
+
+✅ **同一天，用可跟随的时长在这台个体上测得：七个区段、822 个被应用、零拒绝、零 clamp**，一次 47° 的移动停在离目标一个计数的地方。⚠️ **关于运动的作者判断不在这份文件里；记录里的最后一句话仍是「動きが硬い」。** 被检验的是机构：`tests/test_stackchan_neck.py`，二十六项测试。
+
 ## 钩子还缺什么
 
 ⛔ **Claude Code 的钩子是一个事件一个进程。`Companion` 是一个在事件之间保持阶段、期限和 cooldown 的对象。** 这里没有任何东西把那个状态跨进程携带。
@@ -243,8 +259,8 @@ echo '{"session_id": "main", "hook_event_name": "SessionStart"}' | python3 -m pr
 
 ## 这里没有的东西
 
-- **没有机器 2 的数。** 五个身势是候选词，不是词汇表里的行。行是在那个词于那台机体上变成数字的那天写下的。`projects/pet/motions/greeting.json` 是机器 1 的计数；借用它，这一层就会主张一个不会发生的运动。
-- **没有带数字的帧。** ✅ **传输路径已存在，板子也会执行帧**，但跨过去的只是词——一张脸、一盏光、一个身势。**来自这一层的计数，一个也到不了电线。** 见 `projects/stackchan-firmware/records/2026-10-18-the-gestures.md`。
+- **没有机器 2 的数。** 五个身势是词，数在机体那一侧（`projects/stackchan-firmware/main/main.cpp`，2026-10-18 测得）。`projects/pet/motions/greeting.json` 是机器 1 的计数；借用它，这一层就会主张一个不会发生的运动。⚠️ **`neck/` 把两个姿态作为参数接收**——名指的是调用方，这个包一个也不存。
+- **没有运数的帧。** ✅ **传输路径已存在，板子也会执行帧**，但跨过去的只是词——一张脸、一盏光、一个身势。**来自电线上那一层的计数，一个也到不了它。** ⚠️ **姿态行确实运数，而自 0.19.10 起 `neck/` 写它**——两端都由调用方给出，从不在这里选择。
 - **没有屏幕渲染器，LED 驱动也不在这个包里。** ✅ **十二个 LED 有驱动，而那是固件的**（`projects/stackchan-firmware/main/leds.cpp`）——这一层发出的是词 `warm`，不是像素。**屏幕则没有**：脸仍然是一个意义，这个包里没有东西把它画出来。
 - **没有声音。** `--sound on` 指出的是一条不存在的通道，而这一台的扬声器从未被验证。
 - **没有头部触摸输入。** 传感器在这一台上有效（2026-10-18 在 AI.AGENT 中观察），但那是机体的输入，固件必须去读它。**钩子不是头。**

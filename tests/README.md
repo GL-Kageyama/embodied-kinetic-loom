@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.19.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.20.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Twenty-nine files, four hundred and fifty-seven tests, all green — measured 2026-10-18.**
+**Thirty files, four hundred and eighty-three tests, all green — measured 2026-10-18.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -286,7 +286,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | neither machine 1's numbers nor this unit's zero points are in the source | `test_stackchan_pose_wire.py` | ⛔ **the zero points are the machine's and live in its NVS**; here they would be a copy, and a copy is this repository's own definition of a defect |
 | the mock records and answers nothing | `test_stackchan_pose_wire.py` | ⚠️ **green is the protocol's, not the machine's** |
 
-⛔ **What it does not cover.** ✅ **The board reads this line since 0.19.7** — `projects/stackchan-firmware/main/main.cpp` carries its own sum, its own spelling rules and its own limits — **and no test here reads that C++**: `idf.py build` is run by hand, and the only thing checking the two ends agree is the literal comparison in `test_stackchan_wire.py` for the *other* line. ⚠️ **20 ms has survived this unit once** — 678 poses over six round trips of ±5°, 0 refused, 0 clamped — **and that is one amplitude, not the failure mode**: the datapoint on record, `MOVE_SETTLE = 1.0`, is that a command arriving mid-move took both axes down, and six round trips did not reproduce it. **The order of the two fields is invisible to the checksum**: a line with yaw and pitch swapped is well-formed, and the head moves wrongly. **And the host that wrote the poses is not in this repository**, so **this line is connected to nothing** — ⛔ **the transport carries the transition frame, and no pose line has crossed a wire from this repository.**
+⛔ **What it does not cover.** ✅ **The board reads this line since 0.19.7** — `projects/stackchan-firmware/main/main.cpp` carries its own sum, its own spelling rules and its own limits — **and no test here reads that C++**: `idf.py build` is run by hand, and the only thing checking the two ends agree is the literal comparison in `test_stackchan_wire.py` for the *other* line. ⚠️ **20 ms has survived this unit once** — 678 poses over six round trips of ±5°, 0 refused, 0 clamped — **and that is one amplitude, not the failure mode**: the datapoint on record, `MOVE_SETTLE = 1.0`, is that a command arriving mid-move took both axes down, and six round trips did not reproduce it. **The order of the two fields is invisible to the checksum**: a line with yaw and pitch swapped is well-formed, and the head moves wrongly. ✅ **Since 0.19.10 a host in this repository writes these lines** — `projects/stackchan/neck/` — **and pose lines from here have crossed the wire**: 822 applied, 0 refused, 0 clamped, in seven segments on 2026-10-18.
 
 ## The machine's own parser, compiled and run (0.19.8)
 
@@ -300,6 +300,26 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | the enum still matches the words the schema names | `test_stackchan_frame_parser.py` | the contract is a copy in three places, and this is the second place it rings |
 
 ⛔ **It does not build the firmware.** `main.cpp`, `leds.cpp` and `servo.cpp` are never compiled here; `idf.py build` was run by hand on 2026-10-18 and no check repeats it. **What this test is for is the gap it was written into**: a copy checked against a copy had passed while the parser refused every frame in the only place that mattered.
+
+## The engine's trajectory, streamed to the machine (0.19.10)
+
+✅ **`projects/stackchan/neck/` arrived** — the first host in this repository that writes the pose line. **`motion.py` is the pure half**: two poses and a duration go in, and the samples `engine/trajectory/plan.py` produces come out, encoded by `protocol_stackchan_pose.encode` so there is one spelling of a line and not two. **`__main__.py` is the edge**: it follows each sample's own time with absolute deadlines and writes one line per tick with `os.open`/`os.write`/`os.close`, the daemon's path. **Twenty-six tests were added; the count moved from 457 to 483.**
+
+| the check | where | what it is for |
+|---|---|---|
+| both ends are exactly the poses named, for all five measured postures | `test_stackchan_neck.py` | ⛔ **rounding through tenths closes the gap** — `plan` puts the ends exactly, and the round trip through integers cannot move them |
+| every emitted line decodes back to its pose | `test_stackchan_neck.py` | the column is built with the wire's encoder, and this asserts the wire agrees |
+| the step count follows `duration / period`, and the times are the engine's | `test_stackchan_neck.py` | ⚠️ **the sender follows `Step.t`, not `period`** — otherwise a duration that does not divide evenly drifts, silently |
+| the same input gives the same bytes | `test_stackchan_neck.py` | no clock, no random, no environment — the purity scan sees imports, this sees the output |
+| no sample leaves the interval, and a moving axis never turns back | `test_stackchan_neck.py` | interpolation fills between two ends; it does not overshoot them |
+| the step sizes rise and fall, with the peak in the middle third | `test_stackchan_neck.py` | ⚠️ **this is the mechanical meaning of "not stiff"**: velocity starts and ends at zero. ⛔ **It is not a claim about how the motion looks** |
+| a channel that does not move stays exactly there | `test_stackchan_neck.py` | ⛔ **`0.0 * inf` is `nan`, and `nan > limit` is `False`** — the trapezoid's jerk is infinite, and this is the trap `plan._scale` documents |
+| the pure half holds no machine number | `test_stackchan_neck.py` | over **AST constants**: only `0`, `1`, `2` and `10.0` may remain — **the zeros, the envelope and the floor are the board's** |
+| a dry run writes every line and nothing else | `test_stackchan_neck.py` | the lines can be inspected without a machine |
+| waiting returns the overshoot, not a verdict | `test_stackchan_neck.py` | ⛔ **the first version could only say "late", and it said it 31 times out of 31** — a check that always answers the same thing is not a check |
+| the edge names exactly one destination, and refuses a pose the line cannot carry | `test_stackchan_neck.py` | `--port` or `--dry-run`, never both, never neither; beyond 1800 is a refusal |
+
+⛔ **What it does not cover, and the two things that were found on the machine the same day.** The stream is only as good as its timing: **the servo follows at about 40°/s at `kPoseSpeed = 100`**, and min-jerk's peak is 1.875× its average, so **a duration shorter than about `degrees / 21` runs ahead of the head**. A 0.6 s move over 47° did exactly that — the board applied every line (73, 0 refused, 0 clamped) and the head was still travelling when the torque released. **No test here can see that**, because no test here has a servo. ⚠️ **And the durations used on 2026-10-18 were computed from a speed measured on the yaw shaft**, not on pitch under gravity. **The author's judgement of the motion is the next word, and it is not in this file.**
 
 ## The rule that holds this directory — applied to us
 

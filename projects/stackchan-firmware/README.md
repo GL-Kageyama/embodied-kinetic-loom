@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.4.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.5.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -6,7 +6,7 @@
 
 ✅ **Built, flashed, and the head turned — 2026-10-18.** This directory produced `build/stackchan-vessel.bin`, wrote it at `0x510000`, verified it by hash, and ran it: the app printed `ready.`, both servos answered a ping, and `bench move 5` turned the head. ✅ **And later the same day, for the first time, a goal that came from a host:** 678 `pose` lines at 20 ms, none refused, and the author watching said 「動いた」. ✅ **And after that, the twelve LEDs lit and followed a word** — `warm` became orange, `alert` became yellow, `breathe` became a breath — **including when the word came from the installed daemon, through the transport, over the console.** ✅ **And after that, the five gestures were measured, named and played from frames** — a gesture no longer needs to invent an angle, and a frame that carries one moves the head. ⚠️ **The five words were renamed the same day, by the author's judgement**: `look_up`, `look_side`, `nod`, `rest`, `recoil`. **The records are `records/2026-10-18-first-arrival.md`, `records/2026-10-18-the-lights.md` and `records/2026-10-18-the-gestures.md`, and the observation is the spine of all three.**
 
-**What is here:** a parser for one command frame, and a gesture table — five postures measured on this unit with the author's eye. **What is not here:** interpolation. ⛔ **A gesture is one move at one speed and a stop; the author's word for it is 「動きが硬い」.** Smoothness is the engine's job, and **the engine has never run on this machine.**
+**What is here:** a parser for one command frame, and a gesture table — five postures measured on this unit with the author's eye. **What is not here:** interpolation. ⛔ **A gesture played from the table is one move at one speed and a stop; the author's word for it is 「動きが硬い」.** Smoothness is the engine's job, and ✅ **since 0.19.10 the engine has driven this machine**: `projects/stackchan/neck/` streamed `engine/trajectory` samples as 20 ms `pose` lines — seven segments, 822 applied, 0 refused, 0 clamped. ⛔ **What that run measured in passing is the number the engine must respect: the servo follows at about 40°/s at `kPoseSpeed = 100`**, and a 0.6 s move over 47° applied every line while the head was still travelling when the torque released. ⚠️ **The author has not yet judged the motion of the replayed gestures.**
 
 ⚠️ **The table is not a guess.** Every number in it came from placing a posture with `bench set` and asking the author whether the head was showing that word (`records/2026-10-18-the-gestures.md`). **A guessed angle is indistinguishable from a measured one in the source**, which is why none was written before the measurement — and why the two postures that sit on the pitch floor say so.
 
@@ -70,7 +70,7 @@
 
 ⛔ **On this unit the time field did not govern the duration; the speed field did.** Two trials: `time=5000, speed=0` moved 5 counts and stopped; `time=500, speed=100` moved 32 counts (10°) in about 0.3–0.4 s at about 127 counts/s. **Both stopped exactly 6 counts short of the goal** — a fixed offset by the look of it, and not yet separated from backlash or from the read-back itself.
 
-⇒ **What this means for the engine, in one line: smoothness cannot be delegated to the servo here.** A neck without steps needs the host to write interpolated goals — which is what `engine/trajectory/` exists for, and what has never run on this machine. ⚠️ **The numbers live in `records/2026-10-18-first-arrival.md`, where the observations they came with are the spine.**
+⇒ **What this means for the engine, in one line: smoothness cannot be delegated to the servo here.** A neck without steps needs the host to write interpolated goals — which is what `engine/trajectory/` exists for, and which at that point had never run on this machine. ✅ **It has since 0.19.10, and the 127 counts/s this section measured with `speed=100` is what sizes a followable motion** (see above). ⚠️ **The numbers live in `records/2026-10-18-first-arrival.md`, where the observations they came with are the spine.**
 
 ## The pose line, and the board reads it — 2026-10-18
 
