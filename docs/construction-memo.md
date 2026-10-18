@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.13.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.14.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
 
 **Language:** [English](construction-memo.md) | [日本語](construction-memo-ja.md) | [中文](construction-memo-zh.md)
 
@@ -21,10 +21,10 @@
 | the numbers | **10-bit counts** — neutral `512`, envelope `190–833` | ⛔ **degrees in, the servo's own counts out.** ⚠️ **the conversion between them is in no record** |
 | host → machine | the vendor's protocol, over serial or HID | ⛔ **none on the unit in hand** |
 | where its numbers live in code | `engine/backend/protocol.py` — `DofRealityWire`, `DOF_REALITY_ENVELOPE` | ✅ `engine/backend/protocol_stackchan_pose.py` — tenths of a degree and the protocol's bounds. ⛔ **the zero points and the degrees-to-counts conversion are still in no module**: they are the machine's, in its own NVS |
-| what this repository holds for it | the wire and the mock | the layer above the wire — events to faces — **and, since 0.19.6, a second line type for numbers** ⛔ **and no motion: no board reads it** |
+| what this repository holds for it | the wire and the mock | the layer above the wire — events to faces — **and, since 0.19.6, a second line type for numbers** ✅ **which the board has read since 0.19.7** ⛔ **and the tool that sent them is not in this repository** |
 | its checklist | `docs/first-contact.md` | `docs/first-contact-stackchan.md` |
-| has a value from this repository ever reached it | ⛔ **no** | ⛔ **no** |
-| has it ever moved | not known here | ✅ **yes** — the vendor's SETUP wizard drove it home and the owner watched, 2026-10-15 |
+| has a value from this repository ever reached it | ⛔ **no** | ⚠️ **no code of ours has sent one — but since 2026-10-18 a value in this repository's own pose format has arrived**: 678 of them, written by a host tool that lives outside the repository |
+| has it ever moved | not known here | ✅ **yes** — the vendor's SETUP wizard drove it home and the owner watched, 2026-10-15; **and on 2026-10-18 under a bench command, and again under a pose stream from a host** |
 
 ⚠️ **And machine 2 is two units, which is a trap of its own.** On 2026-10-04 a borrowed unit **was** driven from a host — a text shell over `/dev/cu.usbmodem1101`, `head <pan> <tilt>`. ⛔ **The unit in hand is not that unit.** It has no such path at all: the UART console is off, every port 1–65535 was scanned and is closed, and the device is a **client** of the vendor's cloud rather than a server on the LAN. ⇒ **Every "it works" dated 2026-10-04 belongs to a different, absent machine.**
 
@@ -56,6 +56,8 @@
 ⚠️ **2026-10-18: and 0.19.5, still not a rung — the servo's time field, measured and refused.** A bench command, `bench timed <yaw_deg> <time> [speed]`, writes **one** goal carrying a time field and a speed field and then reads the shaft every 200 ms. ⛔ **The time field did not govern the duration in two trials; the speed field did** — and both stopped exactly **6 counts short** of the goal, which reads as a fixed offset and has not been separated from backlash or from the read-back. ⇒ **Smoothness cannot be delegated to the servo on this unit**: it has to come from the host writing interpolated goals, which is `engine/trajectory/` and which has still never run on machine 2. ⛔ **0.20.0 has not started, and the transport is still not chosen.**
 
 ⚠️ **2026-10-18: and 0.19.6, still not a rung — the second line type, and the board's end does not exist.** `engine/backend/protocol_stackchan_pose.py` carries one pose per tick: `pose <yaw_tenths> <pitch_tenths>*<CC>`, tenths of a degree, both fields always present, one canonical spelling, a two-hex-digit sum, and a `Wire` of two axes. ⛔ **It is not the transition frame** — that one carries symbols and this one numbers, and they are separated on the first word because the frequent line would bury the rare one. ⛔ **No board reads it**, so the 20 ms tick, the refusal of `bench` while poses stream, and the 500 ms silence that releases torque are **decisions with nothing behind them**. **The transport is still not chosen, and 0.20.0 has not started.**
+
+⚠️ **2026-10-18: and 0.19.7, still not a rung — the board reads the pose line, and a host moved the head.** The firmware gained the other end of `pose <yaw_tenths> <pitch_tenths>*<CC>`: the checksum, the canonical spelling, the clamp against **this machine's** limits, the 200 ms arming on the present positions, one refusal print per code per stream, a 500 ms watchdog in the main loop, a mutex on the servo bus, and `bench` refused while a stream runs. ✅ **Measured: six round trips of ±5°, 678 poses, 0 refused, 0 clamped**, pitch commanded as `857` tenths and read **894 before and after**, and every round trip ending **six counts below its centre**. **The author watched and said 「動いた」.** ⛔ **The host tool that interpolated lives outside this repository** (`~/stackchan/pose_stream.py`), so **the engine did not run**, no `Motion Intent` was read, and **the transport is still not chosen — 0.20.0 has not started.**
 
 ## The traps
 

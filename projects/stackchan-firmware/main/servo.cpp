@@ -2,6 +2,7 @@
 
 #include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 #include "board.h"
 
@@ -13,6 +14,25 @@ constexpr unsigned char kInstWrite = 0x03;
 constexpr unsigned char kTorqueEnable = 40;      // SCSCL_TORQUE_ENABLE
 constexpr unsigned char kGoalPositionL = 42;     // SCSCL_GOAL_POSITION_L
 constexpr unsigned char kPresentPositionL = 56;  // SCSCL_PRESENT_POSITION_L
+
+// ⛔ One bus, now reached from two tasks. The console applies poses; the main
+//    loop releases torque when a stream goes quiet. Without this lock those two
+//    packets can interleave on the UART, and an interleaved packet is not a
+//    refused command — it is a different command, or silence.
+SemaphoreHandle_t g_lock = nullptr;
+
+struct Guard {
+  Guard() {
+    if (g_lock != nullptr) {
+      xSemaphoreTake(g_lock, portMAX_DELAY);
+    }
+  }
+  ~Guard() {
+    if (g_lock != nullptr) {
+      xSemaphoreGive(g_lock);
+    }
+  }
+};
 
 uart_port_t Port() { return static_cast<uart_port_t>(board::kServoUart); }
 
@@ -27,6 +47,13 @@ unsigned char Checksum(const unsigned char* bytes, int n) {
 }  // namespace
 
 bool scs::begin() {
+  if (g_lock == nullptr) {
+    g_lock = xSemaphoreCreateMutex();
+    if (g_lock == nullptr) {
+      return false;
+    }
+  }
+
   uart_config_t cfg = {};
   cfg.baud_rate = board::kServoBaud;
   cfg.data_bits = UART_DATA_8_BITS;
@@ -51,6 +78,7 @@ bool scs::begin() {
 }
 
 bool scs::write_position(int id, int raw, unsigned short time_ms, unsigned short speed) {
+  Guard guard;
   if (raw < board::kRawMin) {
     raw = board::kRawMin;
   }
@@ -88,6 +116,7 @@ bool scs::write_position(int id, int raw, unsigned short time_ms, unsigned short
 }
 
 bool scs::read_position(int id, int* out_raw) {
+  Guard guard;
   if (out_raw == nullptr) {
     return false;
   }
@@ -148,6 +177,7 @@ bool scs::read_position(int id, int* out_raw) {
 }
 
 bool scs::set_torque(int id, bool enabled) {
+  Guard guard;
   unsigned char packet[8];
   packet[0] = 0xFF;
   packet[1] = 0xFF;
@@ -167,6 +197,7 @@ bool scs::set_torque(int id, bool enabled) {
 }
 
 bool scs::ping(int id) {
+  Guard guard;
   unsigned char request[6];
   request[0] = 0xFF;
   request[1] = 0xFF;

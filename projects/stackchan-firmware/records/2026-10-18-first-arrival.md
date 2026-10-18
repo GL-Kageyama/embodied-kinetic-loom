@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.2.0 | canonical: projects/stackchan-firmware/records/2026-10-18-first-arrival.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.3.0 | canonical: projects/stackchan-firmware/records/2026-10-18-first-arrival.md | translated: 2026-10-18 -->
 
 **Language:** [English](2026-10-18-first-arrival.md) | [日本語](2026-10-18-first-arrival-ja.md) | [中文](2026-10-18-first-arrival-zh.md)
 
@@ -112,6 +112,43 @@ bench move 0
 
 ⇒ **What this settles:** on this unit, smoothness cannot be taken from the servo's own time field. If the neck is to move without steps, **the host must write interpolated goals** — which is what this repository's trajectory family is for, and which has still never run here.
 
+## The first stream — a host wrote the pose, and the bench did not
+
+**The author was watching the unit.** In their words: 「動いた」 — *it moved.* ⚠️ **That word is the whole of what an eye contributed to this section, and it is the only sentence here that can say the head turned.**
+
+**What was typed.** Nothing. **For the first time on this machine the goal came from a host** — one line every 20 ms, 113 lines per round trip:
+
+```
+pose 88 857*0B
+   … one line every 20 ms, for 2.25 s …
+pose 88 857*0B
+```
+
+⚠️ **The host tool lives outside this repository** — `~/stackchan/pose_stream.py`, run by hand from the ESP-IDF venv. ⛔ **It is a bench tool, not the transport.** Nothing in this repository opens a port, and the tool holds its own raised cosine rather than calling `engine/trajectory/`.
+
+**What the program said**, six times, once per round trip:
+
+```
+pose: stream started — goals on the present positions (yaw 488, pitch 894), torque on
+pose: 113 applied, 0 refused, 0 clamped
+pose: stream lost after 500 ms — torque released
+```
+
+⇒ **678 poses, none refused, none clamped.** ⛔ **A line carrying a number had never been carried end to end to a machine before this**, and the first 678 of them all parsed.
+
+**What the numbers say.**
+
+- **the yaw that was commanded:** raw 472 → 504 — a 10.0° span, ±5° around 488, in 2.0 s along a raised cosine.
+- **the pitch that was commanded:** `857` tenths, which the board's own conversion turns into **raw 894**, the position it already held. **It read 894 before the first stream and 894 after the last.** ⛔ **Pitch did not move by one count** — and that is the round trip being chosen on purpose: the printed angle, 85.6°, converts back to 893.
+- **the yaw found at rest between round trips:** 488 → 481 → 479 → 479 → 481 → 481, and **481** after the last. ⚠️ **Every round trip ended about six counts below the centre it was given** — **the same six-count shortfall 0.19.5 measured, now seen once per round trip instead of once.**
+- **the watchdog fired six times**, once per round trip, and the torque was released each time.
+
+**What the numbers cannot say:** that the head turned. ⛔ **The board applies what it is told and never reads the shaft back during a stream** — the read it prints at each start is a position *after* the previous round trip's torque was released, which is a resting place, not a path. **Only the eye was inside the move.**
+
+⚠️ **And the trap the memo carries did not fire.** `MOVE_SETTLE = 1.0` says a command arriving before the servo has finished moving stalls it and takes both axes down; the one datapoint behind that was a `head 90 135` that ended at `yaw=-1 pitch=-1`. **Six round trips at 50 Hz did not stall anything.** ⇒ **That is one measurement against one datapoint, and neither is a test of the failure mode** — the failure it names is not the failure this trial would have produced.
+
+**What this is not.** ⛔ **The engine did not run.** No `Motion Intent` was read, no trajectory was computed, no gate was passed, and the ease that moved the head was written in a tool that this repository does not hold. ⛔ **And the transport is still not chosen**: a file on one host, run by hand, is a bench tool.
+
 ## What this record does not establish
 
 - **It does not establish that the engine works.** No `Motion Intent` was read, no trajectory was computed, no gate was passed. **The engine has still never run on any machine.**
@@ -133,3 +170,9 @@ bench move 0
 | pitch | unchanged at 894 | held, never commanded to move |
 | duration | 42 steps at one per second; interrupted after about 40 s | the console's own lines |
 | second command, read back after it | yaw 468 (2.5°), pitch 894 unchanged | `bench pos` through the next boot; that command's own lines were lost |
+| image, after the pose line was added | `build/stackchan-vessel.bin`, 289,232 bytes | written at `0x510000`, hash verified after writing |
+| the stream | 6 round trips × 113 poses = **678 applied, 0 refused, 0 clamped** | the board's own `pose:` lines |
+| yaw commanded in the stream | raw 472 → 504 — 10.0°, ±5° around 488, over 2.0 s | the host tool's own lines, `pose 88 857*0B` at both ends |
+| pitch commanded in the stream | `857` tenths → raw **894**, chosen so the round trip lands on the present count | the board's conversion; 894 before and after |
+| yaw found at rest between round trips | 488, 481, 479, 479, 481, 481; 481 after the last | the board's read at each stream start |
+| the watchdog | fired 6 times, once per round trip | `pose: stream lost after 500 ms — torque released` |

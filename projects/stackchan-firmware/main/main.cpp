@@ -3,14 +3,17 @@
 // ⛔ What this firmware does NOT do:
 //   - it has no gesture -> angle table, so every `gesture` in a frame is refused;
 //   - it has no display renderer, so a `face` is logged as a meaning, not drawn;
-//   - it does not move at boot, and it does not move unless a person types.
+//   - it does not move at boot, and it does not move unless a line arrives.
 //
 // ✅ What it does:
 //   - reads the two zero positions out of this unit's NVS (the wizard's
 //     measurement), or says loudly that it fell back to the vendor's defaults;
 //   - lights twelve LEDs for the contract's `light` word;
 //   - answers `bench` commands from the USB Serial/JTAG console, which is how the
-//     first arrival is meant to be watched: one person types, one head turns.
+//     first arrival is meant to be watched: one person types, one head turns;
+//   - applies the second line type, `pose <yaw_tenths> <pitch_tenths>*<CC>`, one
+//     per tick — the host interpolates and this end applies, and 500 ms of
+//     silence releases torque. ⛔ It has never been streamed to this unit yet.
 //
 // ⚠️ `bench` is not part of the wire and is not a vocabulary. It is the bench.
 #include <sys/select.h>
@@ -35,6 +38,25 @@
 namespace {
 
 constexpr int kMaxLine = 256;
+
+// --- the pose line: machine 2's second line type --------------------------
+// ⚠️ `engine/backend/protocol_stackchan_pose.py` is the spelling; this is the
+//    other end of it. ⛔ Degrees, not servo counts: the zeros are this unit's,
+//    read from its own NVS at boot, and they stay on this side of the wire.
+constexpr int kPoseMaxTenths = 1800;        // the protocol's sanity bound
+constexpr int kPoseMaxLine = 64;            // the protocol's line bound, not the console's
+constexpr int64_t kPoseSilenceUs = 500000;  // 500 ms of silence releases torque
+// ⚠️ Measured on this unit, 2026-10-18 (0.19.5): speed=100 moved about
+//    127 counts/s, roughly 40 deg/s. ⛔ The speed is the servo's ceiling, not the
+//    trajectory: the host's goals arrive every 20 ms and are the governor.
+constexpr int kPoseSpeed = 100;
+
+bool g_streaming = false;
+int64_t g_last_pose_us = 0;
+int g_pose_count = 0;
+int g_pose_refused = 0;
+int g_pose_clamped = 0;
+unsigned int g_pose_codes = 0;  // which refusal codes have been printed this stream
 
 char g_line[kMaxLine + 1];
 int g_line_len = 0;
@@ -109,6 +131,7 @@ const char* ParseResultName(ParseResult result) {
 void PrintHelp() {
   printf("commands\n");
   printf("  {\"face\":...,\"light\":...,\"gesture\":...}  one frame from the wire\n");
+  printf("  pose <yaw_tenths> <pitch_tenths>*<CC>   one pose per tick; 500 ms of silence releases torque\n");
   printf("  bench pos                 present positions\n");
   printf("  bench scan                which servo ids answer, 1..12\n");
   printf("  bench read <id>           raw position of one id\n");
@@ -359,6 +382,13 @@ void BenchRelease() {
 }
 
 void HandleBench(const char* args) {
+  // ⛔ A `bench` command blocks this task for seconds, and every pose that
+  //    arrives while it runs is read late. A pose that arrives late is not a
+  //    pose. The stream has to be silent for 500 ms before the bench is usable.
+  if (g_streaming) {
+    printf("bench: refused — a pose stream is running; wait for 500 ms of silence\n");
+    return;
+  }
   while (*args == ' ') {
     ++args;
   }
@@ -448,6 +478,219 @@ void HandleBench(const char* args) {
   printf("bench: unknown subcommand (try `help`)\n");
 }
 
+// --- the pose line --------------------------------------------------------
+//
+// ⚠️ One pose per tick, from a host that is interpolating. This end does not
+//    smooth, ease or plan: it applies what it is told, and the only thing it
+//    decides is what to do when the host stops. That decision is torque off.
+//
+// ⛔ Violations are refused per line, but printed once per code per stream.
+//    A print per refused pose would flood the console at 50 Hz and bury the one
+//    line that matters — the one that says the stream was lost.
+
+unsigned int PoseCodeBit(const char* code) {
+  if (std::strcmp(code, "malformed") == 0) return 1u << 0;
+  if (std::strcmp(code, "bad-checksum") == 0) return 1u << 1;
+  if (std::strcmp(code, "out-of-range") == 0) return 1u << 2;
+  if (std::strcmp(code, "no-answer") == 0) return 1u << 3;
+  if (std::strcmp(code, "no-bus") == 0) return 1u << 4;
+  if (std::strcmp(code, "write-failed") == 0) return 1u << 5;
+  if (std::strcmp(code, "too-long") == 0) return 1u << 6;
+  return 1u << 8;
+}
+
+void PoseRefuse(const char* code) {
+  ++g_pose_refused;
+  const unsigned int bit = PoseCodeBit(code);
+  if ((g_pose_codes & bit) != 0) {
+    return;
+  }
+  g_pose_codes |= bit;
+  printf("pose: refused (%s)\n", code);
+}
+
+enum class TenthsResult { kOk, kMalformed, kOutOfRange };
+
+// ⚠️ The same rules as the Python decoder: one leading sign, one to four digits,
+//    and one canonical spelling. ⛔ `05` and `-0` are refused here for the same
+//    reason they are refused there — the sum cannot see a transposition, so the
+//    spelling is pinned to leave the checksum fewer ways to be fooled.
+TenthsResult ParseTenths(const char* text, int length, int* out) {
+  if (length <= 0 || length > 4) {
+    return TenthsResult::kMalformed;
+  }
+  int i = 0;
+  bool negative = false;
+  if (text[0] == '-') {
+    negative = true;
+    i = 1;
+  }
+  if (i >= length) {
+    return TenthsResult::kMalformed;
+  }
+  int value = 0;
+  for (; i < length; ++i) {
+    if (text[i] < '0' || text[i] > '9') {
+      return TenthsResult::kMalformed;
+    }
+    value = value * 10 + (text[i] - '0');
+  }
+  if (negative) {
+    if (value == 0) {
+      return TenthsResult::kMalformed;  // "-0" is a second spelling of 0
+    }
+    value = -value;
+  } else if (length > 1 && text[0] == '0') {
+    return TenthsResult::kMalformed;  // "05" is a second spelling of 5
+  }
+  if (value < -kPoseMaxTenths || value > kPoseMaxTenths) {
+    return TenthsResult::kOutOfRange;
+  }
+  *out = value;
+  return TenthsResult::kOk;
+}
+
+int PoseChecksum(const char* body, int length) {
+  int sum = 0;
+  for (int i = 0; i < length; ++i) {
+    sum += static_cast<unsigned char>(body[i]);
+  }
+  return sum & 0xFF;
+}
+
+void HandlePose(const char* line, int length) {
+  if (length > kPoseMaxLine) {
+    PoseRefuse("too-long");
+    return;
+  }
+  int star = -1;
+  for (int i = length - 1; i >= 0; --i) {
+    if (line[i] == '*') {
+      star = i;
+      break;
+    }
+  }
+  if (star < 0 || length - star != 3) {
+    PoseRefuse("malformed");
+    return;
+  }
+
+  char expected[3];
+  std::snprintf(expected, sizeof expected, "%02X", PoseChecksum(line, star));
+  if (line[star + 1] != expected[0] || line[star + 2] != expected[1]) {
+    PoseRefuse("bad-checksum");
+    return;
+  }
+
+  // "pose" is at 0..3 and the first space at 4 — Dispatch checked that. What is
+  // left is exactly one space between the two fields, and no third.
+  int space = -1;
+  for (int i = 5; i < star; ++i) {
+    if (line[i] == ' ') {
+      if (space >= 0) {
+        PoseRefuse("malformed");
+        return;
+      }
+      space = i;
+    }
+  }
+  if (space < 0) {
+    PoseRefuse("malformed");
+    return;
+  }
+
+  int yaw = 0;
+  int pitch = 0;
+  const TenthsResult yaw_result = ParseTenths(line + 5, space - 5, &yaw);
+  const TenthsResult pitch_result = ParseTenths(line + space + 1, star - space - 1, &pitch);
+  if (yaw_result == TenthsResult::kMalformed || pitch_result == TenthsResult::kMalformed) {
+    PoseRefuse("malformed");
+    return;
+  }
+  if (yaw_result == TenthsResult::kOutOfRange || pitch_result == TenthsResult::kOutOfRange) {
+    PoseRefuse("out-of-range");
+    return;
+  }
+
+  // ⛔ Clamped against THIS machine's numbers, not the protocol's. The host does
+  //    not know these limits from the wire; the board is the only end that does.
+  const int yaw_wanted = yaw;
+  const int pitch_wanted = pitch;
+  if (yaw > board::kYawAngleLimitTenths) yaw = board::kYawAngleLimitTenths;
+  if (yaw < -board::kYawAngleLimitTenths) yaw = -board::kYawAngleLimitTenths;
+  pitch = Clamp(pitch, board::kPitchAngleMinTenths, board::kPitchAngleMaxTenths);
+  if (yaw != yaw_wanted || pitch != pitch_wanted) {
+    ++g_pose_clamped;
+    if ((g_pose_codes & (1u << 7)) == 0) {
+      g_pose_codes |= 1u << 7;
+      printf("pose: clamped to this machine's limits (yaw +/-%d.%d, pitch %d.%d..%d.%d deg)\n",
+             board::kYawAngleLimitTenths / 10, board::kYawAngleLimitTenths % 10,
+             board::kPitchAngleMinTenths / 10, board::kPitchAngleMinTenths % 10,
+             board::kPitchAngleMaxTenths / 10, board::kPitchAngleMaxTenths % 10);
+    }
+  }
+
+  if (!g_streaming) {
+    if (!g_servos_ready) {
+      PoseRefuse("no-bus");
+      return;
+    }
+    int yaw_now = -1;
+    int pitch_now = -1;
+    if (!scs::read_position(board::kYawId, &yaw_now) ||
+        !scs::read_position(board::kPitchId, &pitch_now)) {
+      PoseRefuse("no-answer");
+      return;
+    }
+    // ⚠️ The same rule as the bench: both goals sit on the present positions
+    //    before torque comes on, so the first pose is a move and not a jump.
+    scs::write_position(board::kYawId, yaw_now, 0, 0);
+    scs::write_position(board::kPitchId, pitch_now, 0, 0);
+    scs::set_torque(board::kYawId, true);
+    scs::set_torque(board::kPitchId, true);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    g_streaming = true;
+    g_pose_codes = 0;
+    g_pose_count = 0;
+    g_pose_refused = 0;
+    g_pose_clamped = 0;
+    g_last_pose_us = esp_timer_get_time();
+    printf("pose: stream started — goals on the present positions (yaw %d, pitch %d), torque on\n",
+           yaw_now, pitch_now);
+  }
+
+  const int yaw_raw = Clamp(RawFromAngle(g_yaw_zero, yaw), board::kRawMin, board::kRawMax);
+  const int pitch_raw = Clamp(RawFromAngle(g_pitch_zero, pitch), board::kRawMin, board::kRawMax);
+  const bool written = scs::write_position(board::kYawId, yaw_raw, 0, kPoseSpeed) &&
+                       scs::write_position(board::kPitchId, pitch_raw, 0, kPoseSpeed);
+  if (!written) {
+    // ⚠️ The clock is not advanced. A failed write is silence, and silence is
+    //    what the watchdog is for.
+    PoseRefuse("write-failed");
+    return;
+  }
+  g_last_pose_us = esp_timer_get_time();
+  ++g_pose_count;
+}
+
+// ⚠️ Called from the main loop, which is the only task that is never blocked.
+//    ⛔ "The machine stopped" is not what this says, and not what it means: the
+//    torque is released, and a released servo is limp, not stopped.
+void PoseWatchdog() {
+  if (!g_streaming) {
+    return;
+  }
+  if (esp_timer_get_time() - g_last_pose_us < kPoseSilenceUs) {
+    return;
+  }
+  g_streaming = false;
+  scs::set_torque(board::kYawId, false);
+  scs::set_torque(board::kPitchId, false);
+  printf("pose: stream lost after 500 ms — torque released\n");
+  printf("pose: %d applied, %d refused, %d clamped\n", g_pose_count, g_pose_refused,
+         g_pose_clamped);
+}
+
 void HandleFrame(const char* line, int length) {
   Command command;
   const ParseResult result = parse_command(line, length, &command);
@@ -474,6 +717,10 @@ void Dispatch(const char* line, int length) {
   }
   if (line[0] == '{') {
     HandleFrame(line, length);
+    return;
+  }
+  if (std::strncmp(line, "pose ", 5) == 0) {
+    HandlePose(line, length);
     return;
   }
   if (std::strncmp(line, "bench", 5) == 0 && (length == 5 || line[5] == ' ')) {
@@ -622,13 +869,17 @@ extern "C" void app_main() {
   }
 
   printf("\nready. type `help`.\n");
-  printf("⚠️ this firmware does not move at boot. nothing moves until a person types.\n\n");
+  printf("⚠️ this firmware does not move at boot. nothing moves until a line arrives.\n\n");
 
   // ⛔ The console lives in its own task now. `app_main` keeps only the
-  //    animation and a delay, so no path in this file can spin.
+  //    animation, the pose watchdog and a delay, so no path in this file can
+  //    spin. ⚠️ The watchdog is here and not in the console task because the
+  //    console's read blocks: a task blocked in `read` cannot notice that its
+  //    stream has gone quiet.
   xTaskCreate(ConsoleTask, "console", 4096, nullptr, 2, nullptr);
   while (true) {
     leds::tick();
+    PoseWatchdog();
     vTaskDelay(pdMS_TO_TICKS(20));
   }
 }

@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.16.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.17.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -264,7 +264,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **The layer has been registered as a hook since 2026-10-18**, and the phase, the timers and the gaze live inside one process, so that registration is a client and a daemon rather than the CLI. **Both ends of that bridge exist, and both are installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client — **but this directory tests the two processes, not the installation.** ⛔ **Nothing here rings on the launchd job or on `settings.json`:** an installation is a place on one host, and it is recorded on `docs/stackchan-daemon.md`, not checked. ✅ **And since 2026-10-18 the installed daemon writes the frame row as well** — the line it would send, with `sent` false — **and that was observed on a real hook event.** ⛔ **What was observed is a line in a log, not a movement.**
 
-## A second line type, and what it does not cover (0.19.6)
+## A second line type, and what it does not cover (0.19.6, read by the board since 0.19.7)
 
 **`engine/backend/protocol_stackchan_pose.py` arrived — the line a host would write every tick.** Forty-two tests were added; the count moved from 397 to 439. ⛔ **It is not the transition frame, and the two are kept apart on their first word** (`pose` against `{`): that one is written when the visible state changes and carries symbols; this one is written every tick and carries numbers — **mix them and the frequent line buries the rare one.**
 
@@ -282,7 +282,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | neither machine 1's numbers nor this unit's zero points are in the source | `test_stackchan_pose_wire.py` | ⛔ **the zero points are the machine's and live in its NVS**; here they would be a copy, and a copy is this repository's own definition of a defect |
 | the mock records and answers nothing | `test_stackchan_pose_wire.py` | ⚠️ **green is the protocol's, not the machine's** |
 
-⛔ **What it does not cover.** **No board reads this line** — `projects/stackchan-firmware/` has not one line of it, so the 20 ms tick, the refusal of `bench` while poses stream, and the 500 ms silence that releases torque are **decisions with nothing behind them**. **20 ms has not been survived on this unit**, and the one datapoint on record, `MOVE_SETTLE = 1.0`, is that a command arriving mid-move took both axes down. **The order of the two fields is invisible to the checksum**: a line with yaw and pitch swapped is well-formed, and the head moves wrongly. **And nothing here is connected to anything** — `sent` is still `False`.
+⛔ **What it does not cover.** ✅ **The board reads this line since 0.19.7** — `projects/stackchan-firmware/main/main.cpp` carries its own sum, its own spelling rules and its own limits — **and no test here reads that C++**: `idf.py build` is run by hand, and the only thing checking the two ends agree is the literal comparison in `test_stackchan_wire.py` for the *other* line. ⚠️ **20 ms has survived this unit once** — 678 poses over six round trips of ±5°, 0 refused, 0 clamped — **and that is one amplitude, not the failure mode**: the datapoint on record, `MOVE_SETTLE = 1.0`, is that a command arriving mid-move took both axes down, and six round trips did not reproduce it. **The order of the two fields is invisible to the checksum**: a line with yaw and pitch swapped is well-formed, and the head moves wrongly. **And the host that wrote the poses is not in this repository**, so **nothing here is connected to anything** — `sent` is still `False`.
 
 ## The rule that holds this directory — applied to us
 
