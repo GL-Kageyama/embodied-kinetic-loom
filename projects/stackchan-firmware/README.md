@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.7.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.8.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -153,12 +153,12 @@
 |---|---|---|
 | the amplifier's table | eight registers written in order, `0x00` `0x55AA` first and 50 ms of silence after it | ⛔ **nothing — not one value was measured on this unit** |
 | the sample-rate code | `0x06` = `0x3CC8`, the code for 48,000 Hz | **`0x3CC5`** — rate code 5, put there by hand so that the code and the 24,000 Hz stream agree |
-| the volume | `0x0C` = `0x3064`, −18 dB | nothing; `bench volume <0..100>` rewrites the high byte only |
+| the volume | `0x0C` = `0x3064`, the vendor's −18 dB at boot | **`0x0C` = `0x1864`, −10 dB at boot** — the ear's judgement of 2026-10-19, not the vendor's default; `bench volume <0..100>` rewrites the high byte only |
 | the pins | MCLK GPIO 0, BCLK 34, WS 33, DOUT 13 (DIN 14 unused) | nothing |
 
 ⛔ **A rate code and a sample rate that disagree is a silent, wrong-pitch channel, and nothing on this board reports it** — which is why the one number changed is named here and in the record rather than left in the source.
 
-⚠️ **The four tones are choices, not measurements** — the same standing as the twelve LEDs' colours. `hello` rises, `pip` is one bright point, `chime` rises and rings longer, `fall` drops. **Nothing has judged them but one pair of ears**, and that judgement is only *it was audible* (`records/2026-10-18-the-voice.md`).
+⚠️ **The four tones are choices, not measurements** — the same standing as the twelve LEDs' colours. `hello` rises, `pip` is one bright point, `chime` rises and rings longer, `fall` drops. **Nothing has judged them but one pair of ears**, and that judgement is only *it was audible* (`records/2026-10-18-the-voice.md`). ✅ **On 2026-10-19 the same ear judged the level**: the four were 「少し小さい」 at the vendor's boot volume, and **`fall` — the only word ending on 440 Hz — was smaller than the other three**. ⇒ **The boot volume is −10 dB and `fall` alone is written at 0.34** (the other three at 0.22); the author heard it again and said 「OK」. ⛔ **That is a comparison of loudness, not of tone** — the shapes themselves still rest on nothing but a choice.
 
 ⚠️ **`i2s_channel_write` returns when the DMA buffers have taken the samples, not when the note has finished** — so the board's `playing` → `done` lines are not note lengths, and must not be read as any.
 

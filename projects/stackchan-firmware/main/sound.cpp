@@ -120,8 +120,13 @@ bool BringUpAmplifier() {
     }
   }
 
-  // ⚠️ The vendor's own initial volume, -18 dB: 6 dB x 3 in the high nibble.
-  if (!WriteVolumeField(VolumeField(-18))) {
+  // ⚠️ **The vendor's own initial volume is -18 dB (6 dB x 3 in the high
+  //    nibble), and until 2026-10-19 this line wrote it.** On that morning the
+  //    author heard the four words and said the whole thing was 「少し小さい」;
+  //    at `bench volume 90` — the vendor's -10 dB — the four were judged right.
+  //    ⛔ **The boot volume is now that judgement, not the vendor's default**:
+  //    -10 dB in the same 6 dB / 3 dB encoding, i.e. 0x18.
+  if (!WriteVolumeField(VolumeField(-10))) {
     std::printf("sound: the AW88298 did not take a volume\n");
     return false;
   }
@@ -182,12 +187,20 @@ constexpr Note kChime[] = {{880, 90}, {1319, 200}};
 constexpr Note kFall[] = {{659, 110}, {440, 260}};
 
 // 0.22 of full scale. ⛔ A comfortable choice on a 1 W speaker, not a measure-
-//    ment of anything; the amplifier is at -18 dB above it.
+//    ment of anything; the amplifier is at -10 dB above it.
 constexpr float kAmplitude = 0.22f;
+// ⛔ **`fall` is louder than the other three, and the reason is an ear, not a
+//    measurement.** On 2026-10-19 the author heard the four words at one
+//    amplitude and said **「4 が小さい」** — `fall` ends on 440 Hz, the lowest
+//    note among them, and a 1 W speaker gives that frequency less than it
+//    gives 880 or 1319. ⚠️ **The number below is the first value the ear was
+//    asked about**, not a loudness measurement; if it is wrong, the ear says so
+//    and this line moves.
+constexpr float kAmplitudeFall = 0.34f;
 constexpr int kFramesPerChunk = 240;  // 10 ms at 24 kHz
 int16_t g_chunk[kFramesPerChunk * 2] = {};
 
-void WriteNote(const Note& note) {
+void WriteNote(const Note& note, float amplitude) {
   const int frames = board::kAudioSampleRate * note.ms / 1000;
   constexpr int kAttackFrames = board::kAudioSampleRate * 4 / 1000;  // 4 ms
   const float step = 2.0f * 3.14159265f * static_cast<float>(note.hz) /
@@ -211,7 +224,7 @@ void WriteNote(const Note& note) {
                        ? static_cast<float>(left) / static_cast<float>(decay_from)
                        : 0.0f;
       }
-      const float sample = std::sin(step * static_cast<float>(t)) * kAmplitude * envelope;
+      const float sample = std::sin(step * static_cast<float>(t)) * amplitude * envelope;
       const int16_t value = static_cast<int16_t>(sample * 32767.0f);
       g_chunk[i * 2] = value;
       g_chunk[i * 2 + 1] = value;
@@ -271,8 +284,9 @@ void sound::play(Sound word) {
   }
   int count = 0;
   const Note* notes = NotesFor(word, &count);
+  const float amplitude = word == Sound::kFall ? kAmplitudeFall : kAmplitude;
   for (int i = 0; i < count; ++i) {
-    WriteNote(notes[i]);
+    WriteNote(notes[i], amplitude);
   }
 }
 

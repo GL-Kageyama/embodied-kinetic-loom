@@ -662,7 +662,8 @@ void BenchVolume(int percent) {
   if (sound::set_volume_percent(percent)) {
     // ⚠️ The register took the value. Whether it is quiet or loud is the ear's
     //    answer, not this line's.
-    printf("bench: volume -> %d (the vendor's -96..0 dB sweep; was -18 dB at boot)\n",
+    printf("bench: volume -> %d (the vendor's -96..0 dB sweep; "
+           "-10 dB, 90, at boot)\n",
            percent);
   } else {
     printf("bench: the amplifier did not take the volume\n");
