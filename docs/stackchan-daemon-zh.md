@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.19.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.20.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-19 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -133,6 +133,7 @@
 - ⛔ **事件的理由并不划分状态变化**，所以规则读的是状态，不是理由。`blocked` 中的 `PostToolUse` 以理由 `OBSERVED` 回到 `working`，光却可能不动; 担忧改变光，不改变阶段。
 - ⚠️ **这不是流。** 在观测到的那次运行里，紧随第一个帧的 `PreToolUse` 没有写下第二行。
 - **那一行属于编码器**——`engine/backend/protocol_stackchan.py`，与 `tests/test_stackchan_wire.py` 所守的是同一个——**所以日志不会偏离 `schemas/stackchan-command.schema.json`。**
+- ✅ **自 0.19.28 起，日志有了读者**——`python3 -m projects.stackchan.day <path>` 数它里面的东西: 行、启动、判定、帧以及每一帧是否送出、流出的动作（计划·应用·迟·保持）、读回（**heard** 与 **positions** 分开数），以及每一个到达端口的帧的词。**核心接收行，不读文件也不读时钟**（`day/summary.py`，十七项测试）；**边缘只打开一个路径，而那个路径没有默认值**——安装好的作业只命名日志一次，第二个拼写会是变旧的那一个。**2026-10-19 05:36 的测量: 3,852 行、启动 11 次、判定 3,599 次、帧 124（全部 `sent: true`）、流出 48——计划 1,564、应用 1,518、迟 1,316、保持 1,256——读回 24（听见了 12、带回位置的 0）、声音 2 个（`hello`、`chime`）。** ⛔ **读者能数出重启，却说不出理由**: 113 分钟里 11 次启动，stderr 一行也没有。
 - ⛔ **一行日志不是电线**，而 ⛔ **它也不是运动的记录**——那个要求写在 `CLAUDE.md` 里，而它的形状在有了可以放进去的东西的那一天被决定了。✅ **自 2026-10-18 起，指名了端口时同一行也会写到端口，一种编码供养两边**——日志行和电线上的字节来自对编码器的一次调用。
 
 ## 传输路径

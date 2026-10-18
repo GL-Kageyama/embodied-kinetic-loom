@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.17.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.18.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -202,6 +202,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - ⚠️ **这不是流。** 一个阶段里的一百个证据事件，只生出一个帧。
 - **守护进程把帧写成一行**——`{"frame": "<一行 ASCII>", "sent": false, "at": …, "session": …}`——而那一行由电线测试所守的同一个编码器产出，**所以日志不会偏离契约。**
 - ✅ **任务点了端口时就会发送**——同一行被写进端口，而 `sent` 说的是主机的 tty 是否收下了它。⛔ **`sent: true` 说的是主机的 tty，不是板子收到了它**：送达只被证明过一次，**靠板子自己的控制台把帧打印出来**。✅ **屏幕在对面自 0.19.12 起有了渲染器**——板子从帧里的词画出原厂的脸——而 ⛔ **仍然为真的一点是: 这一层从不画它。** ✅ **2026-10-18，已安装的守护进程在一次真实钩子事件上写下了第一个帧行**——而 ⛔ **观测到的是一行，不是运动。**
+- ✅ **自 0.19.28 起，日志可以被读回来**——`python3 -m projects.stackchan.day <path>` 数它: 启动、判定、帧以及每一帧是否送出、流（计划·应用·迟·保持）、读回（**heard** 与 **positions** 分开），以及到达端口的帧的词。**核心接收行**（`day/summary.py`，十七项测试）；**边缘打开交给它的那一个路径，没有默认值**——安装好的作业只命名日志一次。⛔ **它数的是身体做过的事，说不出一天是否被活过，也说不出重启的理由。**
 
 ## 检查了什么
 

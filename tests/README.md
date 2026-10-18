@@ -4,7 +4,7 @@
 
 # tests/
 
-**Thirty-four files, five hundred and seventy-seven tests, all green — measured 2026-10-19.**
+**Thirty-five files, five hundred and ninety-four tests, all green — measured 2026-10-19.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -417,6 +417,33 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 ⛔ **Nothing here opens a port, and nothing here hears anything.** A closed field is counted; **whether the speaker is silent is not something a host can measure** — the ear is the instrument, and it has not yet heard a quiet night.
 
 ✅ **Since 0.19.26 four more tests read the copy of the installed job** — `tests/test_stackchan_launchd.py`: the plist parses and names its label, the speaker is `--sound on`, the hour is not written into the job, and the port is named once. ⚠️ **A copy is not an installation** — the suite can say what the repository holds, never what launchd loaded.
+
+## The log, read back (0.19.28)
+
+**`projects/stackchan/day/` reads the daemon's own log; `test_stackchan_day.py` holds it with seventeen claims.**
+
+⚠️ **The log existed before its reader did.** By 05:36 on 2026-10-19 it held **3,852 lines** and **not one of them was unreadable** — ⛔ **and nothing in the repository read it.** A record nobody reads is a file with a timetable in it.
+
+| the check | what it is for |
+|---|---|
+| an empty log is zero | ⚠️ **a count of nothing is not an error** |
+| a blank line is not a line | only written lines are counted |
+| an unreadable line is counted, not dropped | ⛔ **the log being broken is itself a measurement** |
+| an unknown shape of JSON is counted | **a new line type must not vanish silently** |
+| a decision is counted with its phase | ✅ |
+| a frame is counted, and its words with it | ✅ |
+| an unsent frame's words are not counted | ⛔ **a word that never reached the board is not a word the body said** |
+| a frame body that is not JSON is counted apart | ⚠️ |
+| `null` is not a word | ⛔ **counting an empty field turns silence into speech** |
+| a daemon start is counted | ✅ |
+| the plan and the result are counted together | ⚠️ **one line says what was planned, the other what arrived** |
+| `heard` and `position` are two counts | ⛔ **a console that did not answer and a console with no position are two different failures** |
+| the count does not depend on the order | ✅ |
+| every count is printed | **a number that is not printed is not read** |
+
+⛔ **Nothing here opens a log file**: the core takes lines. ⇒ **the edge is the only place that opens a path, and the path has no default** — the installed job names the log once, and a second spelling here would be the one that goes stale.
+
+⚠️ **And the instrument can count a restart without saying why.** The daemon started **eleven** times by 05:37 on 2026-10-19 and wrote **not one line** to stderr. **A restart is not evidence that it crashed — nor that it did not.**
 
 ## The rule that holds this directory — applied to us
 

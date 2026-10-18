@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.19.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.20.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-19 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
@@ -133,6 +133,7 @@
 - ⛔ **The event's reason does not partition state changes**, and the rule reads the state rather than the reason. A `PostToolUse` inside `blocked` returns to `working` with reason `OBSERVED` while the light may not move; a concern changes the light and not the phase.
 - ⚠️ **This is not a stream.** In the observed run, a `PreToolUse` that followed the first frame wrote no second row.
 - **The line is the codec's** — `engine/backend/protocol_stackchan.py`, the same one `tests/test_stackchan_wire.py` holds — so **the log cannot drift from `schemas/stackchan-command.schema.json`.**
+- ✅ **Since 0.19.28 the log has a reader** — `python3 -m projects.stackchan.day <path>` counts what is in it: lines, starts, decisions, frames and whether each was sent, streamed gestures with planned/applied/late/held, read-backs with **heard** and **positions** counted apart, and the words of every frame that reached the port. **The core takes lines and reads no file and no clock** (`day/summary.py`, seventeen tests); **the edge opens one path, and that path has no default** — the installed job names the log once, and a second spelling would be the one that goes stale. **Measured at 05:36 on 2026-10-19: 3,852 lines, 11 starts, 3,599 decisions, 124 frames (every one `sent: true`), 48 streams — 1,564 poses planned, 1,518 applied, 1,316 late, 1,256 held — 24 read-backs of which 12 were heard and 0 carried a position, and two sounds (`hello`, `chime`).** ⛔ **The reader counts a restart and cannot say why**: eleven starts in 113 minutes, and not one line in stderr.
 - ⛔ **A line in a log is not a wire**, and ⛔ **it is not a record of motion either** — that requirement is stated in `CLAUDE.md`, and its shape was decided on the day there was something to put in it. ✅ **Since 2026-10-18 the same line is also written to a port when one is named, and one encoding feeds both** — the log row and the bytes on the wire come from a single call to the codec.
 
 ## The transport
