@@ -39,8 +39,12 @@ constexpr unsigned char kRegGpioML = 0x03;
 constexpr unsigned char kRegGpioMH = 0x04;
 constexpr unsigned char kRegGpioOL = 0x05;
 constexpr unsigned char kRegGpioOH = 0x06;
+constexpr unsigned char kRegGpioIL = 0x07;
+constexpr unsigned char kRegGpioIH = 0x08;
 constexpr unsigned char kRegGpioPuL = 0x09;
 constexpr unsigned char kRegGpioPuH = 0x0A;
+constexpr unsigned char kRegGpioPdL = 0x0B;
+constexpr unsigned char kRegGpioPdH = 0x0C;
 constexpr unsigned char kRegGpioDrvL = 0x13;
 constexpr unsigned char kRegGpioDrvH = 0x14;
 constexpr unsigned char kRegLedCfg = 0x24;
@@ -224,9 +228,15 @@ bool leds::begin() {
     return false;
   }
 
-  // Servo power: output, pull-up, then on.
+  // Servo power: output, pull-up, push-pull, then on.
+  // ⚠️ The drive mode is written on 2026-10-19 because the expander is not
+  //    reset by the ESP: its registers outlive a reflash and a hard reset. A
+  //    boot that inherits the previous run's mode is not a boot with a known
+  //    state. (Measured: a register set by a bench trial was still set after
+  //    two flashes.)
   SetDirection(board::kServoPowerPin, true);
   SetPullUp(board::kServoPowerPin, true);
+  SetPushPull(board::kServoPowerPin);
   servo_power(true);
   vTaskDelay(pdMS_TO_TICKS(200));
 
@@ -263,6 +273,33 @@ bool leds::servo_power(bool on) {
   return SetPin(board::kServoPowerPin, on);
 }
 
+// ⚠️ Written on 2026-10-19, after `bench power on` printed ON for a rail that a
+//    silent servo bus said was not on. The command had never asked the expander
+//    whether the write landed — the print was the claim, not the answer. This
+//    probe is the answer: the six registers behind pin 0, and the input bit
+//    that says what the line actually reads.
+// ⛔ Still not the rail. An enable line that reads high and a servo rail that
+//    carries current are two questions; this closes only the first.
+void leds::servo_power_probe() {
+  Guard guard;
+
+  struct Named {
+    const char* name;
+    unsigned char reg;
+  };
+  const Named regs[] = {{"M_L", kRegGpioML},   {"O_L", kRegGpioOL},  {"I_L", kRegGpioIL},
+                        {"PU_L", kRegGpioPuL}, {"PD_L", kRegGpioPdL}, {"DRV_L", kRegGpioDrvL}};
+  for (const Named& reg : regs) {
+    unsigned char value = 0;
+    if (ReadRegister8(reg.reg, &value)) {
+      printf("rail: %s=0x%02X (pin 0 %s)\n", reg.name, value,
+             (value & 0x01u) ? "set" : "clear");
+    } else {
+      printf("rail: %s unreadable\n", reg.name);
+    }
+  }
+}
+
 // ⚠️ Written on 2026-10-18, after a frame that the board accepted produced
 //    nothing the author could see. Two things had been one word until then:
 //    "the expander holds this colour" and "a pixel shows it". They are asked
@@ -285,8 +322,8 @@ void leds::probe() {
     const char* name;
     unsigned char reg;
   };
-  const Named pins[] = {{"M_H", kRegGpioMH},   {"O_H", kRegGpioOH},  {"I_H", 0x08},
-                        {"PU_H", kRegGpioPuH}, {"PD_H", 0x0C},      {"DRV_H", kRegGpioDrvH}};
+  const Named pins[] = {{"M_H", kRegGpioMH},   {"O_H", kRegGpioOH},  {"I_H", kRegGpioIH},
+                        {"PU_H", kRegGpioPuH}, {"PD_H", kRegGpioPdH}, {"DRV_H", kRegGpioDrvH}};
   for (const Named& pin : pins) {
     unsigned char value = 0;
     if (ReadRegister8(pin.reg, &value)) {

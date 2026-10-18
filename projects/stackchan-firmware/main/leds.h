@@ -22,6 +22,13 @@ void tick();
 //    Powering it back on leaves the head limp until a goal is written.
 bool servo_power(bool on);
 
+// ⚠️ A diagnostic for the bench, not a feature of the wire. It prints pin 0 —
+//    the servo rail's enable line — register by register, and reads the input
+//    register back. ⛔ A bit that says "high" is an enable line that is high;
+//    it is not a rail that is powered. The two are one question apart, and
+//    only a meter closes the second.
+void servo_power_probe();
+
 // ⚠️ A diagnostic for the bench, not a feature of the wire. It reads back what
 //    the expander says it holds, then writes full red to all twelve and reads it
 //    again — so that "the registers took the values" and "the pixels lit" become

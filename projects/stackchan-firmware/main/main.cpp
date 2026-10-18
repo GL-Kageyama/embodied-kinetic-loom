@@ -745,11 +745,19 @@ void HandleBench(const char* args) {
       ++value;
     }
     if (std::strncmp(value, "off", 3) == 0) {
-      leds::servo_power(false);
-      printf("bench: servo power OFF — the head is limp\n");
+      // ⛔ Until 2026-10-19 this printed OFF whatever the expander did with the
+      //    write. A print that cannot fail is not an answer.
+      const bool wrote = leds::servo_power(false);
+      printf("bench: servo power OFF — %s\n",
+             wrote ? "the expander took the write; the head is limp"
+                   : "THE EXPANDER DID NOT TAKE THE WRITE");
+      leds::servo_power_probe();
     } else if (std::strncmp(value, "on", 2) == 0) {
-      leds::servo_power(true);
-      printf("bench: servo power ON — the head holds nothing until a goal is written\n");
+      const bool wrote = leds::servo_power(true);
+      printf("bench: servo power ON — %s\n",
+             wrote ? "the expander took the write; the head holds nothing until a goal is written"
+                   : "THE EXPANDER DID NOT TAKE THE WRITE");
+      leds::servo_power_probe();
     } else {
       printf("bench: power needs `on` or `off`\n");
     }
