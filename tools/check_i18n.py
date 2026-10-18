@@ -121,6 +121,10 @@ DOCS = (
     "projects/stackchan-firmware/records/2026-10-18-the-voice.md",
     "projects/stackchan-firmware/records/2026-10-18-the-neck.md",
     "projects/stackchan-firmware/records/2026-10-19-the-join.md",
+    # ✅ **`records/` の8本目は、ゴールの記録である。** 2026-10-19、著者が
+    # **「そこに何かが居る」**と言った。⛔ **この1本は、検証ではなく観察である**
+    # ——**検査の外に出せば、ゴールについて何も言わないまま、頁だけが腐る。**
+    "projects/stackchan-firmware/records/2026-10-19-something-is-there.md",
     # ⚠️ **`references/` の1本も並べる。** ✅ **2026-09-28、このディレクトリに最初の1行が入った**
     # ——**D-12 が決めた「覆えない差」の欄を持つ表である。**
     # ✅ **同じ日、この1本は D-02 の答えになった**——**語彙は固定の表ではなく、引ける写像である。**

@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.1.0 | canonical: projects/stackchan-firmware/records/2026-10-19-the-join.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.2.0 | canonical: projects/stackchan-firmware/records/2026-10-19-the-join.md | translated: 2026-10-19 -->
 
 **Language:** [English](2026-10-19-the-join.md) | [日本語](2026-10-19-the-join-ja.md) | [中文](2026-10-19-the-join-zh.md)
 
@@ -52,4 +52,4 @@
 
 **这回答了本页留下的问题。** 23 个里有 16 个、79 个里有 68 个是在期限之后才被应用的——**而运动仍然读起来是顺滑的。** ⇒ **迟是日程的性质，顺滑是到达之物的性质**——第二件事的仪器是眼睛，不是时间戳。⚠️ **数了什么：** 两个身势、一双眼睛、一个会话。**没数什么：** 眼睛看到的移动距离、事件到开始动作之间的时间、房间里其他在动的东西。
 
-⛔ **这没有说目标。** 「滑らかだった」是对身体运动的判断，不是那里有东西的证据——**目标的记录还没有写**，这个观察也不能代替它。
+⛔ **这没有说目标。** 「滑らかだった」是对身体运动的判断，不是那里有东西的证据——这个观察也不能代替它。✅ **目标自身的记录，在同一天更晚的早晨，从另一句话写下了**: `projects/stackchan-firmware/records/2026-10-19-something-is-there.md`。
