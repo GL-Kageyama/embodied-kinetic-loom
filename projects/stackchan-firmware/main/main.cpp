@@ -141,6 +141,7 @@ void PrintHelp() {
   printf("  bench hold                hold the present positions (torque on)\n");
   printf("  bench release             torque off — the head goes limp\n");
   printf("  bench power on|off        the servo rail — the only stop this machine has\n");
+  printf("  bench leds                read the expander back, then set all twelve full red\n");
   printf("  help\n");
 }
 
@@ -422,6 +423,14 @@ void HandleBench(const char* args) {
   }
   if (std::strncmp(args, "release", 7) == 0) {
     BenchRelease();
+    return;
+  }
+  if (std::strncmp(args, "leds", 4) == 0) {
+    // ⚠️ Reads the expander back, then writes full red to all twelve. Neither
+    //    answer is a claim: the registers say what the expander holds, and only
+    //    the eye says whether a pixel is lit.
+    leds::probe();
+    printf("bench: twelve set to full red — if nothing is lit, say so; the registers above still count\n");
     return;
   }
   if (std::strncmp(args, "power", 5) == 0) {

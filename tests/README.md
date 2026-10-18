@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.17.0 | canonical: tests/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.18.0 | canonical: tests/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Twenty-eight files, four hundred and thirty-nine tests, all green — measured 2026-10-18.**
+**Twenty-nine files, four hundred and fifty-seven tests, all green — measured 2026-10-18.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -209,7 +209,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | no machine-1 name or number is in the package | `test_stackchan_behaviors.py` | over **AST identifiers and numeric constants**, not text — and it also asserts that no `motions/` directory exists |
 | the parser builds in three languages, and the help differs | `test_stackchan_behaviors.py` | the same assertion `test_strings.py` makes for the Pet's entry point |
 
-**Twenty-six more hold the daemon — the process that keeps the phase between hook processes:**
+**Thirty more hold the daemon — the process that keeps the phase between hook processes:**
 
 | the check | where | what it is for |
 |---|---|---|
@@ -218,8 +218,12 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | an unknown key, an unknown event and a malformed line are each refused with a code | `test_stackchan_daemon.py` | ⛔ **unknown is refused, not ignored** — otherwise `prompt` could ride along |
 | a prompt in the line never reaches the log | `test_stackchan_daemon.py` | privacy by construction, asserted end to end |
 | the next wake is the expression, then the idle clock; a silent client does not block the room | `test_stackchan_daemon.py` | no fixed tick; the deadline is a value |
-| **a greeting logs one frame row, and `sent` is `False`** | `test_stackchan_daemon.py` | ⛔ **the line says *would have sent*; nothing left the process** |
+| **a greeting logs one frame row, and with no port `sent` is `False`** | `test_stackchan_daemon.py` | ⛔ **with no `--port` the line says *would have sent*; nothing leaves the process** |
 | **an unchanged event logs no second frame** | `test_stackchan_daemon.py` | ⚠️ **the frame is not a stream** — the same state is one line, not one per event |
+| **the configured port receives the logged line** | `test_stackchan_daemon.py` | ⚠️ **the log row and the bytes come from one call to the codec**, so they cannot drift |
+| a missing port is `sent: false`, not a refusal | `test_stackchan_daemon.py` | ⛔ **a replug can rename the console**; a missing path must not be fatal under `KeepAlive` |
+| without a port, nothing is written anywhere | `test_stackchan_daemon.py` | the device is optional, and that is still the default |
+| a write that returns short is not `sent` | `test_stackchan_daemon.py` | ⛔ **`sent` is the host's tty taking the whole line — not the board receiving it** |
 
 **Twenty-one more hold the client — the process a hook would run:**
 
@@ -260,9 +264,9 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | every emitted frame parses against the contract, and round-trips on the wire | `test_stackchan_outbound.py` | the frame is a `Frame`, not a sentence, and the codec is the only spelling of it |
 | **no number crosses** | `test_stackchan_outbound.py` | ⛔ **every field is a word from a closed table or `null`** |
 
-⛔ **And the wire is not connected to anything.** The daemon opens the codec and writes the line it would send, but **it opens no transport** — no socket to a device, no serial port, no board. **These thirty-seven tests** (twenty-five on the wire, ten on the frame, two on the daemon's frame row) **hold a frame and a contract; they hold no machine.**
+✅ **And since 0.19.8 a transport exists** — `--port PATH`, one open per frame — so *the daemon opens no transport* is no longer true. ⛔ **What is still true is that no test opens a device**: the four port tests open a regular file, and the delivery to the board was observed by hand, once. **These forty-one tests** (twenty-five on the wire, ten on the frame, six on the daemon's frame row and its port) **hold a frame, a contract and a way out of the process; they hold no machine.**
 
-⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **The layer has been registered as a hook since 2026-10-18**, and the phase, the timers and the gaze live inside one process, so that registration is a client and a daemon rather than the CLI. **Both ends of that bridge exist, and both are installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client — **but this directory tests the two processes, not the installation.** ⛔ **Nothing here rings on the launchd job or on `settings.json`:** an installation is a place on one host, and it is recorded on `docs/stackchan-daemon.md`, not checked. ✅ **And since 2026-10-18 the installed daemon writes the frame row as well** — the line it would send, with `sent` false — **and that was observed on a real hook event.** ⛔ **What was observed is a line in a log, not a movement.**
+⚠️ **What none of this tests is machine 2.** **Not one claim is about a machine** — the mapping needs no measurement, the motion does. **The layer has been registered as a hook since 2026-10-18**, and the phase, the timers and the gaze live inside one process, so that registration is a client and a daemon rather than the CLI. **Both ends of that bridge exist, and both are installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client — **but this directory tests the two processes, not the installation.** ⛔ **Nothing here rings on the launchd job or on `settings.json`:** an installation is a place on one host, and it is recorded on `docs/stackchan-daemon.md`, not checked. ✅ **And since 2026-10-18 the installed daemon writes the frame both ways** — as a log row and, because the plist names a port, to the board's console — **with `sent: true` when the host's tty took the whole line.** ✅ **The board printed the same frame from its own console**, which is what makes it delivery rather than a write; ⛔ **and the board refused the gesture, exactly as its source says it must.**
 
 ## A second line type, and what it does not cover (0.19.6, read by the board since 0.19.7)
 
@@ -282,7 +286,20 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | neither machine 1's numbers nor this unit's zero points are in the source | `test_stackchan_pose_wire.py` | ⛔ **the zero points are the machine's and live in its NVS**; here they would be a copy, and a copy is this repository's own definition of a defect |
 | the mock records and answers nothing | `test_stackchan_pose_wire.py` | ⚠️ **green is the protocol's, not the machine's** |
 
-⛔ **What it does not cover.** ✅ **The board reads this line since 0.19.7** — `projects/stackchan-firmware/main/main.cpp` carries its own sum, its own spelling rules and its own limits — **and no test here reads that C++**: `idf.py build` is run by hand, and the only thing checking the two ends agree is the literal comparison in `test_stackchan_wire.py` for the *other* line. ⚠️ **20 ms has survived this unit once** — 678 poses over six round trips of ±5°, 0 refused, 0 clamped — **and that is one amplitude, not the failure mode**: the datapoint on record, `MOVE_SETTLE = 1.0`, is that a command arriving mid-move took both axes down, and six round trips did not reproduce it. **The order of the two fields is invisible to the checksum**: a line with yaw and pitch swapped is well-formed, and the head moves wrongly. **And the host that wrote the poses is not in this repository**, so **nothing here is connected to anything** — `sent` is still `False`.
+⛔ **What it does not cover.** ✅ **The board reads this line since 0.19.7** — `projects/stackchan-firmware/main/main.cpp` carries its own sum, its own spelling rules and its own limits — **and no test here reads that C++**: `idf.py build` is run by hand, and the only thing checking the two ends agree is the literal comparison in `test_stackchan_wire.py` for the *other* line. ⚠️ **20 ms has survived this unit once** — 678 poses over six round trips of ±5°, 0 refused, 0 clamped — **and that is one amplitude, not the failure mode**: the datapoint on record, `MOVE_SETTLE = 1.0`, is that a command arriving mid-move took both axes down, and six round trips did not reproduce it. **The order of the two fields is invisible to the checksum**: a line with yaw and pitch swapped is well-formed, and the head moves wrongly. **And the host that wrote the poses is not in this repository**, so **this line is connected to nothing** — ⛔ **the transport carries the transition frame, and no pose line has crossed a wire from this repository.**
+
+## The machine's own parser, compiled and run (0.19.8)
+
+✅ **`tests/test_stackchan_frame_parser.py` compiles `projects/stackchan-firmware/command_frame.cpp` with `clang++` or `g++` and runs it** — fourteen claims about which lines the parser accepts and which it refuses.
+
+| the check | where | what it is for |
+|---|---|---|
+| a well-formed frame is accepted, and its fields come back | `test_stackchan_frame_parser.py` | ⛔ **until 0.19.8 the parser refused every well-formed frame** — it failed to step over the closing brace — **and the literal comparison in `test_stackchan_wire.py` passed it** |
+| an unknown key, an unknown word and an over-long line are each refused | `test_stackchan_frame_parser.py` | the board refuses what the host's decoder refuses |
+| every gesture is refused, with `no gesture -> angle table exists` | `test_stackchan_frame_parser.py` | ⛔ **the refusal is the line until an angle is measured** |
+| the enum still matches the words the schema names | `test_stackchan_frame_parser.py` | the contract is a copy in three places, and this is the second place it rings |
+
+⛔ **It does not build the firmware.** `main.cpp`, `leds.cpp` and `servo.cpp` are never compiled here; `idf.py build` was run by hand on 2026-10-18 and no check repeats it. **What this test is for is the gap it was written into**: a copy checked against a copy had passed while the parser refused every frame in the only place that mattered.
 
 ## The rule that holds this directory — applied to us
 

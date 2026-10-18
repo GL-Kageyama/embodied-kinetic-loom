@@ -13,12 +13,17 @@
         <string>/opt/homebrew/bin/python3</string>
         <string>-m</string>
         <string>projects.stackchan.daemon</string>
+        <!-- ⚠️ Machine 2's console, named here and nowhere else. If the path changes
+             when the board is plugged in, it is this line that changes. -->
+        <string>--port</string>
+        <string>/dev/cu.usbmodem101</string>
     </array>
 
     <key>WorkingDirectory</key>
     <string>/Users/user/AI創作工房/embodied-kinetic-loom</string>
 
-    <!-- It starts at login and comes back when it falls. ⛔ It sends nothing to a machine, because there is none. -->
+    <!-- It starts at login and comes back when it falls. ⚠️ It writes words to machine 2's
+         console and nothing else: no pose line leaves this process, and no number is invented. -->
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>

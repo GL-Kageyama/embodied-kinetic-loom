@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.14.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.15.0 | canonical: docs/construction-memo.md | translated: 2026-10-18 -->
 
 **Language:** [English](construction-memo.md) | [日本語](construction-memo-ja.md) | [中文](construction-memo-zh.md)
 
@@ -23,7 +23,7 @@
 | where its numbers live in code | `engine/backend/protocol.py` — `DofRealityWire`, `DOF_REALITY_ENVELOPE` | ✅ `engine/backend/protocol_stackchan_pose.py` — tenths of a degree and the protocol's bounds. ⛔ **the zero points and the degrees-to-counts conversion are still in no module**: they are the machine's, in its own NVS |
 | what this repository holds for it | the wire and the mock | the layer above the wire — events to faces — **and, since 0.19.6, a second line type for numbers** ✅ **which the board has read since 0.19.7** ⛔ **and the tool that sent them is not in this repository** |
 | its checklist | `docs/first-contact.md` | `docs/first-contact-stackchan.md` |
-| has a value from this repository ever reached it | ⛔ **no** | ⚠️ **no code of ours has sent one — but since 2026-10-18 a value in this repository's own pose format has arrived**: 678 of them, written by a host tool that lives outside the repository |
+| has a value from this repository ever reached it | ⛔ **no** | ✅ **since 2026-10-18 a line this repository encoded has arrived on the board — the daemon's transition frame — but it carries words and no pose.** ⚠️ **The 678 poses in this repository's own format came from a host tool outside it** |
 | has it ever moved | not known here | ✅ **yes** — the vendor's SETUP wizard drove it home and the owner watched, 2026-10-15; **and on 2026-10-18 under a bench command, and again under a pose stream from a host** |
 
 ⚠️ **And machine 2 is two units, which is a trap of its own.** On 2026-10-04 a borrowed unit **was** driven from a host — a text shell over `/dev/cu.usbmodem1101`, `head <pan> <tilt>`. ⛔ **The unit in hand is not that unit.** It has no such path at all: the UART console is off, every port 1–65535 was scanned and is closed, and the device is a **client** of the vendor's cloud rather than a server on the LAN. ⇒ **Every "it works" dated 2026-10-04 belongs to a different, absent machine.**
@@ -59,6 +59,8 @@
 
 ⚠️ **2026-10-18: and 0.19.7, still not a rung — the board reads the pose line, and a host moved the head.** The firmware gained the other end of `pose <yaw_tenths> <pitch_tenths>*<CC>`: the checksum, the canonical spelling, the clamp against **this machine's** limits, the 200 ms arming on the present positions, one refusal print per code per stream, a 500 ms watchdog in the main loop, a mutex on the servo bus, and `bench` refused while a stream runs. ✅ **Measured: six round trips of ±5°, 678 poses, 0 refused, 0 clamped**, pitch commanded as `857` tenths and read **894 before and after**, and every round trip ending **six counts below its centre**. **The author watched and said 「動いた」.** ⛔ **The host tool that interpolated lives outside this repository** (`~/stackchan/pose_stream.py`), so **the engine did not run**, no `Motion Intent` was read, and **the transport is still not chosen — 0.20.0 has not started.**
 
+⚠️ **2026-10-18: and 0.19.8, still not a rung — the transport, chosen and measured, and the lights.** `--port PATH` names the board's console, and the daemon writes each transition frame there — one `os.open`, one `os.write`, one `os.close` per frame, no port held between frames. ⛔ **`sent: true` means the host's tty took the bytes, and it does not mean the board received them**; **delivery was proven by the board's own console printing the frame**, once, with the reader on `os.open` and raw `termios`. ⛔ **`pyserial`'s open reset the board mid-boot and the ROM stopped answering until a replug; the daemon's own path, run alone, did neither.** ✅ **And the twelve LEDs lit and followed a word** — `warm` orange, `alert` yellow, `breathe` a breath — **but only after a power cycle, and that is a hypothesis, not a finding**: an hour earlier the registers held the right colour while the pixels showed nothing. ✅ **One check was added where there had been none** — `tests/test_stackchan_frame_parser.py` compiles `command_frame.cpp` and runs it, fourteen claims — ⛔ **and it does not build the firmware.** **The record is `records/2026-10-18-the-lights.md`.** ⛔ **0.20.0 has not started.**
+
 ## The traps
 
 ⚠️ **Ordered by how much time each one costs.** Every one of these was paid for once already.
@@ -66,7 +68,7 @@
 | the trap | what it looks like | what it is |
 |---|---|---|
 | ⛔ **A Fresco Logic USB hub** | the device enumerates, the strings and the MAC read back correctly — and serial is dead | esptool reports `No serial data received` in every reset mode; pyserial reads **0 bytes at every baud rate**; some rates raise `OSError: [Errno 83]`. **It is diagnosed as a dead board.** Plug directly into the Mac — `Mac14,10` has no USB-A, so it takes a USB-C ↔ USB-C **data** cable |
-| ⛔ **The port name is not an identity** | `/dev/cu.usbmodem1401` became `1101` when a hub was removed | ⚠️ **And the 10/04 records disagree with each other about which of `101` and `1101` was the Stack-chan.** **Identify by MAC** |
+| ⛔ **The port name is not an identity** | `/dev/cu.usbmodem1401` became `1101` when a hub was removed | ⚠️ **And the 10/04 records disagree with each other about which of `101` and `1101` was the Stack-chan.** **Identify by MAC.** ⛔ **2026-10-18: one board went `1101` → `101` after one replug, sixteen minutes apart** — and a frame written to the path that no longer exists is `sent: false`, **safe and silent** |
 | ⛔ **`MOVE_SETTLE = 1.0`** | a command sent before the servo finishes moving stalls it, drops the power rail, and **takes both axes down** | **This engine sends a target every 15–20 ms.** ⚠️ **Whether that is survivable here is unmeasured** — and the one datapoint points the other way (`head 90 135` ended at `yaw=-1 pitch=-1`) |
 | ⛔ **`flush()` (`tcdrain`)** | it does not return | **Measured blocking forever on a macOS pty.** ⇒ **The reason must stay in the docstring**, or the next reader adds it back "just in case" |
 | ⛔ **pyserial on a macOS CDC device** | `TIOCSDTR` / `TIOCSRTS` raise **ENOTTY** | ⇒ **The host cannot use DTR/RTS to reset the board**, and the serial layer uses `termios` directly instead |

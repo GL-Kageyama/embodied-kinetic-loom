@@ -5,8 +5,10 @@
 **台本の時刻を渡すだけで検査できる**。`__main__.py` は本物のソケットを開くので、
 **プロセスを1つ起こして、行を送り、合図で止める。**
 
-⛔ **このファイルが確かめないこと:** launchd、ログインとログアウト、
-機体への送信。**デーモンは枠を書くが、送らない**（枠の行の `sent` は `False`）。
+⚠️ **このファイルが確かめないこと:** launchd、ログインとログアウト、**本物の端末**。
+✅ **2026-10-18 から、枠は端末へ書かれる**（`--port`）。だが試験が開くのは
+**ただのファイル**であり、**LEDが光ることは、このファイルの外である。**
+⛔ **`--port` を渡さなければ、`sent` は今まで通り `False`**——それが既定である。
 """
 from __future__ import annotations
 
@@ -29,6 +31,7 @@ from projects.stackchan.behaviors import (
     SETTLED,
     SLEPT,
 )
+from projects.stackchan.daemon import __main__ as edge
 from projects.stackchan.daemon.room import (
     MAX_LINE,
     REQUEST_KEYS,
@@ -166,11 +169,14 @@ def test_a_refusal_is_not_a_decision():
 class Daemon:
     """**1つのデーモンを、試験のあいだだけ起こす。**"""
 
-    def __init__(self, path: pathlib.Path) -> None:
+    def __init__(self, path: pathlib.Path, port: pathlib.Path | None = None) -> None:
         self.path = path
+        command = [sys.executable, "-m", "projects.stackchan.daemon",
+                   "--socket", str(path)]
+        if port is not None:
+            command += ["--port", str(port)]
         self.proc = subprocess.Popen(
-            [sys.executable, "-m", "projects.stackchan.daemon",
-             "--socket", str(path)],
+            command,
             cwd=REPO_ROOT,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -232,7 +238,7 @@ class Daemon:
         return rows
 
     def frames(self) -> list[dict]:
-        """**機体へ渡るはずの枠の行。** ⛔ **渡ってはいない。**"""
+        """**枠の行。** ⚠️ **`sent` が言うのは、端末へ書けたかどうかである。**"""
         frames = []
         for line in self.out.splitlines():
             if not line.strip():
@@ -356,8 +362,8 @@ def test_a_line_over_the_bound_is_refused(sock):
 def test_the_daemon_logs_the_frame_it_would_send(sock):
     """✅ **挨拶は、判定の行のほかに、枠の行を1つ残す。**
 
-    ⛔ **それは機体へ渡っていない。** 行が言うのは「渡すはずだった」であり、
-    `sent` は `False` である。
+    ⛔ **端末を渡していないので、渡っていない。** `sent` は `False` である。
+    ✅ **渡すのは `test_the_configured_port_receives_the_logged_line` の仕事である。**
     """
     path = sock
     with Daemon(path) as daemon:
@@ -385,3 +391,64 @@ def test_an_unchanged_event_logs_no_second_frame(sock):
     command = wire.decode(frames[0]["frame"].encode("ascii"))
     assert command.light == "breathe"
     assert command.face is None
+
+
+# ---------------------------------------------------------------------------
+# 伝送路。⚠️ 端末の代わりに、ただのファイルを開く。
+# ---------------------------------------------------------------------------
+
+
+def test_the_configured_port_receives_the_logged_line(sock):
+    """✅ **`--port` を渡すと、枠はその端末へ、ログと同じ綴りで書かれる。**
+
+    ⚠️ **端末の代わりは、ただのファイルである。** ⛔ **光ったことは、ここでは分からない。**
+    """
+    port = sock.parent / "console"
+    port.touch()
+    with Daemon(sock, port=port) as daemon:
+        answer = daemon.send({"session": "main", "event": "SessionStart"})
+        assert answer["ok"] is True
+
+    frames = daemon.frames()
+    assert len(frames) == 1
+    assert frames[0]["sent"] is True
+    assert port.read_text(encoding="ascii") == frames[0]["frame"] + "\n"
+
+
+def test_a_missing_port_is_not_a_refusal(sock):
+    """⛔ **端末が無いことは、事象の拒否ではない。** 部屋は答える。"""
+    port = sock.parent / "absent"
+    with Daemon(sock, port=port) as daemon:
+        first = daemon.send({"session": "main", "event": "SessionStart"})
+        second = daemon.send({"session": "main", "event": "PreToolUse"})
+        assert first["ok"] is True
+        assert second["ok"] is True
+
+    frames = daemon.frames()
+    assert frames, "枠が1つも出ていない——この検査は何も見ていない"
+    assert all(f["sent"] is False for f in frames)
+    assert not port.exists()
+
+
+def test_without_a_port_nothing_is_written(sock):
+    """⚠️ **既定では、端末を開かない。** `sent` は今まで通り `False`。"""
+    with Daemon(sock) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    frames = daemon.frames()
+    assert [f["sent"] for f in frames] == [False]
+    assert not (sock.parent / "console").exists()
+
+
+def test_a_line_that_cannot_be_written_is_not_sent(tmp_path):
+    """⛔ **書けなかった行を、`sent` が `True` と言ってはならない。**
+
+    ⚠️ **開けない場所**（無いパス、ディレクトリ）と、**開ける場所**（ファイル）を並べる。
+    """
+    assert edge.send_line(str(tmp_path / "absent"), "x\n") is False
+    assert edge.send_line(str(tmp_path), "x\n") is False
+
+    target = tmp_path / "console"
+    target.write_text("", encoding="ascii")
+    assert edge.send_line(str(target), "x\n") is True
+    assert target.read_text(encoding="ascii") == "x\n"

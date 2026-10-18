@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.10.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.11.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
 # Stack-chan 的守护进程 — 启动与停止
 
-✅ **循环、套接字和客户端都已经建好——2026-10-18。** `projects/stackchan/daemon/` 持有纯核心（`room.py`）和边缘（`__main__.py`），`projects/stackchan/hook/` 持有钩子运行的客户端，`tests/test_stackchan_daemon.py` 对前者持有二十六条主张，`tests/test_stackchan_hook_client.py` 对后者持有二十一条。✅ **而且同一天它被安装了**——launchd 用户代理在登录时启动守护进程，全部三十三个钩子事件都调用客户端。**安装是一台主机上的一个位置，不是仓库的性质**（见[安装的现况](#安装的现况)）。
+✅ **循环、套接字和客户端都已经建好——2026-10-18。** `projects/stackchan/daemon/` 持有纯核心（`room.py`）和边缘（`__main__.py`），`projects/stackchan/hook/` 持有钩子运行的客户端，`tests/test_stackchan_daemon.py` 对前者持有三十条主张，`tests/test_stackchan_hook_client.py` 对后者持有二十一条。✅ **而且同一天它被安装了**——launchd 用户代理在登录时启动守护进程，全部三十三个钩子事件都调用客户端。**安装是一台主机上的一个位置，不是仓库的性质**（见[安装的现况](#安装的现况)）。
 
 ⚠️ **它是为了什么。** Claude Code 的钩子是一个事件一个进程，而 `Focus` 与 `Companion` 是一个必须在事件之间存活的物体。守护进程就是那个物体，加上一个时钟和一个套接字。它是链条的中段——**钩子 → 守护进程 → 电线 → 固件**——也正是它，让机器人属于房间，而不是属于一个开着的终端。
 
@@ -102,11 +102,11 @@
 
 ## 机器是可选的
 
-✅ **守护进程在没有机器的情况下运行**，而且最初就是这样做、这样试的。**今天一根电线也不打开**: 守护进程编码帧并把它写成一行（见下），而延迟打开的那条路是设计，尚未建起。
+✅ **守护进程在没有机器的情况下运行**，而且那仍然是默认: 没有 `--port` 时，它编码帧，只把它写成日志里的一行。✅ **自 2026-10-18 起，它也能把那一行写进板子的控制台**，而安装好的作业正是这样做的——见[传输路径](#传输路径)。
 
-⛔ **机器的错误被记录并丢弃，永不致命。** 在 `KeepAlive` 之下，机器缺席加上致命错误就是崩溃循环——**监督者会一直杀死那个本该在等待的东西。**
+⛔ **机器的错误被记录并丢弃，永不致命。** 在 `KeepAlive` 之下，机器缺席加上致命错误就是崩溃循环——**监督者会一直杀死那个本该在等待的东西。** ⚠️ **不存在的路径就是这种情况，而且是常见的那一种**: 控制台的名字会随插拔改变，于是那一行是 `sent: false`，房间照样回答事件。
 
-## 写下帧，而不发送
+## 写下帧，——给了端口的话——并发送
 
 ✅ **自 0.19.1 起，每一个决定都经过 `projects/stackchan/outbound.py`**，当帧不是 `None` 时，守护进程把它写成一行:
 
@@ -118,7 +118,26 @@
 - ⛔ **事件的理由并不划分状态变化**，所以规则读的是状态，不是理由。`blocked` 中的 `PostToolUse` 以理由 `OBSERVED` 回到 `working`，光却可能不动; 担忧改变光，不改变阶段。
 - ⚠️ **这不是流。** 在观测到的那次运行里，紧随第一个帧的 `PreToolUse` 没有写下第二行。
 - **那一行属于编码器**——`engine/backend/protocol_stackchan.py`，与 `tests/test_stackchan_wire.py` 所守的是同一个——**所以日志不会偏离 `schemas/stackchan-command.schema.json`。**
-- ⛔ **什么都不会离开进程。** 每一行的 `sent` 都是 `false`，对面没有传输路径、没有渲染器、没有 LED 驱动。**一行日志不是电线**，而 ⛔ **它也不是运动的记录**——那个要求写在 `CLAUDE.md` 里，形状仍然开着。
+- ⛔ **一行日志不是电线**，而 ⛔ **它也不是运动的记录**——那个要求写在 `CLAUDE.md` 里，而它的形状在有了可以放进去的东西的那一天被决定了。✅ **自 2026-10-18 起，指名了端口时同一行也会写到端口，一种编码供养两边**——日志行和电线上的字节来自对编码器的一次调用。
+
+## 传输路径
+
+✅ **2026-10-18 决定并测量。** `--port PATH` 指名板子的控制台。给了它，每一帧行的那一行也会写到那个路径——**每帧一次 `os.open`、一次 `os.write`、一次 `os.close`，帧与帧之间不持有端口**，所以房间安静时 `bench` 和 `idf.py` 仍然拥有端口。
+
+- **`sent` 为 `true`，只在 `os.write` 返回了全长的时候。** ⛔ **那说的是主机的 tty 接受了字节，不是板子收到了它们**——而这一天，这两个主张分开了一个小时: 一行自称 `sent: true` 的日志在那里，机体的那一端却什么也没有回答。
+- ⚠️ **证明到达的，是板子，不是那一行。** 只在 2026-10-18 被证明过一次——在守护进程写入的同时，用 `os.open` 和原始 `termios` 读控制台:
+
+```
+frame: light=warm face=greeting (no renderer yet)
+frame: gesture perk refused — no gesture -> angle table exists
+```
+
+  ⇒ **守护进程的日志以 `"sent": true` 保持着 `{"face":"greeting","gesture":"perk","light":"warm"}`，而板子印出了同样的话。** ⛔ **身势被拒绝了**——`command_frame.cpp` 拒绝每一个身势，在角度被测量之前会一直拒绝——**而这次拒绝没有让光停下。**
+- ⚠️ **路径不是身份。** 在同一块板子上，挂起之前是 `/dev/cu.usbmodem1101`，一次重新插拔之后是 `/dev/cu.usbmodem101`——**相隔十六分钟。** 已安装的 plist 指名第二个; **下一次插拔可能指名第三个，而守护进程会记下 `sent: false` 继续走。** ⇒ **关于这个安装，一根线缆能否定掉的，只有 plist 里的端口。**
+- ⛔ **这里不把端口一直打开。那同时也是限度**: 行不排队，所以在别的程序持有端口时写下的帧，被记录为未发送。**无论哪种情况，房间都会回答事件。**
+- ⚠️ **一个拉起 DTR 和 RTS 的读取方，就是一次复位。** 用 `pyserial` 打开这个控制台，让板子在启动途中复位，ROM 直到线缆拔出又插回才重新回答; **单独运行守护进程自己的 `os.open` 路径时，两件事都没有发生。** 想看这个控制台，就用 `os.open` 和原始 `termios`。
+
+⚠️ **没有一项检查覆盖的事:** 下面四个关于端口的测试打开的是**普通文件**，不是机器。⛔ **没有一个测试打开端口**，不存在的路径是作为 `sent: false` 而不是机器错误被测试的，而上面的到达测量是一台主机上的一次观察。
 
 ## 已决定的，与未决定的
 
@@ -148,6 +167,7 @@
 - **调用者。** `~/.claude/settings.json` 带有一个 `hooks` 键：三十三个事件名各自映射到一条命令——`cd "<仓库根目录>" && /opt/homebrew/bin/python3 -m projects.stackchan.hook`。⛔ **命令点名这台主机的路径**——与 plist 相同的限制。⚠️ **那个文件也持有用户的凭据，所以不复制到这里**；这一页记录的是形状，不是那个文件。
 - **一个帧行，被看到了（2026-10-18，0.19.1 之后）。** 守护进程用 `launchctl kickstart -k` 重启到新代码上，一次真实的钩子事件到达，日志恰好增加了一个帧行——`face: null`、`light: breathe`——带着 `"sent": false`。**随后的 `PreToolUse` 没有写下第二个帧**，因为状态没有改变。⛔ **观测到的是一行日志，不是运动。**
 - **一次端到端的运行，被看到了。** 一个嵌套的 `claude -p` 会话在守护进程的日志里留下五行: `SessionStart` → `greeting`; `UserPromptSubmit` → `working`，身体被一秒的地板压住; `MessageDisplay` → `observed`; `Stop` → `closing`; `SessionEnd` → `resting`，带 `settle`。**每一行都读到 `sent: false`。** ⚠️ **这就是整条链**——真实的钩子、一个事件一个进程、一个房间——**而它对机器人什么也没说**，因为没有电线。
+- **端口，被指名了（2026-10-18）。** plist 传入 `--port /dev/cu.usbmodem101`，安装好的作业把每个帧写进板子的控制台。**这个仓库的帧经过传输路径到达机体、且两端都被观察到的第一个，引用在[传输路径](#传输路径)里。** ⛔ **路径在插拔之前是 `/dev/cu.usbmodem1101`，之后是 `/dev/cu.usbmodem101`**；路径消失时那一行是 `sent: false`，别的什么都不变。
 - **停止。** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan` 停止作业，套接字消失。⚠️ **`SIGTERM` 停不下来**，因为 `KeepAlive` 为真: launchd 安排了重启（`state = spawn scheduled`、`last exit code = 0`），守护进程大约十秒后回来了。**停止是 `bootout`，杀掉是重启。** ⚠️ **那道节流是一扇听不见的窗**——在它里面到达的事件被丢弃，按客户端自身的设计。
 
 **要卸下它:**
@@ -158,17 +178,17 @@ rm ~/Library/LaunchAgents/embodied-kinetic-loom.stackchan.plist
 rm -f /tmp/ekl-stackchan-501.sock /tmp/ekl-stackchan-daemon.log /tmp/ekl-stackchan-daemon.err
 ```
 
-然后从 `~/.claude/settings.json` 里去掉 `hooks` 键。⚠️ **其他什么都不碰**: 守护进程只写套接字和那两个日志，而且它不向任何机器发送。
+然后从 `~/.claude/settings.json` 里去掉 `hooks` 键。⚠️ **其他什么都不碰**: 守护进程只写套接字和那两个日志，而且**没有 `--port` 时它不向任何机器发送；有的话，它只向那个路径写一行，别的什么都不写。**
 
 ## 什么会响，什么不会
 
-✅ **这一页的一部分会响。** 纯的部分在没有套接字的情况下被检查——请求的模式、未知键的拒绝、以及给定 `(session, event, at)` 的决定——而套接字作为一个真实的进程被检查: 它作答、拒绝、把返回的行写进日志，并在 `SIGTERM` 时干净地退出。**二十六条主张都在 `tests/test_stackchan_daemon.py` 里**——最后两条是: 问候写下 `sent: false` 的一个帧行，而不变的事件一个也不写。 ✅ **另有二十一条守住客户端**——输入里的提示词、cwd 与工具输入到不了那一行，未知事件在套接字之前被丢弃，路径只有一种拼写，而永不回应的对方也不会让它迟延——**在 `tests/test_stackchan_hook_client.py` 里。**
+✅ **这一页的一部分会响。** 纯的部分在没有套接字的情况下被检查——请求的模式、未知键的拒绝、以及给定 `(session, event, at)` 的决定——而套接字作为一个真实的进程被检查: 它作答、拒绝、把返回的行写进日志，并在 `SIGTERM` 时干净地退出。**三十条主张都在 `tests/test_stackchan_daemon.py` 里**——最后两条是: 问候写下 `sent: false` 的一个帧行，而不变的事件一个也不写; **其中四条是关于端口的**——指名的那条路径收到日志里的那一行，不存在的路径是 `sent: false` 而不是拒绝，没有端口时什么都不写，而返回短了的写入不算 `sent`。⛔ **那四条打开的是普通文件，不是机器。** ✅ **另有二十一条守住客户端**——输入里的提示词、cwd 与工具输入到不了那一行，未知事件在套接字之前被丢弃，路径只有一种拼写，而永不回应的对方也不会让它迟延——**在 `tests/test_stackchan_hook_client.py` 里。**
 
 ⛔ **没有一个测试检查安装。** launchd 的 `RunAtLoad` 与 `KeepAlive`、登录与登出、plist，以及重启后出现的陈旧套接字，都是操作系统的行为，不是一个函数。✅ **取而代之的是上面写下的一次观察**: 2026-10-18，安装好的作业把一条真实的钩子链从头到尾跑了一遍，并被用手停止和重启。⚠️ **在一台主机上的观察不是检查**——它不会再跑，也不会在应该失败的时候失败。`tools/check_i18n.py` 仍然只确认三份副本一致。
 
 ## 安装那天要跑的清单
 
-✅ **九项里有六项由测试检查，另有两项在 2026-10-18 被手观察到，还有一项仍然没有被测量。**
+✅ **九项里有七项由测试检查，另有两项在 2026-10-18 被手观察到。** ⚠️ **那七项里有一项只是对不存在的路径做了检查**——存在之后才失败的机器，仍然没有被测量。
 
 - [x] 第二个实例退出，且不打扰第一个 — ✅ `test_a_second_instance_leaves_the_first_alone`; **也用手跑过: 退出码 3**;
 - [x] 陈旧的套接字被 unlink 并 bind；活着的不会 — ✅ `test_a_stale_socket_is_unlinked_and_replaced`;
@@ -176,8 +196,8 @@ rm -f /tmp/ekl-stackchan-501.sock /tmp/ekl-stackchan-daemon.log /tmp/ekl-stackch
 - [x] 崩溃后会被重启；阶段从 `present` 开始 — ⚠️ **只测了一半**: 重启被观察到了，但那是在一次干净退出之后，不是崩溃之后，而大约十秒的节流是 launchd 的。**阶段按设计从 `present` 开始**，因为没有持久化;
 - [x] 未知事件被拒绝；未知键被拒绝；发送时间的客户端被拒绝 — ✅ `test_each_refusal_names_its_fault` 与 `test_the_prompt_cannot_ride_along`；⚠️ **时间不是键，所以作为 `unknown-key` 被拒绝**;
 - [x] 循环在期限醒来，而不是在 tick — ✅ `test_the_next_wake_is_the_expression_and_then_the_idle_clock`;
-- [ ] 没有机器时，它等待；它不崩溃循环 — ⛔ **仍然没有被测量**: 通往机器的路还没有，所以没有可失败的地方。安装好的作业在没有机器的情况下运行并一直活着。**那与「从机器错误中活下来」不是同一句话**;
-- [x] 收到 `SIGTERM` 时，什么都不发送 — ✅ 结构上（`sent` 是 `False`，电线不存在），并在日志中被观察到;
+- [x] 没有机器时，它等待；它不崩溃循环 — ✅ **不存在的路径是一行 `sent: false`，房间继续作答**（`test_a_missing_port_is_not_a_refusal`）; ⚠️ **存在之后才失败的路径没有被测量**——没有故意制造过机器错误;
+- [x] 收到 `SIGTERM` 时，什么都不发送 — ✅ 结构上: 停止的路径一个帧也不发出，所以无论有没有端口，都没有可写的东西; 并在日志中被观察到;
 - [x] 退出后套接字消失 — ✅ `test_the_socket_is_removed_and_the_exit_is_clean`; **在 `bootout` 之后也被观察到**。
 
 ⚠️ **还有一项因为需要重启而不在这个清单上:** Mac 重启后出现的陈旧套接字。⛔ **2026-10-18 没有重启过**，所以「先探再 bind」那条路被试探过的，只是一个人工造出的陈旧套接字，此外什么都没有。

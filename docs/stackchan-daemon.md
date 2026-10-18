@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.10.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
+<!-- i18n-version: 1.11.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-18 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
 # The Stack-chan daemon — start and stop
 
-✅ **The loop, the socket and the client are built — 2026-10-18.** `projects/stackchan/daemon/` holds a pure core (`room.py`) and the edge (`__main__.py`), `projects/stackchan/hook/` holds the client a hook runs, and `tests/test_stackchan_daemon.py` holds twenty-six claims about the first while `tests/test_stackchan_hook_client.py` holds twenty-one about the second. ✅ **And since the same day it is installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client. **The installation is a place on one host, not a property of the repository** (see [The installation, as it stands](#the-installation-as-it-stands)).
+✅ **The loop, the socket and the client are built — 2026-10-18.** `projects/stackchan/daemon/` holds a pure core (`room.py`) and the edge (`__main__.py`), `projects/stackchan/hook/` holds the client a hook runs, and `tests/test_stackchan_daemon.py` holds thirty claims about the first while `tests/test_stackchan_hook_client.py` holds twenty-one about the second. ✅ **And since the same day it is installed** — a launchd user agent starts the daemon at login, and all thirty-three hook events call the client. **The installation is a place on one host, not a property of the repository** (see [The installation, as it stands](#the-installation-as-it-stands)).
 
 ⚠️ **What it is for.** A Claude Code hook is one process per event; `Focus` and `Companion` are one object that must live between events. The daemon is that object, plus a clock, plus a socket. It is the middle of the chain — **hooks → daemon → wire → firmware** — and it is the piece that makes the robot belong to the room rather than to a terminal that is open.
 
@@ -102,11 +102,11 @@
 
 ## The device is optional
 
-✅ **The daemon runs without a device**, and that is how it is built and tested first. **No wire is opened today**: the daemon encodes the frame and writes it as a line (below), and the lazy-open path is design, not built.
+✅ **The daemon runs without a device**, and that is still the default: with no `--port` it encodes the frame and writes it only as a line in its log. ✅ **Since 2026-10-18 it can also write that line to the board's console**, and the installed job does — see [The transport](#the-transport).
 
-⛔ **A device error is logged and dropped, never fatal.** With `KeepAlive`, a missing device plus a fatal error would be a crash loop — **the supervisor would keep killing the thing that is supposed to be waiting.**
+⛔ **A device error is logged and dropped, never fatal.** With `KeepAlive`, a missing device plus a fatal error would be a crash loop — **the supervisor would keep killing the thing that is supposed to be waiting.** ⚠️ **A path that does not exist is that case, and it is the common one**: the console's name changes across a replug, so the row says `sent: false` and the room answers the event anyway.
 
-## The frame it writes, and does not send
+## The frame it writes, and — given a port — sends
 
 ✅ **Since 0.19.1 every decision passes through `projects/stackchan/outbound.py`**, and when the frame is not `None` the daemon writes it as a row:
 
@@ -118,7 +118,26 @@
 - ⛔ **The event's reason does not partition state changes**, and the rule reads the state rather than the reason. A `PostToolUse` inside `blocked` returns to `working` with reason `OBSERVED` while the light may not move; a concern changes the light and not the phase.
 - ⚠️ **This is not a stream.** In the observed run, a `PreToolUse` that followed the first frame wrote no second row.
 - **The line is the codec's** — `engine/backend/protocol_stackchan.py`, the same one `tests/test_stackchan_wire.py` holds — so **the log cannot drift from `schemas/stackchan-command.schema.json`.**
-- ⛔ **Nothing leaves the process.** `sent` is `false` on every row; there is no transport, no renderer and no LED driver on the other side. **A line in a log is not a wire**, and ⛔ **it is not a record of motion either** — that requirement is stated in `CLAUDE.md` and its shape is still open.
+- ⛔ **A line in a log is not a wire**, and ⛔ **it is not a record of motion either** — that requirement is stated in `CLAUDE.md`, and its shape was decided on the day there was something to put in it. ✅ **Since 2026-10-18 the same line is also written to a port when one is named, and one encoding feeds both** — the log row and the bytes on the wire come from a single call to the codec.
+
+## The transport
+
+✅ **Decided and measured on 2026-10-18.** `--port PATH` names the board's console. With it, the line of every frame row is also written to that path — **one `os.open`, one `os.write`, one `os.close` per frame, and no port held between frames**, so `bench` and `idf.py` still own the port whenever the room is quiet.
+
+- **`sent` is `true` only when `os.write` returned the full length.** ⛔ **That means the host's tty accepted the bytes. It does not mean the board received them**, and on this day those two claims were apart for an hour: a row saying `sent: true` sat in the log while nothing on the machine answered.
+- ⚠️ **Delivery is proven by the board, not by the row.** It was proven once, on 2026-10-18, by reading the console with `os.open` and raw `termios` while the daemon wrote:
+
+```
+frame: light=warm face=greeting (no renderer yet)
+frame: gesture perk refused — no gesture -> angle table exists
+```
+
+  ⇒ **the daemon's log carried `{"face":"greeting","gesture":"perk","light":"warm"}` with `"sent": true`, and the board printed the same words.** ⛔ **The gesture was refused — `command_frame.cpp` refuses every gesture, and will until an angle is measured — and the refusal did not stop the light.**
+- ⚠️ **The path is not an identity.** On one board it read `/dev/cu.usbmodem1101` before a hang and `/dev/cu.usbmodem101` after one replug, sixteen minutes apart. The installed plist names the second; **a replug may name a third, and the daemon will log `sent: false` and carry on.** ⇒ **the plist's port is the one thing about this installation that a cable can invalidate.**
+- ⛔ **Nothing here holds the port open, and that is also the limit**: no line is queued, so a frame written while another program holds the port is logged as unsent. **The room answers the event either way.**
+- ⚠️ **A reader that asserts DTR and RTS is a reset.** A `pyserial` open of this console reset the board mid-boot, and the ROM stopped answering until the cable went out and back in; **the daemon's own `os.open` path, run alone, did neither.** To watch this console, use `os.open` and raw `termios`.
+
+⚠️ **What no check covers:** the four port tests open a *regular file*, not a device. ⛔ **No test opens a port**, a missing path is tested as `sent: false` and not as a device error, and the measured delivery above is one observation on one host.
 
 ## Decided, and not decided
 
@@ -135,7 +154,7 @@
 
 **Not decided here:**
 
-- ✅ **The framing is decided (0.19.0) and this page still does not own it** — one ASCII JSON line, `face` / `light` / `gesture`, in `schemas/stackchan-command.schema.json`, encoded by `engine/backend/protocol_stackchan.py`. ✅ **Since 0.19.1 the daemon calls that codec and writes the line it would send**, with `sent: false`. ⛔ **The transport is not decided**: how that line reaches the board, and who opens it. **The daemon opens none**, and `projects/stackchan-firmware/` — ✅ **built and written as of 2026-10-18, so no longer source only** — still refuses every gesture;
+- ✅ **The framing is decided (0.19.0) and this page still does not own it** — one ASCII JSON line, `face` / `light` / `gesture`, in `schemas/stackchan-command.schema.json`, encoded by `engine/backend/protocol_stackchan.py`. ✅ **Since 0.19.1 the daemon calls that codec and writes the line it would send.** ✅ **Since 0.19.8 the transport is decided as well: the daemon writes that line to the board's console, one open per frame, and the installed plist names the path** (see [The transport](#the-transport)). ⚠️ **`projects/stackchan-firmware/` is built and flashed, and still refuses every gesture**;
 - what the firmware does at idle and after a stop;
 - whether a second body — a second daemon per unit — needs anything different.
 
@@ -148,6 +167,7 @@
 - **The caller.** `~/.claude/settings.json` carries a `hooks` key: each of the thirty-three event names maps to one command — `cd "<repository root>" && /opt/homebrew/bin/python3 -m projects.stackchan.hook`. ⛔ **The command names this host's path**, the same limit as the plist. ⚠️ **That file also holds the user's credentials, so it is not copied here**; this page records the shape, not the file.
 - **One frame row, observed (2026-10-18, after 0.19.1).** The daemon was restarted onto the new code with `launchctl kickstart -k`, a real hook event arrived, and the log gained exactly one frame row — `face: null`, `light: breathe` — carrying `"sent": false`. **The `PreToolUse` that followed wrote no second frame**, because the state had not changed. ⛔ **What was observed is a line in a log, not a movement.**
 - **One end-to-end run, observed.** A nested `claude -p` session produced five rows in the daemon's log: `SessionStart` → `greeting`; `UserPromptSubmit` → `working`, the body held by the one-second floor; `MessageDisplay` → `observed`; `Stop` → `closing`; `SessionEnd` → `resting` with `settle`. **Every row read `sent: false`.** ⚠️ **That is the whole chain — a real hook, a process per event, one room — and it says nothing about a robot**, because there is no wire.
+- **The port, named (2026-10-18).** The plist passes `--port /dev/cu.usbmodem101`, and the installed job writes each frame to the board's console. **The first frame of this repository's to arrive at a machine through a transport, with both ends observed, is quoted in [The transport](#the-transport).** ⛔ **The path read `/dev/cu.usbmodem1101` before a replug and `/dev/cu.usbmodem101` after it**; when the path goes missing the row says `sent: false` and nothing else changes.
 - **Stopping.** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan` stops the job and the socket disappears. ⚠️ **A `SIGTERM` does not**, because `KeepAlive` is true: launchd scheduled a restart (`state = spawn scheduled`, `last exit code = 0`) and the daemon was back about ten seconds later. **The stop is `bootout`; a kill is a restart.** ⚠️ **That throttle is a deaf window** — an event arriving inside it is dropped, by the client's own design.
 
 **To remove it:**
@@ -158,17 +178,17 @@ rm ~/Library/LaunchAgents/embodied-kinetic-loom.stackchan.plist
 rm -f /tmp/ekl-stackchan-501.sock /tmp/ekl-stackchan-daemon.log /tmp/ekl-stackchan-daemon.err
 ```
 
-and remove the `hooks` key from `~/.claude/settings.json`. ⚠️ **Nothing else is touched**: the daemon writes only the socket and those two logs, and it sends nothing to a machine.
+and remove the `hooks` key from `~/.claude/settings.json`. ⚠️ **Nothing else is touched**: the daemon writes only the socket and those two logs, and **with no `--port` it sends nothing to a machine; with one, it writes a single line to that path and nothing else.**
 
 ## What rings, and what does not
 
-✅ **Part of this page rings.** The pure parts are checked with no socket at all — the request schema, the refusal of an unknown key, and the decision for a given `(session, event, at)` — and the socket is checked as a real process: it answers, refuses, logs the row it returned, and exits cleanly on `SIGTERM`. **All twenty-six claims are in `tests/test_stackchan_daemon.py`** — the last two being that a greeting writes one frame row with `sent: false`, and that an unchanged event writes none. ✅ **Twenty-one more hold the client** — that a payload's prompt, cwd and tool input never reach the line, that an unknown event is dropped before the socket, that the path is spelled once, and that a listener which never answers does not delay it — **in `tests/test_stackchan_hook_client.py`.**
+✅ **Part of this page rings.** The pure parts are checked with no socket at all — the request schema, the refusal of an unknown key, and the decision for a given `(session, event, at)` — and the socket is checked as a real process: it answers, refuses, logs the row it returned, and exits cleanly on `SIGTERM`. **All thirty claims are in `tests/test_stackchan_daemon.py`** — the last two being that a greeting writes one frame row with `sent: false`, and that an unchanged event writes none; **four of them are about the port** — that the configured path receives the logged line, that a missing path is `sent: false` and not a refusal, that with no port nothing is written, and that a write returning short is not `sent`. ⛔ **Those four open a regular file, not a device.** ✅ **Twenty-one more hold the client** — that a payload's prompt, cwd and tool input never reach the line, that an unknown event is dropped before the socket, that the path is spelled once, and that a listener which never answers does not delay it — **in `tests/test_stackchan_hook_client.py`.**
 
 ⛔ **No test checks the installation.** launchd's `RunAtLoad` and `KeepAlive`, login and logout, the plist, and the stale socket as it appears after a reboot are the operating system's behavior, not a function. ✅ **What exists instead is one observation, written above**: on 2026-10-18 the installed job ran a real hook chain end to end and was stopped and restarted by hand. ⚠️ **An observation on one host is not a check** — it does not run again, and it does not fail when it should. `tools/check_i18n.py` still only confirms that the three mirrors agree.
 
 ## The checklist for the day it is installed
 
-✅ **Six of the nine are checked by tests; two more were observed by hand on 2026-10-18; one remains unmeasured.**
+✅ **Seven of the nine are checked by tests; two more were observed by hand on 2026-10-18.** ⚠️ **One of the seven is checked only for a missing path** — a device that exists and then fails is still unmeasured.
 
 - [x] a second instance exits, and does not disturb the first — ✅ `test_a_second_instance_leaves_the_first_alone`; **also run by hand: exit 3**;
 - [x] a stale socket is unlinked and bound; a live one is not — ✅ `test_a_stale_socket_is_unlinked_and_replaced`;
@@ -176,8 +196,8 @@ and remove the `hooks` key from `~/.claude/settings.json`. ⚠️ **Nothing else
 - [x] a crash restarts it; the phase begins at `present`, not where it was — ⚠️ **half-measured**: the restart was observed after a clean exit, not a crash, and the ~10 s throttle is launchd's. **The phase began at `present` as designed, because there is no persistence**;
 - [x] an unknown event is refused; an unknown key is refused; a client that sends a time is refused — ✅ `test_each_refusal_names_its_fault` and `test_the_prompt_cannot_ride_along`; ⚠️ **a time is not a key, so it is refused as `unknown-key`**;
 - [x] the loop wakes at the deadline, not on a tick — ✅ `test_the_next_wake_is_the_expression_and_then_the_idle_clock`;
-- [ ] with no device, it waits; it does not crash-loop — ⛔ **still unmeasured**: there is no device path yet, so there is nothing to fail on. The installed job has run with no device and stayed up, **which is not the same as having survived a device error**;
-- [x] on `SIGTERM`, nothing is sent — ✅ by construction (`sent` is `False`, no wire exists), and observed in the log;
+- [x] with no device, it waits; it does not crash-loop — ✅ **a missing path is a `sent: false` row and the room keeps answering** (`test_a_missing_port_is_not_a_refusal`); ⚠️ **a path that exists and then fails was not measured** — no device error has been produced on purpose;
+- [x] on `SIGTERM`, nothing is sent — ✅ by construction: the stop path emits no frame, so there is nothing to write with or without a port; observed in the log;
 - [x] the socket is gone after the exit — ✅ `test_the_socket_is_removed_and_the_exit_is_clean`; **also observed after `bootout`**.
 
 ⚠️ **And one that is not on the list because it needs a reboot:** the stale socket as it appears after the Mac restarts. ⛔ **No reboot was done on 2026-10-18**, so the probe-then-bind path has been tested against a hand-made stale socket and against nothing else.

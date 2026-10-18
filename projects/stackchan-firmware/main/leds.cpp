@@ -1,8 +1,11 @@
 #include "leds.h"
 
+#include <cstdio>
+
 #include "driver/i2c_master.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 
 #include "board.h"
@@ -11,6 +14,24 @@ namespace {
 
 i2c_master_bus_handle_t g_bus = nullptr;
 i2c_master_dev_handle_t g_dev = nullptr;
+
+// ⛔ One expander, now reached from two tasks: `set_light` from the console task
+//    (a frame arrived) and `tick` from the main loop (a breath). An interleaved
+//    write is not a refused light — it is a different light.
+SemaphoreHandle_t g_lock = nullptr;
+
+struct Guard {
+  Guard() {
+    if (g_lock != nullptr) {
+      xSemaphoreTake(g_lock, portMAX_DELAY);
+    }
+  }
+  ~Guard() {
+    if (g_lock != nullptr) {
+      xSemaphoreGive(g_lock);
+    }
+  }
+};
 
 // The expander's registers, as the vendor's driver names them.
 constexpr unsigned char kRegVersion = 0x02;
@@ -115,20 +136,25 @@ struct Rgb {
 
 // ⚠️ These are choices, not measurements. They are deliberately dim: twelve
 //    pixels at full brightness in a dark room is a lamp, not a face.
+//
+// ⚠️ Multiplied by four on 2026-10-18. The first values were written before any
+//    LED on this unit had been looked at, and the first frame a host ever sent
+//    produced 「無点灯」 in a lit room — at r=28/255 a warm light is below what
+//    daylight shows. The ratio between the words is unchanged; only the scale.
 Rgb ColorFor(Light light) {
   switch (light) {
     case Light::kOff:
       return {0, 0, 0};
     case Light::kDim:
-      return {6, 6, 10};
+      return {24, 24, 40};
     case Light::kBreathe:
-      return {10, 12, 18};
+      return {40, 48, 72};
     case Light::kWarm:
-      return {28, 16, 6};
+      return {112, 64, 24};
     case Light::kAlert:
-      return {40, 26, 0};
+      return {160, 104, 0};
     case Light::kError:
-      return {36, 0, 0};
+      return {144, 0, 0};
   }
   return {0, 0, 0};
 }
@@ -162,6 +188,13 @@ bool Render(Light light) {
 }  // namespace
 
 bool leds::begin() {
+  if (g_lock == nullptr) {
+    g_lock = xSemaphoreCreateMutex();
+    if (g_lock == nullptr) {
+      return false;
+    }
+  }
+
   i2c_master_bus_config_t bus_cfg = {};
   bus_cfg.i2c_port = static_cast<i2c_port_num_t>(board::kI2cPort);
   bus_cfg.sda_io_num = static_cast<gpio_num_t>(board::kI2cSda);
@@ -217,6 +250,7 @@ bool leds::begin() {
 }
 
 void leds::set_light(Light light) {
+  Guard guard;
   g_light = light;
   if (g_ready) {
     Render(g_light);
@@ -224,11 +258,90 @@ void leds::set_light(Light light) {
 }
 
 void leds::tick() {
+  Guard guard;
   if (g_ready && g_light == Light::kBreathe) {
     Render(g_light);
   }
 }
 
 bool leds::servo_power(bool on) {
+  Guard guard;
   return SetPin(board::kServoPowerPin, on);
 }
+
+// ⚠️ Written on 2026-10-18, after a frame that the board accepted produced
+//    nothing the author could see. Two things had been one word until then:
+//    "the expander holds this colour" and "a pixel shows it". They are asked
+//    separately here, and the answer is printed either way.
+void leds::probe() {
+  Guard guard;
+
+  unsigned char version = 0;
+  unsigned char cfg = 0;
+  const bool has_version = ReadRegister8(kRegVersion, &version);
+  const bool has_cfg = ReadRegister8(kRegLedCfg, &cfg);
+  printf("leds: ready=%d version=%s0x%02X cfg=%s0x%02X\n", g_ready ? 1 : 0,
+         has_version ? "" : "unreadable ",
+         has_version ? version : 0, has_cfg ? "" : "unreadable ",
+         has_cfg ? cfg : 0);
+
+  // ⚠️ The pin behind the data line, register by register. A colour that the
+  //    expander holds and does not send is usually a pin that is not an output.
+  struct Named {
+    const char* name;
+    unsigned char reg;
+  };
+  const Named pins[] = {{"M_H", kRegGpioMH},   {"O_H", kRegGpioOH},  {"I_H", 0x08},
+                        {"PU_H", kRegGpioPuH}, {"PD_H", 0x0C},      {"DRV_H", kRegGpioDrvH}};
+  for (const Named& pin : pins) {
+    unsigned char value = 0;
+    if (ReadRegister8(pin.reg, &value)) {
+      printf("leds: %s=0x%02X (%s)\n", pin.name, value, (value & (1u << 5)) ? "pin 13 set" : "pin 13 clear");
+    } else {
+      printf("leds: %s unreadable\n", pin.name);
+    }
+  }
+
+  unsigned char pixel[2] = {0, 0};
+  for (int i = 0; i < 4; ++i) {
+    const bool lo = ReadRegister8(static_cast<unsigned char>(kRegLedRamStart + i * 2), &pixel[0]);
+    const bool hi = ReadRegister8(static_cast<unsigned char>(kRegLedRamStart + i * 2 + 1), &pixel[1]);
+    if (!lo || !hi) {
+      printf("leds: pixel %d unreadable\n", i);
+      continue;
+    }
+    const unsigned int value = static_cast<unsigned int>(pixel[0]) |
+                               (static_cast<unsigned int>(pixel[1]) << 8);
+    printf("leds: pixel %d = 0x%04X (r=%u g=%u b=%u)\n", i, value,
+           (value >> 11) & 0x1F, (value >> 5) & 0x3F, value & 0x1F);
+  }
+
+  // ⛔ Full red, all twelve, and a refresh. If the registers below come back
+  //    holding the red and no pixel lights, then the expander's LED path is not
+  //    what drives this unit — and the next question is which path does.
+  bool ok = true;
+  for (int i = 0; i < board::kLedCount; ++i) {
+    ok = SetLedColor(i, 255, 0, 0) && ok;
+  }
+  ok = RefreshLeds() && ok;
+  vTaskDelay(pdMS_TO_TICKS(200));
+
+  unsigned char after_lo = 0;
+  unsigned char after_hi = 0;
+  const bool lo = ReadRegister8(kRegLedRamStart, &after_lo);
+  const bool hi = ReadRegister8(static_cast<unsigned char>(kRegLedRamStart + 1), &after_hi);
+  const unsigned int after = static_cast<unsigned int>(after_lo) |
+                             (static_cast<unsigned int>(after_hi) << 8);
+  printf("leds: wrote full red to %d, refresh %s; pixel 0 now %s0x%04X\n",
+         board::kLedCount, ok ? "ok" : "failed",
+         (lo && hi) ? "" : "unreadable ", (lo && hi) ? after : 0);
+
+  g_light = Light::kOff;  // the write above is not a light; the next frame sets one
+}
+
+// ⛔ REMOVED on 2026-10-18, after it hung the machine. A bench command that held
+//    LED_CFG bit 7 for three seconds — a bit no vendor driver writes — stopped
+//    the console, the heartbeat, and the USB-Serial-JTAG ROM responding: the
+//    board had to be unplugged and replugged. ⚠️ The lesson is the shape of the
+//    rule: an untouched register bit is not "unused", it is "unknown", and a
+//    guess written to it stops a machine rather than lighting one.

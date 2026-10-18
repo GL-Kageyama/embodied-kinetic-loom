@@ -9,9 +9,13 @@
 
 ⚠️ **起動は挨拶を送らない。** 最初の運動は最初の事象から来る。
 ⚠️ **停止は何も送らない。** 駐機も、最後の身振りも無い——**この機体に停止命令は無い。**
-⚠️ **機体への伝送路はまだ無い。** この縁は、渡すはずの枠を**ログの1行として書く**——
-`{"frame": …}` がそれであり、**`sent` はどの行でも `False` である。**
-⛔ **書くことは、送ることではない。**
+✅ **伝送路は 2026-10-18 に、この縁へ着いた**——`--port` を渡すと、枠は
+**その端末へ1行として書かれる**。⚠️ **渡すのは語だけである**（`face`・`light`・`gesture`）——
+**姿勢の行はここから出ない。** 数は1つも発明しない。
+⛔ **`sent` が `True` になるのは、`os.write` が行の長さを返したときだけである。**
+⚠️ **開いて書き、閉じる**——**1枠ごとに。** コンソールは1本のポートであり、
+握ったままのデーモンは `bench` と `idf.py flash` の間に座り込む。
+⚠️ **`--port` が無いとき、`sent` は今まで通り `False` である。**
 """
 from __future__ import annotations
 
@@ -95,15 +99,50 @@ def emit(payload: dict) -> None:
     sys.stdout.flush()
 
 
-def frame_row(frame: Frame, at: float, session: str | None) -> dict:
-    """**機体へ渡るはずの1行を、ログの1行にする。** ⛔ **渡ってはいない。**
+def frame_line(frame: Frame) -> str:
+    """**枠の、ただ1つの綴り。** ⚠️ **符号化は `protocol_stackchan.py` に1つだけ在る。**
 
-    ⚠️ **符号化は `engine/backend/protocol_stackchan.py` に1つだけ在る。**
-    ここは値を渡すだけであり、綴りを写さない。
+    ⚠️ **ログに残る行と、端末へ書く行は、この1回の符号化から来る。**
+    2回書けば、2つは同じに見えて、同じであることを誰も確かめていない。
     """
     command = wire.Command(face=frame.face, light=frame.light, gesture=frame.gesture)
-    line = wire.encode(command).decode("ascii").rstrip("\n")
-    return {"frame": line, "sent": False, "at": at, "session": session}
+    return wire.encode(command).decode("ascii")
+
+
+def frame_row(line: str, at: float, session: str | None, sent: bool) -> dict:
+    """**枠の1行を、ログの1行にする。** ⛔ **書いたことは、渡ったことではない。**
+
+    ⚠️ `sent` は **`os.write` が行の長さを返したときだけ** `True` である。
+    """
+    return {"frame": line.rstrip("\n"), "sent": sent, "at": at, "session": session}
+
+
+def send_line(path: str, line: str) -> bool:
+    """**1行を端末へ書く。** ✅ 書けたときだけ `True`。
+
+    ⚠️ **開いて、書き、閉じる。** 1枠ごとに。⚠️ 枠は遷移でしか出ないので、
+    開閉の費用は問題にならず、**握らないことで `bench` と `idf.py flash` を妨げない。**
+
+    ⛔ **短く書けたら、失敗である。** 端末が受け取っていない行を、
+    `sent` が `True` と言ってはならない。
+
+    ⚠️ **リングバッファと、閉じたときの回線の扱いは、ここでは測っていない**——
+    この機体で1度だけ、実際に書いて確かめた（記録は `HISTORY.md` の 0.19.8）。
+    """
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_NOCTTY | os.O_NONBLOCK | os.O_APPEND)
+    except OSError:
+        return False
+    try:
+        payload = line.encode("ascii")
+        return os.write(fd, payload) == len(payload)
+    except OSError:
+        return False
+    finally:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
 
 
 def reply(connection: socket.socket, payload: dict) -> None:
@@ -114,7 +153,19 @@ def reply(connection: socket.socket, payload: dict) -> None:
         pass
 
 
-def handle(connection: socket.socket, room: Room, outbound: Outbound, at: float) -> None:
+def deliver(frame: Frame, at: float, session: str | None, port: str | None) -> None:
+    """**枠を、ログの1行にし——端末があれば、そこへも書く。**
+
+    ⚠️ **ログの行は、送った後でも先でも同じ1行である。** 違うのは `sent` だけ。
+    ⛔ **端末が無いことは失敗ではない**——`--port` を渡さなければ、今まで通り書かない。
+    """
+    line = frame_line(frame)
+    sent = send_line(port, line) if port is not None else False
+    emit(frame_row(line, at, session, sent))
+
+
+def handle(connection: socket.socket, room: Room, outbound: Outbound, at: float,
+           port: str | None = None) -> None:
     """**1つの接続を読む。** ⚠️ **行が届かなければ、待ち続けずに閉じる。**"""
     connection.settimeout(CLIENT_TIMEOUT)
     buffer = b""
@@ -151,11 +202,12 @@ def handle(connection: socket.socket, room: Room, outbound: Outbound, at: float)
     emit(payload)
     frame = outbound.frame(decision)
     if frame is not None:
-        emit(frame_row(frame, at, session))
+        deliver(frame, at, session, port)
     reply(connection, payload)
 
 
-def serve(room: Room, outbound: Outbound, listener: socket.socket, wake: int) -> None:
+def serve(room: Room, outbound: Outbound, listener: socket.socket, wake: int,
+          port: str | None = None) -> None:
     """**ソケットか、次の期限か、合図まで待つ。** ⛔ **固定の刻みは無い。**"""
     while True:
         timeout = None
@@ -173,24 +225,27 @@ def serve(room: Room, outbound: Outbound, listener: socket.socket, wake: int) ->
             emit(row(decision, now, None))
             frame = outbound.frame(decision)
             if frame is not None:
-                emit(frame_row(frame, now, None))
+                deliver(frame, now, None, port)
 
         if listener in readable:
             connection, _ = listener.accept()
             with connection:
-                handle(connection, room, outbound, now)
+                handle(connection, room, outbound, now, port)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python3 -m projects.stackchan.daemon",
         description=(
-            "One room, one neck. Listens on a socket and decides; it logs the frame "
-            "it would send and sends nothing (there is no transport yet)."
+            "One room, one neck. Listens on a socket and decides; it logs every frame "
+            "and, given --port, writes the line to the board's console."
         ),
     )
     parser.add_argument("--socket", default=default_socket(), metavar="PATH",
                         help="the Unix socket to bind (default: %(default)s)")
+    parser.add_argument("--port", default=None, metavar="PATH",
+                        help="the board's console to write frames to; without it, "
+                             "frames are only logged (default: none)")
     parser.add_argument("--motion", choices=("on", "off"), default="on",
                         help="whether the neck channel chooses gestures (default: on)")
     parser.add_argument("--sound", choices=("on", "off"), default="off",
@@ -223,9 +278,9 @@ def main(argv: list[str] | None = None) -> int:
 
     room = Room(motion=args.motion == "on", sound=args.sound == "on")
     outbound = Outbound()
-    emit({"daemon": "listening", "socket": args.socket})
+    emit({"daemon": "listening", "socket": args.socket, "port": args.port})
     try:
-        serve(room, outbound, listener, wake_r)
+        serve(room, outbound, listener, wake_r, args.port)
     finally:
         listener.close()
         try:

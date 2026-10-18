@@ -22,4 +22,10 @@ void tick();
 //    Powering it back on leaves the head limp until a goal is written.
 bool servo_power(bool on);
 
+// ⚠️ A diagnostic for the bench, not a feature of the wire. It reads back what
+//    the expander says it holds, then writes full red to all twelve and reads it
+//    again — so that "the registers took the values" and "the pixels lit" become
+//    two questions with two answers instead of one word that covers both.
+void probe();
+
 }  // namespace leds

@@ -199,6 +199,11 @@ ParseResult parse_command(const char* line, int length, Command* out) {
       continue;
     }
     if (at < length && line[at] == '}') {
+      // ⛔ The brace is a byte like any other. Breaking without stepping over it
+      //    leaves `at` one short of `length`, and the final check below reads the
+      //    `}` as trailing rubbish — so every well-formed frame was refused.
+      //    Found on 2026-10-18, on the first frame a host ever wrote to the board.
+      ++at;
       break;
     }
     return ParseResult::kMalformed;

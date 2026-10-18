@@ -1,10 +1,10 @@
-<!-- i18n-version: 2.2.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
+<!-- i18n-version: 2.3.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-18 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # projects/stackchan-firmware/ — the device end of the wire
 
-✅ **Built, flashed, and the head turned — 2026-10-18.** This directory produced `build/stackchan-vessel.bin`, wrote it at `0x510000`, verified it by hash, and ran it: the app printed `ready.`, both servos answered a ping, and `bench move 5` turned the head. ✅ **And later the same day, for the first time, a goal that came from a host:** 678 `pose` lines at 20 ms, none refused, and the author watching said 「動いた」. ⛔ **The refusal below is unchanged** — no gesture has an angle, and a frame that carries one is still refused. **The record is `records/2026-10-18-first-arrival.md`, and the observation is its spine.**
+✅ **Built, flashed, and the head turned — 2026-10-18.** This directory produced `build/stackchan-vessel.bin`, wrote it at `0x510000`, verified it by hash, and ran it: the app printed `ready.`, both servos answered a ping, and `bench move 5` turned the head. ✅ **And later the same day, for the first time, a goal that came from a host:** 678 `pose` lines at 20 ms, none refused, and the author watching said 「動いた」. ✅ **And after that, the twelve LEDs lit and followed a word** — `warm` became orange, `alert` became yellow, `breathe` became a breath — **including when the word came from the installed daemon, through the transport, over the console.** ⛔ **The refusal below is unchanged** — no gesture has an angle, and a frame that carries one is still refused. **The records are `records/2026-10-18-first-arrival.md` and `records/2026-10-18-the-lights.md`, and the observation is the spine of both.**
 
 **What is here:** a parser for one command frame, and an `apply_command` that refuses every gesture. **What is not here:** an angle. ⛔ **The number that would turn `perk` into a servo position is in no record** — the vendor's source gives the **scale** between degrees and counts, and that is a different number from **which** angle a `perk` is.
 
@@ -40,9 +40,9 @@
 ## What this source deliberately does not decide
 
 - **the gesture table** — what angle a `perk` is: no record, no measurement, no line. ✅ **The degrees-to-counts scale is no longer on this list** — the vendor's source holds it, above;
-- **the LED colours** — ✅ **the order is now known to be RGB565 behind the expander**; what is missing is the choice of colour, which is a choice and not a measurement;
+- **the LED colours** — ✅ **the order is RGB565 behind the expander, and since 2026-10-18 every light has a colour**; ⛔ **each one is a choice in `main/leds.cpp`, and no colour is a measurement of anything the Pet should look like**;
 - **the display renderer** — the face is a meaning here, not pixels;
-- **the transport** — this file parses a line; how the line reaches the board is the wire's framing problem, and the unit in hand is a client of the vendor's cloud rather than a server on the LAN.
+- **the transport** — ✅ **decided on 2026-10-18, and it is the console**: the daemon opens the USB serial path, writes one line per frame and closes it. ⛔ **Nothing is held open, so `bench` and `idf.py` still own the port between frames.** ⚠️ **The path is not stable across a replug** — see [The lights](#the-lights--2026-10-18).
 
 ## The first flash — 2026-10-18
 
@@ -50,7 +50,7 @@
 
 ✅ **Then the image this directory produces was built and written.** `build/stackchan-vessel.bin`, 272,976 bytes, at `0x510000`, hash verified; the app reached `ready.` and the bench turned the head. ⚠️ **A later build the same day, 273,808 bytes, added `bench timed` and was written the same way** — the size here is that build's, not a constant. ⛔ **What that did not close is the gate at the top of this page:** every gesture in a frame is still refused, because no angle has been measured. **The move was a bench command — no `Motion Intent`, no trajectory, no gate** (`records/2026-10-18-first-arrival.md`).
 
-⚠️ **Still nothing rings on this directory.** There is no C++ test here, and **nothing in this repository builds it** — `idf.py build` was run by hand that day and no check repeats it. `tests/test_stackchan_wire.py` reads these literals and refuses the day they disagree with the schema — that is the only check, and it checks a copy, not the machine.
+⚠️ **One thing rings on this directory now, and it is narrow.** ✅ **Since 2026-10-18 `tests/test_stackchan_frame_parser.py` compiles `command_frame.cpp` with `clang++` or `g++` and runs it** — fourteen claims about which lines it accepts and which it refuses. ⛔ **It does not build the firmware**: `main.cpp`, `leds.cpp` and `servo.cpp` are never compiled here, and `idf.py build` was run by hand and no check repeats it. `tests/test_stackchan_wire.py` still reads these literals and refuses the day they disagree with the schema — **a copy checked against a copy**. ⚠️ **The parser test exists because that gap had a defect in it**: on 2026-10-18 the parser refused every well-formed frame by failing to step over the closing brace, and the literal comparison passed it.
 
 ## What the servo's time field answered — 2026-10-18
 
@@ -81,3 +81,34 @@
 ⛔ **What this does not mean: the engine ran.** The interpolation was in a host tool outside this repository (`~/stackchan/pose_stream.py`), not in `engine/trajectory/`. **No `Motion Intent` was read, and the transport is still not chosen.** **The record is `records/2026-10-18-first-arrival.md`.**
 
 ⚠️ **`bench` is refused while a stream is running** (`bench: refused — a pose stream is running; wait for 500 ms of silence`), because `bench` blocks the console for seconds and a pose that arrives late is not a pose.
+
+## The lights — 2026-10-18
+
+✅ **The twelve LEDs work, and a frame from the daemon reaches them.** ⛔ **They did not work earlier the same day** — a frame the board accepted produced 「光っていない」, while the expander's registers held exactly the right colour. **The record is `records/2026-10-18-the-lights.md`, and the observation is its spine.**
+
+| light | colour (RGB565 source) | chosen in |
+|---|---|---|
+| `off` | `{0, 0, 0}` | `main/leds.cpp` |
+| `dim` | `{24, 24, 40}` | `main/leds.cpp` |
+| `breathe` | `{40, 48, 72}`, a triangle between 20 % and 100 % over 3 s | `main/leds.cpp` |
+| `warm` | `{112, 64, 24}` | `main/leds.cpp` |
+| `alert` | `{160, 104, 0}` | `main/leds.cpp` |
+| `error` | `{144, 0, 0}` | `main/leds.cpp` |
+
+⛔ **Not one of those is a measurement.** The twelve are written behind a PY32 IO expander at I²C `0x6F`: `LED_CFG` at `0x24` carries the count in bits 0–5 and a refresh in bit 6, and the pixels are RGB565 little-endian from `0x30`.
+
+✅ **`bench leds` was added to make two questions out of one.** It reads the expander back — version, `LED_CFG`, the six registers behind the data pin, the first four pixels — then writes full red to all twelve and reads pixel 0 again. **"The registers took the values" and "a pixel is lit" are asked separately, and the answer is printed either way.**
+
+⚠️ **What changed the outcome is one thing, and it is a hypothesis:** the expander was power-cycled. The board had been unplugged to recover from a hang, and the twelve lit after it went back in, with no new code. ⛔ **Nothing here separated the power cycle from the plug-in, the re-enumeration, or the reflash that had just preceded it.**
+
+### Two hangs on this board
+
+⛔ **A bench command that wrote `LED_CFG` bit 7 — a bit no vendor driver writes — stopped the console, the heartbeat and the USB-Serial-JTAG ROM, with the USB device still enumerated.** Only unplugging recovered it; the command was deleted, and `main/leds.cpp` keeps the reason: **an untouched register bit is not "unused", it is "unknown".**
+
+⛔ **The second hang came from a reader, not from the wire.** A `pyserial` open reset the board (`rst:0x15 (USB_UART_CHIP_RESET)`), the reader lost the stream mid-boot, and the ROM stopped answering. **The daemon's own path — `os.open`, `os.write`, `os.close`, one frame at a time — was then run alone and did not reset anything**; the console was read with `os.open` and raw `termios`. ⚠️ **A reader that asserts DTR and RTS is rebooting this machine.**
+
+### One actor instead of two
+
+⚠️ **This unit shipped with a vendor app in `ota_0` that could replace the app in `ota_1`.** Once, booting it by erasing `otadata` made it connect to a network and start an OTA into this repository's slot. ⇒ **The vendor image was read off the board (5,177,344 bytes, SHA-256 `97b176…cf64ab5b`, kept outside this repository at `~/stackchan/vendor-image/`), and then `ota_0` was erased** (`erase-region 0x20000 0x4f0000`, 4.9 s). ⛔ **The file is the only copy; no check covers it.**
+
+⚠️ **And the console's path is not an identity.** It read `/dev/cu.usbmodem1101` before the hang and `/dev/cu.usbmodem101` after one replug — **sixteen minutes apart, one board.** The installed plist names the second; the next replug may name a third, and a frame written to a missing path is logged as `sent: false`, not raised.
