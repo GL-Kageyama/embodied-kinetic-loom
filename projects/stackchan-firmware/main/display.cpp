@@ -271,6 +271,41 @@ bool Push() {
 
 }  // namespace
 
+// ⚠️ Written on 2026-10-19, when the servo bus was silent from boot. The rail's
+//    switch is the expander's pin 0; its volts come through this PMIC's path.
+//    These registers say what the power side knows. ⛔ They are not the rail.
+void display::pmu_probe() {
+  if (g_axp2101 == nullptr) {
+    std::printf("pmu: the AXP2101 never came up\n");
+    return;
+  }
+  uint8_t status1 = 0;
+  uint8_t status2 = 0;
+  uint8_t batt_lo = 0;
+  uint8_t batt_hi = 0;
+  const bool has1 = ReadReg(g_axp2101, 0x00, &status1);
+  const bool has2 = ReadReg(g_axp2101, 0x01, &status2);
+  const bool has_batt = ReadReg(g_axp2101, 0x34, &batt_lo) && ReadReg(g_axp2101, 0x35, &batt_hi);
+
+  std::printf("pmu: 0x00=%s0x%02X 0x01=%s0x%02X vbat=%s%d mV\n", has1 ? "" : "unreadable ",
+              has1 ? status1 : 0, has2 ? "" : "unreadable ", has2 ? status2 : 0,
+              has_batt ? "" : "unreadable ",
+              has_batt ? (((batt_hi & 0x3F) << 8) | batt_lo) : 0);
+
+  if (has2) {
+    // The vendor's own reading of 0x01: bits 5–6 are the current's direction.
+    const int direction = (status2 & 0b01100000) >> 5;
+    const int charge_state = status2 & 0b00000111;
+    std::printf("pmu: direction=%d (%s) charge_state=%d\n", direction,
+                direction == 0   ? "standby"
+                : direction == 1 ? "charging"
+                : direction == 2 ? "discharging"
+                                 : "unknown",
+                charge_state);
+  }
+  std::printf("pmu: these are the PMIC's registers, not the servo rail's volts\n");
+}
+
 bool display::begin() {
   if (g_io != nullptr) {
     return true;

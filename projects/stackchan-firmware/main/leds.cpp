@@ -300,6 +300,38 @@ void leds::servo_power_probe() {
   }
 }
 
+// ⚠️ Written on 2026-10-19, after `servo_power_probe()` printed O_L=0x01 and
+//    I_L=0x00 with the rail switched on. Two readings are separated here.
+//    ⛔ The input register is read in input mode first — where its answer about
+//    the pad is unambiguous — and only then with the output restored high.
+void leds::servo_power_level_probe() {
+  Guard guard;
+
+  SetDirection(board::kServoPowerPin, false);  // input: the rail is off
+  SetPullUp(board::kServoPowerPin, true);
+  vTaskDelay(pdMS_TO_TICKS(5));
+  unsigned char as_input = 0;
+  const bool input_read = ReadRegister8(kRegGpioIL, &as_input);
+  printf("level: pin 0 as input + pull-up -> %s\n",
+         !input_read ? "unreadable"
+                     : ((as_input & 0x01u)
+                            ? "HIGH (the pad floats; nothing external holds it low)"
+                            : "LOW (something external holds the line down)"));
+
+  SetDirection(board::kServoPowerPin, true);
+  SetPullUp(board::kServoPowerPin, true);
+  SetPushPull(board::kServoPowerPin);
+  SetPin(board::kServoPowerPin, true);
+  vTaskDelay(pdMS_TO_TICKS(5));
+  unsigned char as_output = 0;
+  const bool output_read = ReadRegister8(kRegGpioIL, &as_output);
+  printf("level: pin 0 as output high -> %s\n",
+         !output_read ? "unreadable"
+                      : ((as_output & 0x01u)
+                             ? "HIGH (the register mirrors the output)"
+                             : "LOW (the register does not mirror the output, or the pad is loaded)"));
+}
+
 // ⚠️ Written on 2026-10-18, after a frame that the board accepted produced
 //    nothing the author could see. Two things had been one word until then:
 //    "the expander holds this colour" and "a pixel shows it". They are asked

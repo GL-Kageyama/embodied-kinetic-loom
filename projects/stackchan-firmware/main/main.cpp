@@ -169,6 +169,8 @@ void PrintHelp() {
   printf("  bench hold                hold the present positions (torque on)\n");
   printf("  bench release             torque off — the head goes limp\n");
   printf("  bench power on|off        the servo rail — the only stop this machine has\n");
+  printf("  bench pmu                 the PMIC's status registers and the battery's volts\n");
+  printf("  bench level               pin 0's pad read as an input, then as an output\n");
   printf("  bench leds                read the expander back, then set all twelve full red\n");
   printf("  bench sound <word>        play one of hello|pip|chime|fall\n");
   printf("  bench volume <0..100>     set the amplifier's volume and keep it\n");
@@ -737,6 +739,15 @@ void HandleBench(const char* args) {
     //    the eye says whether a pixel is lit.
     leds::probe();
     printf("bench: twelve set to full red — if nothing is lit, say so; the registers above still count\n");
+    return;
+  }
+  if (std::strncmp(args, "pmu", 3) == 0) {
+    display::pmu_probe();
+    return;
+  }
+  if (std::strncmp(args, "level", 5) == 0) {
+    // ⚠️ The rail goes off for the input reading and back on after it.
+    leds::servo_power_level_probe();
     return;
   }
   if (std::strncmp(args, "power", 5) == 0) {

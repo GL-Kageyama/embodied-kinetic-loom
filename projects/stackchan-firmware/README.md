@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.9.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.10.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -216,7 +216,11 @@
 
 ⛔ **The expander is not reset by the ESP.** `DRV_L` stayed `0xFE` across a flash and a hard reset: **the PY32's registers outlive the ESP's boot**, and the vendor's driver writes them once at start-up because its boot is the board's first. ⇒ **A boot that inherits the previous run's registers is not a boot with a known state.** `leds::begin()` now writes direction, pull-up, push-pull and level on every boot, before the rail is switched on.
 
-**And the bus is silent earlier than the host is.** The first boot log captured on 2026-10-19 reads `servo: ping yaw=0/3 pitch=0/3` and `servo: a position did not read — nothing will move`, with this unit's NVS centres at **yaw 460, pitch 620**. ⇒ **No line the host writes is the cause of the silence — it is there at boot.** ⛔ **The remaining questions are physical**: the servo rail's voltage, the cable and connector, the servo itself. **Nothing in this repository can answer them.**
+**And the bus is silent earlier than the host is.** The first boot log captured on 2026-10-19 reads `servo: ping yaw=0/3 pitch=0/3` and `servo: a position did not read — nothing will move`, with this unit's NVS centres at **yaw 460, pitch 620**. ⇒ **No line the host writes is the cause of the silence — it is there at boot.**
+
+⚠️ **Two more answers came the same day, and neither closes the rail.** `bench pmu` reads the AXP2101: `0x00=0x38`, `0x01=0x32`, **`vbat=4624 mV`**, direction 1 (charging), charge state 2 — **a battery is present and charging.** ⛔ **That is the PMIC's register, not the rail's voltage.** `bench level` reads pin 0's pad twice: **as an input with a pull-up it reads LOW** — something external holds the line down, which is what an enable line whose default is off normally looks like — and **as an output driving high it still reads LOW**, ⛔ **which is either a register that does not mirror an output or a pad that is heavily loaded; the two are not separated here.** ⇒ **The supply exists at the battery; the power switch, the VM path and the rail's actual volts are still unmeasured** — the switch is the next thing a person can test, and a meter closes the rest.
+
+⛔ **The remaining questions are physical**: the servo rail's voltage, the cable and connector, the servo itself. **Nothing in this repository can answer them.**
 
 **Through the stream's own call.** Thirty `pose 350 500*<checksum>` lines at 40 ms, which the board applied with `time=20 speed=0` — the call the daemon uses. Goal raw yaw 572, held 565: **−7, leftward** — the same landing as `bench set` at speed 80. Pitch goal 780, held 781: +1.
 

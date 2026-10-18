@@ -29,6 +29,15 @@ bool servo_power(bool on);
 //    only a meter closes the second.
 void servo_power_probe();
 
+// ⛔ Written on 2026-10-19, because `servo_power_probe()` could not tell two
+//    things apart: an input bit of 0 while the output bit is 1 is either a line
+//    held low or a register that does not look at an output. Pin 0 is made an
+//    input with a pull-up first (the rail goes off, which is the safe direction),
+//    the pad is read, and then the output is restored high so that a diagnostic
+//    never leaves the rail switched off. ⚠️ Neither reading is the rail's
+//    voltage; only a meter closes that.
+void servo_power_level_probe();
+
 // ⚠️ A diagnostic for the bench, not a feature of the wire. It reads back what
 //    the expander says it holds, then writes full red to all twelve and reads it
 //    again — so that "the registers took the values" and "the pixels lit" become

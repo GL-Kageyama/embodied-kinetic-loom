@@ -25,4 +25,12 @@ void show(Face face);
 //    expander twice: one bus, one owner. False if this module never came up.
 bool pulse_amplifier_reset();
 
+// ⚠️ A diagnostic for the bench, not a feature of the wire. It reads the
+//    AXP2101's two status registers and the battery voltage — whether a battery
+//    is present, which way the current flows, and what the battery reads.
+//    ⛔ It does not measure the servo rail: a battery at 4.0 V and a rail at
+//    0 V are consistent with a switch that is not conducting, and only a meter
+//    separates them.
+void pmu_probe();
+
 }  // namespace display
