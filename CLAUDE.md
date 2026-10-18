@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.27.0 | canonical: CLAUDE.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.28.0 | canonical: CLAUDE.md | translated: 2026-10-19 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -7,7 +7,7 @@
 ## Document Rules
 
 - **The canonical language of every document is English.** `-ja` and `-zh` mirrors sit in the same directory, with a suffix — never in a subfolder (`docs/usage.md`, `docs/usage-ja.md`, `docs/usage-zh.md`). A subfolder changes the depth, and a changed depth breaks every relative path inside the document.
-- `tools/check_i18n.py` reads the mirrors. It checks four things: that all three exist and are non-empty, that the `<!-- i18n-version: … -->` header is byte-identical across the three and names the canonical, that the `**Language:**` line is byte-identical, and that code fences containing `←` and the heading-level sequence are byte-identical. **Run it before every commit that touches a document.**
+- `tools/check_i18n.py` reads the mirrors. It checks five things: that all three exist and are non-empty, that the `<!-- i18n-version: … -->` header is byte-identical across the three and names the canonical, that the `**Language:**` line is byte-identical, that code fences containing `←` and the heading-level sequence are byte-identical, and — since 2026-10-19 — that **every document with mirrors is listed in its `DOCS`, and every mirror has a canonical**. ⚠️ **The fifth rule was added because the list was kept by hand, and six sets had gone unchecked while the check stayed green.** **Run it before every commit that touches a document.**
 - **`tools/check_vocabulary.py` reads the vocabulary table in `references/README.md`.** ⛔ **A word that is not in the table is not in the vocabulary**, and a row is written *before* the intent that needs it — never after. **Run it before every commit that touches `references/`.**
 - ⚠️ **The working language and the canonical language are two different things.** Commit messages and `HISTORY.md` are written in Japanese. `README.md`, `CLAUDE.md` and `docs/` are written in English.
 - **Numbers are read as measurements.** Before writing any count, count it. Name what was counted and what was not. A count that moves depending on where you cut it does not belong in a rule.

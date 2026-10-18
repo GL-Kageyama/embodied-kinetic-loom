@@ -8,12 +8,18 @@
 ⚠️ **本リポジトリに、これ以外の検査は無い。** ⚠️ **そしてこの検査は、文書のミラーしか見ない**
 ——**`claude plugin validate --strict .` と合わせても、リポジトリの作法の15項目のうち5項目しか見ていない。**
 
-規則は4つ。**各規則に「鳴る例」と「鳴らない例」が `--self-test` に在る。**
+規則は5つ。**各規則に「鳴る例」と「鳴らない例」が `--self-test` に在る。**
 
     R1 存在と非空   正典 ↔ `-ja` ↔ `-zh` が在り、0バイトでない
     R2 版           ヘッダが3本でバイト一致し、`canonical:` が正典を指す
     R3 切替行       `**Language:**` 行が3本でバイト一致し、3つの名前をその順で指す
     R4 不変ブロック `←` を含むフェンスが3本でバイト一致。見出しの水準列も3本で一致
+    R5 範囲         ミラーを持つ文書はすべて `DOCS` に在り、ミラーには正典が在る
+
+⚠️ **R5 は 2026-10-19 に足した。** それまで `DOCS` は**手で並べる一覧**であり、
+**並べ忘れた文書は、ミラーを持ったまま検査の外で腐った**——実測で6組が外に在った
+（`docs/stackchan-daemon.md` と `records/` の5本）。**規則が一覧を読むだけなら、
+一覧の穴は規則の穴である。**
 
 ⚠️ **R2 は「1行目」ではなく「frontmatter を除いた最初の非空行」を見る。**
 
@@ -76,6 +82,10 @@ DOCS = (
     # ⛔ **この1本は、上の3本と種類が違う**——**主張を持たないのではなく、意図的に写しである。**
     # **それでも `DOCS` から外さない**——**外に出せば、外に出したこと自体が見えなくなる。**
     "docs/construction-memo.md",
+    # ⚠️ **`docs/` の5本目も並べる。** ✅ **2026-10-19、`R5` がこの1本を見つけた。**
+    # ⛔ **2026-10-18 に書かれ、ミラーも3本そろっていたのに、この一覧に無かった**
+    # ——**検査は緑のまま、この1本だけを見ていなかった。**
+    "docs/stackchan-daemon.md",
     # ⚠️ **`engine/` と `schemas/` の1本も並べる。**
     # **実装を書いた日に文書が増える**——**並べ忘れれば、その3本は検査の外で腐る。**
     "engine/README.md",
@@ -102,6 +112,15 @@ DOCS = (
     # ⛔ **この1本は、レジスタが正しいことと光ること が別であると分かった日を書く**——
     # **観察が背骨で、数字はその内側の証拠である**（同じ規則である）。
     "projects/stackchan-firmware/records/2026-10-18-the-lights.md",
+    # ⚠️ **`records/` の3〜7本目も並べる。** ✅ **2026-10-19、`R5` がこの5本を見つけた。**
+    # ⛔ **5本とも同じ日にミラーを3本そろえて書き、同じ日にこの一覧から漏れていた**
+    # ——**記録の背骨は人の観察であり、その頁が検査の外に在れば、
+    # 外に出したこと自体が見えなくなる**（同じ規則である）。
+    "projects/stackchan-firmware/records/2026-10-18-the-gestures.md",
+    "projects/stackchan-firmware/records/2026-10-18-the-face.md",
+    "projects/stackchan-firmware/records/2026-10-18-the-voice.md",
+    "projects/stackchan-firmware/records/2026-10-18-the-neck.md",
+    "projects/stackchan-firmware/records/2026-10-19-the-join.md",
     # ⚠️ **`references/` の1本も並べる。** ✅ **2026-09-28、このディレクトリに最初の1行が入った**
     # ——**D-12 が決めた「覆えない差」の欄を持つ表である。**
     # ✅ **同じ日、この1本は D-02 の答えになった**——**語彙は固定の表ではなく、引ける写像である。**
@@ -119,6 +138,10 @@ LANGS = ("ja", "zh")
 
 #: 不変ブロックを選ぶ目印。**この文字を含むフェンスが不変である。**
 INVARIANT_MARK = "←"
+
+#: R5 が歩かないディレクトリ。**検査の対象ではない木である。**
+#: ⚠️ **この一覧を広げることは、検査の範囲を狭めることである**——**理由を書かずに足さない。**
+SKIP_DIRS = {".git", "node_modules", "site-packages", "__pycache__", ".venv"}
 
 HEADER_RE = re.compile(
     r"^<!-- i18n-version: (\S+) \| canonical: (\S+) \| translated: (\S+) -->$"
@@ -222,15 +245,46 @@ def invariant_blocks(lines: list[str]) -> dict[int, list[str]]:
     }
 
 
+def mirror_sets(root: Path) -> list[str]:
+    """ディスク上でミラーを持つ正典の相対パス。**正典が無くても、名を返す。**
+
+    ⚠️ **1本でもミラーが在ればその組である**——**片方だけ在る壊れ方は R1 が鳴らす。**
+    """
+    found: set[str] = set()
+    for p in root.rglob("*.md"):
+        rel = p.relative_to(root)
+        if any(part in SKIP_DIRS for part in rel.parts):
+            continue
+        for lang in LANGS:
+            suffix = f"-{lang}.md"
+            if p.name.endswith(suffix):
+                canon = p.with_name(p.name[: -len(suffix)] + ".md")
+                found.add(canon.relative_to(root).as_posix())
+                break
+    return sorted(found)
+
+
 def check(root: Path, docs: tuple[str, ...] = DOCS) -> tuple[list[str], dict]:
     """違反の一覧と、**何を見たか**の記録を返す。"""
     bad: list[str] = []
     stats = {
         "canonical": len(docs),
         "present": 0,
+        "mirror_sets": 0,
         "invariant": [],  # (rel, 開き行の番号, 行数)
         "frontmatter": [],  # (rel, frontmatter が占める行数)
     }
+
+    # ---- R5 範囲
+    # ⚠️ **規則が一覧を読むだけなら、一覧の穴は規則の穴である。**
+    #    並べ忘れた文書は、ミラーを持ったまま検査の外で腐る。
+    on_disk = mirror_sets(root)
+    stats["mirror_sets"] = len(on_disk)
+    for rel in on_disk:
+        if not (root / rel).is_file():
+            bad.append(f"R5 {rel}: ミラーだけが在り、正典が無い")
+        elif rel not in docs:
+            bad.append(f"R5 {rel}: ミラーを持つが `DOCS` に無い——**検査の外で腐る**")
 
     for rel in docs:
         cpath = root / rel
@@ -413,6 +467,16 @@ def _blank(root: Path, rel: str, lang: str) -> None:
     p.write_text("   \n\n", encoding="utf-8")
 
 
+def _orphan_mirror(root: Path, rel: str) -> None:
+    """正典を置かずに、ミラーだけを置く。**R5 の「正典が無い」を作る。**"""
+    p = root / mirror_of(rel, "ja")
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(
+        OK_HEADER.format(rel=rel) + "\n" + OK_BODY.format(stem=Path(rel).stem, lang="ja"),
+        encoding="utf-8",
+    )
+
+
 def _shift(root: Path, rel: str, lang: str) -> None:
     """フェンスの前に1行挿す。**数は同じで位置だけが違う**を作る。"""
     p = root / (rel if lang == "" else mirror_of(rel, lang))
@@ -516,6 +580,17 @@ def self_test() -> int:
             "R4",
         ),
         ("R4 鳴らない — 不変ブロックも見出しも同じ", lambda r: _write_tree(r, docs[0]), None),
+        (
+            "R5 鳴る — ミラーを持つが DOCS に無い",
+            lambda r: (_write_tree(r, docs[0]), _write_tree(r, "docs/b.md")),
+            "R5",
+        ),
+        (
+            "R5 鳴る — ミラーだけが在り、正典が無い",
+            lambda r: (_write_tree(r, docs[0]), _orphan_mirror(r, "docs/c.md")),
+            "R5",
+        ),
+        ("R5 鳴らない — ミラーの組がすべて DOCS に在る", lambda r: _write_tree(r, docs[0]), None),
     ]
 
     width = max(len(name) for name, _, _ in cases)
@@ -560,6 +635,7 @@ def main(argv: list[str] | None = None) -> int:
     bad, stats = check(root)
 
     print(f"=== 正典 {stats['canonical']} 本 / 在ったファイル {stats['present']} 本")
+    print(f"=== ディスク上でミラーを持つ文書 {stats['mirror_sets']} 本（R5 が見る）")
     print("=== frontmatter を除いて読んだヘッダ")
     if not stats["frontmatter"]:
         print("    ⚠️ 1つも無い——**frontmatter を持つ文書は、この版には無い。**")
