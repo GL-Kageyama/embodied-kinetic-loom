@@ -82,6 +82,39 @@ def test_an_answer_without_a_position_is_still_an_answer():
     assert readback.answered("") is False
 
 
+def test_the_verdict_is_the_boards_own_count():
+    """✅ **基板が自分の数で言った判定を読む。** ⛔ ホストの `applied` とは別の数である。
+
+    ⚠️ **この行の正本も `main.cpp` に在る**（`PoseWatchdog`）。ここは写しである。
+    """
+    source = MAIN_CPP.read_text(encoding="utf-8")
+    assert 'pose: %d applied, %d refused, %d clamped' in source
+
+    found = readback.verdict(
+        "pose: stream lost after 500 ms — torque released\n"
+        "pose: 41 applied, 2 refused, 3 clamped\n"
+    )
+    assert found == {"applied": 41, "refused": 2, "clamped": 3}
+
+
+def test_a_window_with_two_verdicts_keeps_the_last():
+    """⚠️ **新しい方が効いている。** ⛔ 古い判定を、今の流しの判定として読まない。"""
+    text = ("pose: 10 applied, 0 refused, 0 clamped\n"
+            "pose: 41 applied, 1 refused, 0 clamped\n")
+    assert readback.verdict(text) == {"applied": 41, "refused": 1, "clamped": 0}
+
+
+def test_nothing_printed_is_not_a_verdict_of_zero():
+    """⛔ **「何も言わなかった」と「断らなかった」は別である。**
+
+    ⚠️ 位置の答えは判定ではない——2つの綴りは、同じ窓に並んで届く。
+    """
+    assert readback.verdict("") is None
+    assert readback.verdict(ANSWERS) is None
+    assert readback.verdict("pose: refused (malformed)\n") is None
+    assert readback.verdict("pose 12 34*41\n") is None
+
+
 # ---------------------------------------------------------------------------
 # 縁。⚠️ 端末の代わりに、ただのファイルを開く。
 # ---------------------------------------------------------------------------
@@ -109,7 +142,11 @@ def test_the_daemon_asks_the_console_and_streams_from_the_answer(tmp_path, capsy
     neck._close()
 
     rows = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
-    assert rows[0] == {"position": [25, 25], "at": 1.0}
+    # ⚠️ **1つの問いに、1つの形である。** 成功も失敗も `heard` と `read` を持つ——
+    #    2つの形があったために、読む側は成功した読み戻しを数えられなかった。
+    assert rows[0]["position"] == [25, 25]
+    assert rows[0]["heard"] is True
+    assert rows[0]["at"] == 1.0
     assert rows[1]["neck"] == "look_up"
     assert rows[1]["from"] == [25, 25]
     assert rows[1]["to"] == [80, 500]
@@ -152,6 +189,62 @@ def test_the_console_can_answer_without_a_position(tmp_path, capsys):
             "at": 0.0,
         }
     ]
+
+
+def _run(neck: "edge.Neck", at: float) -> float:
+    """**縁の輪と同じように、期限ごとに起こす。** ⚠️ 流しが終わっても、判定が残っている。"""
+    t = at
+    while neck.deadline is not None or neck._fd is not None:
+        neck.pump(t)
+        t += edge.gestures.DEFAULT_PERIOD
+        assert t < at + 30.0, "流れが終わらない"
+    return t
+
+
+def test_the_stream_hears_the_boards_own_verdict(tmp_path, capsys):
+    """✅ **0.19.38 から、流しの終わりに基板自身の数が1行になる。**
+
+    ⛔ **それまでは、閉じた後の行を誰も読まなかった。** 2026-10-19、デーモンは
+    `{"neck": "recoil", "applied": 18, ...}` と書いた——**送った数である**——
+    そして頭は1カウントも動かなかった。**基板が断ったのか丸めたのかは、
+    そのとき誰にも分からなかった。** ⇒ **この行が、それを分ける。**
+
+    ⚠️ **試験台は普通のファイルである**: 判定は先に置かれ、縁がそれを読む。
+    本物の tty では、基板が 0.5〜0.8 秒後に印字する（`VERDICT_WAIT` の上限）。
+    """
+    path = _console(
+        tmp_path,
+        ANSWERS + "pose: 41 applied, 1 refused, 0 clamped\n",
+    )
+    neck = edge.Neck(str(path))
+    at = 1.0
+    assert neck.take(_first(neck), at) is True
+    _run(neck, at)
+
+    rows = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    verdicts = [row for row in rows if "verdict" in row]
+    assert len(verdicts) == 1, rows
+    assert verdicts[0]["neck"] == "look_up"
+    assert verdicts[0]["verdict"] == {"applied": 41, "refused": 1, "clamped": 0}
+
+
+def test_a_silent_board_leaves_a_verdict_of_none(tmp_path, capsys):
+    """⛔ **基板が何も言わなかったことを、`0 refused` と書かない。**
+
+    ⚠️ **2つは別の失敗である**: 断らなかったのか、判定が届かなかったのか。
+    ⇒ **`verdict: None` と、届いた文字（`read`）を残す。**
+    """
+    path = _console(tmp_path, ANSWERS)
+    neck = edge.Neck(str(path))
+    at = 1.0
+    assert neck.take(_first(neck), at) is True
+    _run(neck, at)
+
+    rows = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    verdicts = [row for row in rows if "verdict" in row]
+    assert len(verdicts) == 1, rows
+    assert verdicts[0]["verdict"] is None
+    assert "read" in verdicts[0]
 
 
 def test_the_probe_is_bounded_by_port_wait(tmp_path):

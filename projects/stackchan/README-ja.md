@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.18.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.19.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -202,11 +202,11 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - ⚠️ **これは流れではない。** 1つの段階の中の100の証拠事象が、枠を1つだけ生む。
 - **デーモンは枠を1行として書く**——`{"frame": "<ASCII の1行>", "sent": false, "at": …, "session": …}`——そしてその行は、電線の検査が押さえるのと同じ符号器が作るので、**ログが契約からずれることはない。**
 - ✅ **仕事がポートを名指すときは、送られる**——同じ行がポートへ書かれ、`sent` はホストの tty がそれを受けたかどうかを言う。⛔ **`sent: true` が言うのはホストの tty のことであり、基板が受け取ったことではない**: 届いたことは一度だけ、**基板自身のコンソールが枠を印字したことで**示された。✅ **画面は 0.19.12 から、向こう側にレンダラを持つ**——基板が枠の語から原廠の顔を描く——そして ⛔ **この層はそれを1度も描かない、という一点は今も真である。** ✅ **2026-10-18、設置されたデーモンが、本物のフック事象の上で最初の枠の行を書いた**——そして ⛔ **観測されたのは1行であり、運動ではない。**
-- ✅ **0.19.28 から、ログを読み返せる**——`python3 -m projects.stackchan.day <path>` が数える: 起動、判定、枠とその送信の有無、流れ（予定・適用・遅れ・保持）、読み戻し（**heard** と **positions** を別々に）、そしてポートに届いた枠の語である。**中核は行を受け取る**（`day/summary.py`、17のテスト）; **縁は渡された1本のパスを開き、既定値は無い**——設置済みのジョブがログを1度だけ名指している。⛔ **数えるのは体がしたことであり、日が暮らされたかも、再起動の理由も言えない。**
+- ✅ **0.19.28 から、ログを読み返せる**——`python3 -m projects.stackchan.day <path>` が数える: 起動、判定、枠とその送信の有無、流れ（予定・適用・遅れ・保持）、読み戻し（**heard** と **positions** を別々に）、そしてポートに届いた枠の語である。✅ **0.19.38 から、基板自身の判定も数える**——`pose: N applied, M refused, K clamped`、流しの最後の行の後に読む——**別の欄で**である。⛔ **ホストの `applied` は書いた行の数であり、基板のそれは取った行の数である。** ⚠️ **そしてその日まで、探針の行は2つの形をしていた**ので、成功した読み戻しはすべて読めない行として数えられていた: 変更前は `readbacks 46`・`positions 0`・`unreadable 58`、変更後は `readbacks 107`・`positions 61`・`unreadable 0`。**中核は行を受け取る**（`day/summary.py`、19のテスト）; **縁は渡された1本のパスを開き、既定値は無い**——設置済みのジョブがログを1度だけ名指している。⛔ **数えるのは体がしたことであり、日が暮らされたかも、再起動の理由も言えない。**
 
 ## 何を検査しているか
 
-**`tests/test_stackchan_behaviors.py` が35の主張を持ち、`tests/test_stackchan_daemon.py` が36、`tests/test_stackchan_hook_client.py` が21、`tests/test_stackchan_wire.py` が28、`tests/test_stackchan_outbound.py` が13、`tests/test_stackchan_neck.py` が40、`tests/test_stackchan_readback.py` が10を持つ。** 残りの検査と一緒に走る:
+**`tests/test_stackchan_behaviors.py` が35の主張を持ち、`tests/test_stackchan_daemon.py` が41、`tests/test_stackchan_hook_client.py` が21、`tests/test_stackchan_wire.py` が28、`tests/test_stackchan_outbound.py` が13、`tests/test_stackchan_neck.py` が42、`tests/test_stackchan_readback.py` が15を持つ。** 残りの検査と一緒に走る:
 
 - 一覧は33で、重複が無い。すべての事象が3つの種類のどれか1つに属し、種類が一覧を分割する。
 - すべての事象が理由の符号を持つ——**空欄が無い。**

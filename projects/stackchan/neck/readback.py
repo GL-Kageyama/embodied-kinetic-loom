@@ -17,7 +17,7 @@ import re
 
 from engine.backend.protocol_stackchan_pose import Pose
 
-__all__ = ["QUERY", "tenths", "answered", "parse"]
+__all__ = ["QUERY", "tenths", "answered", "parse", "verdict"]
 
 #: **基板へ尋ねる1行。** ⚠️ **改行で終わる**——`fgets` は行で返る。
 QUERY = b"bench pos\n"
@@ -53,6 +53,37 @@ def answered(text: str) -> bool:
     ログがその区別を持たなければ、配線の故障とサーボの故障が同じ行になる。
     """
     return _ANSWERED.search(text) is not None
+
+
+#: ⚠️ **基板が流しの終わりに印字する、自分の数である。**
+#: `pose: %d applied, %d refused, %d clamped`（`main.cpp` の `PoseWatchdog`）。
+#: ⛔ **ホストの `applied` とは別の数である**——基板は**受けた行をすべて数える**
+#: （最後の姿勢の繰り返しも1行である）。デーモンの `applied` は予定の歩数であり、
+#: 繰り返しは `held` に数える。**同じ名前の2つの数を、同じ欄に入れない。**
+_VERDICT = re.compile(r"^pose: (\d+) applied, (\d+) refused, (\d+) clamped", re.M)
+
+
+def verdict(text: str) -> dict | None:
+    """**基板が自分の数で言った、最後の判定。** ⚠️ **印字が無ければ `None`。**
+
+    ⚠️ **2026-10-19 に、この行が要ることが分かった。** その日、デーモンは
+    `{"neck": "recoil", "applied": 18, ...}` と書いた——**送った行の数である**——
+    そして次の探針は、頭が**1カウントも動いていない**ことを読んだ。
+    **基板の側の数（断った・丸めた）は、そのとき誰にも読まれていなかった。**
+    ⇒ **「送った」と「適用された」は別の問いであり、片方だけでは答えにならない。**
+
+    ⚠️ **最後の1つを返す**——窓の中に2つの流しがあれば、新しい方が効いている。
+    """
+    found = None
+    for match in _VERDICT.finditer(text):
+        found = match
+    if found is None:
+        return None
+    return {
+        "applied": int(found.group(1)),
+        "refused": int(found.group(2)),
+        "clamped": int(found.group(3)),
+    }
 
 
 def parse(text: str) -> Pose | None:

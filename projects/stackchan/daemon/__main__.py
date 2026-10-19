@@ -178,6 +178,20 @@ PORT_WAIT = 0.5
 #: ⛔ **改行は潰さない**——繋がった行は、改行が無いこと自体が証拠である。
 SEEN_LIMIT = 160
 
+#: **流しの終わりに、基板自身の判定を待つ上限（秒）。**
+#: ⚠️ **2026-10-19 に測った。** 静止した流しでは **0.489 秒**、機体の7つの身振りでは
+#: **0.429〜0.991 秒**——**メインループが動いているあいだは遅れる。**
+#: ⇒ **1.5 秒を上限にし、届いた時点で閉じる。**
+#: ⚠️ **1.0 秒では、実測の最大 0.991 秒にほとんど触れていた**——**上限は、届く前に切れては意味が無い。**
+#: ⛔ **この待ちは、コンソールを人の手から長く借りる。** その代償を、
+#: この行が測ったものと引き換えに払う——**払わなければ、基板の数は誰にも読まれない。**
+VERDICT_WAIT = 1.5
+
+#: **判定を読みに行く間隔（秒）。** ⚠️ **上限まで持ち続けないためである。**
+#: ⛔ **輪は期限でしか目を覚まさない**——上限だけを期限にすれば、0.49 秒で届いた日でも
+#: **1.0 秒ぶんコンソールを握る。** ⇒ **短い期限を重ね、届いた時点で閉じる。**
+VERDICT_POLL = 0.05
+
 
 #: **問いを飲み込んだ行の印。** ⚠️ **基板が「この行は取らなかった」と言う綴りである。**
 #: ⛔ **2026-10-19 まで2つしか無かった**——`console: unknown command` と `frame: refused`。
@@ -224,10 +238,19 @@ class Neck:
         self._stream = Stream(period=period, hold=hold)
         self._parked = None
         self._fd: int | None = None
+        self._verdict_at: float | None = None
+        self._verdict_next = 0.0
+        self._verdict_name: str | None = None
+        self._verdict_text = ""
 
     @property
     def deadline(self) -> float | None:
-        return self._stream.deadline if self._fd is not None else None
+        """**次に起こすべき時刻。** ⚠️ **流しの後にもう1つある**——基板の判定である。"""
+        if self._fd is None:
+            return None
+        if self._verdict_at is not None:
+            return min(self._verdict_at, self._verdict_next)
+        return self._stream.deadline
 
     def _open(self) -> bool:
         """**1つの身振りのために、1回だけ開く。** ⛔ 行ごとに開くと止まる。
@@ -255,6 +278,11 @@ class Neck:
             except OSError:
                 pass
             self._fd = None
+        # ⚠️ **閉じたら、待っていた判定も捨てる**——次の身振りの始点に混ぜない。
+        self._verdict_at = None
+        self._verdict_next = 0.0
+        self._verdict_name = None
+        self._verdict_text = ""
 
     def _write_to(self, fd: int, payload: bytes) -> bool:
         """**その fd へ1行。** ⛔ **待ちには上限がある。**
@@ -286,6 +314,61 @@ class Neck:
 
     def _write(self, payload: bytes) -> bool:
         return self._fd is not None and self._write_to(self._fd, payload)
+
+    def _read_some(self, fd: int) -> str:
+        """**待たずに、いま届いている分だけ読む。** ⛔ **ここでは一度も待たない。**
+
+        ⚠️ **待つのは `pump` の期限の側である。** 読む側が自分で待つと、
+        ソケットの見張りを止める——**判定は1秒待てるが、事象は待てない。**
+        ⚠️ **試験台（普通のファイル）では先頭から読む**——書き込みは `O_APPEND` なので
+        位置は動かず、先に置いた判定を読める。tty は `ESPIPE` を返すので、
+        そのときは今の位置から読む。
+        """
+        try:
+            os.lseek(fd, 0, os.SEEK_SET)
+        except OSError:
+            pass
+        out = b""
+        while True:
+            try:
+                ready, _, _ = select.select([fd], [], [], 0.0)
+            except (OSError, ValueError):
+                break
+            if not ready:
+                break
+            try:
+                chunk = os.read(fd, 4096)
+            except BlockingIOError:
+                break
+            except OSError:
+                break
+            if not chunk:
+                break
+            out += chunk
+        return out.decode("ascii", "replace")
+
+    def _settle(self, at: float) -> None:
+        """**基板自身の判定を、1行にする。** ⛔ **届いた時点で閉じる。**
+
+        ⚠️ **2つの行は別である**: `verdict` が `None` なら**基板は何も言わなかった**、
+        `{"applied": …, "refused": 0, "clamped": 0}` なら**言った**。
+        **「断らなかった」と「何も言わなかった」を、同じ行にしない。**
+        """
+        if self._verdict_at is None or self._fd is None:
+            return
+        self._verdict_text += self._read_some(self._fd)
+        found = readback.verdict(self._verdict_text)
+        if found is None and at < self._verdict_at:
+            # ⚠️ **まだ届いていない。** 上限まで握らず、短い期限で見に戻る。
+            self._verdict_next = at + VERDICT_POLL
+            return
+        emit({
+            "neck": self._verdict_name,
+            "verdict": found,
+            "read": _seen(self._verdict_text),
+            "at": at,
+        })
+        self._close()
 
     def _probe(self, fd: int) -> tuple[bool, Pose | None, str]:
         """**`bench pos` を書き、答えを `PORT_WAIT` まで読む。** ⛔ **上限を越えない。**
@@ -394,13 +477,20 @@ class Neck:
             return False
 
         heard, measured, seen = self._probe(self._fd)
-        if measured is not None:
-            emit({"position": [measured.yaw_tenths, measured.pitch_tenths], "at": at})
-        else:
-            # ⛔ **「コンソールが黙っている」と「サーボが答えない」は別の行である。**
-            # ⚠️ **そして、届いた文字を残す**——「何も届かなかった」と
-            #    「別のことが届いた」は、次の問いでは区別できない。
-            emit({"position": None, "heard": heard, "read": seen, "at": at})
+        # ⚠️ **1つの問いに、1つの形である。** ⛔ **2026-10-19 まで、成功した探針は
+        #    `{"position": [...], "at": …}` という2つ目の形で書かれていた**——
+        #    `heard` を持たないので、`projects/stackchan/day/summary.py` は
+        #    **成功した読み戻しを1行も数えられず、58行を `unreadable` に入れていた**
+        #    （その日のログ: `readbacks 46`、`positions 0`、`unreadable 58`）。
+        #    ⇒ **読み戻しが段7の計器であるなら、読者はその行を読めなければならない。**
+        # ⛔ **成功は `heard: True` である**——位置が読めたなら、コンソールは答えた。
+        emit({
+            "position": (None if measured is None else
+                         [measured.yaw_tenths, measured.pitch_tenths]),
+            "heard": heard,
+            "read": _seen(seen),
+            "at": at,
+        })
 
         starts = measured
         if starts is None:
@@ -445,9 +535,18 @@ class Neck:
         return True
 
     def pump(self, at: float) -> None:
-        """**期限の来た行を、すべて書く。** ⚠️ 終わったら、要約を1行だけ残す。"""
+        """**期限の来た行を、すべて書く。** ⚠️ 終わったら、要約を1行だけ残す。
+
+        ✅ **0.19.38 から、要約の後にもう1つある**——**基板自身の判定**である。
+        ⛔ **閉じる前に読む。** 閉じた後では、基板が印字した行は誰のものでもない。
+        """
         if self._fd is None:
             return
+        if self._verdict_at is not None:
+            # ⚠️ **流しは終わっている。** 判定が届いたか、期限が来たかだけを見る。
+            self._settle(at)
+            if self._fd is None:
+                return
         while True:
             line = self._stream.line(at)
             if line is None:
@@ -460,9 +559,16 @@ class Neck:
                 break
         summary = self._stream.take_summary()
         if summary is not None:
-            self._close()
             emit({"neck": summary.name, "applied": summary.applied,
                   "late": summary.late, "held": summary.held, "at": summary.at})
+            # ✅ **最後の行を書いた後、基板は自分の数を印字する。**
+            #    ⛔ **ここで閉じれば、その行は誰にも読まれない**——2026-10-19 まで、
+            #    そうだった。⇒ **判定の期限を置き、届いた時点で閉じる。**
+            self._verdict_at = summary.at + VERDICT_WAIT
+            self._verdict_next = summary.at
+            self._verdict_name = summary.name
+            self._verdict_text = ""
+            self._settle(at)
 
 
 def reply(connection: socket.socket, payload: dict) -> None:

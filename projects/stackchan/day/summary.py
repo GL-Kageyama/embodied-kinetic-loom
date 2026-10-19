@@ -55,9 +55,18 @@ class Summary:
     frames_sent: int = 0        # そのうち `sent: true`
     streamed: int = 0           # 首の予定（`neck` と `poses`）
     poses: int = 0              # 予定された姿勢の数の合計
-    applied: int = 0            # 基板が適用した姿勢の合計
+    applied: int = 0            # **デーモンが**書いた姿勢の合計（＝送った数である）
     late: int = 0               # そのうち遅れていたもの
     held: int = 0               # 基板が保持した姿勢の合計
+    # ✅ **2026-10-19（0.19.38）から、基板自身の数も数える。**
+    # ⛔ **上の `applied` は「送った数」であり、基板が「適用した」数ではない。**
+    # その日、`recoil` の流しは `applied: 18` と書かれ、次の探針は頭が0カウントしか
+    # 動いていないことを読んだ——**2つの数は別の問いに答える。**
+    verdicts: int = 0           # 基板が自分の判定を印字した回数
+    verdict_silent: int = 0     # 判定が届かなかった回数（基板は何も言わなかった）
+    board_applied: int = 0      # 基板が数えた「適用した」の合計
+    board_refused: int = 0      # 基板が断った行の合計
+    board_clamped: int = 0      # 基板が丸めた行の合計
     readbacks: int = 0          # `heard` の行
     heard: int = 0              # コンソールが答えた
     positions: int = 0          # サーボが位置を返した
@@ -108,15 +117,38 @@ def summarize(lines: Iterable[str]) -> Summary:
                     _bump(s.lights, frame.get("light"))
             continue
 
-        if "heard" in obj:
+        # ⚠️ **古い形の探針も数える。** ⛔ 2026-10-19 まで、成功した探針は
+        #    `heard` を持たない形で書かれていた——**その行は数えられず、
+        #    `unreadable` に入っていた**（その日のログ: `readbacks 46`、`positions 0`、
+        #    `unreadable 58`）。⇒ **この検査は、前の形のログにも効く。**
+        if "heard" in obj or "position" in obj:
             s.readbacks += 1
-            if obj.get("heard") is True:
+            # ⚠️ **位置が読めたなら、コンソールは答えた。** ⛔ 古い形は `heard` を
+            #    持たないので、そのままだと成功が「聞こえなかった」に数えられる。
+            if obj.get("heard") is True or obj.get("position") is not None:
                 s.heard += 1
             if obj.get("position") is not None:
                 s.positions += 1
             continue
 
         if "neck" in obj:
+            if "verdict" in obj:
+                # ⚠️ **判定の行である。** ⛔ `None` は「断らなかった」ではなく
+                #    **「基板が何も言わなかった」**である——2つを同じ数にしない。
+                found = obj.get("verdict")
+                if isinstance(found, dict):
+                    s.verdicts += 1
+                    for key, target in (
+                        ("applied", "board_applied"),
+                        ("refused", "board_refused"),
+                        ("clamped", "board_clamped"),
+                    ):
+                        value = found.get(key)
+                        if isinstance(value, int):
+                            setattr(s, target, getattr(s, target) + value)
+                else:
+                    s.verdict_silent += 1
+                continue
             if "poses" in obj:
                 s.streamed += 1
                 poses = obj.get("poses")
@@ -160,6 +192,11 @@ def render(s: Summary) -> str:
         row("poses applied", s.applied),
         row("  late", s.late),
         row("  held", s.held),
+        row("verdicts", s.verdicts),
+        row("  silent", s.verdict_silent),
+        row("  board applied", s.board_applied),
+        row("  board refused", s.board_refused),
+        row("  board clamped", s.board_clamped),
         row("readbacks", s.readbacks),
         row("  heard", s.heard),
         row("  positions", s.positions),

@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.18.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.19.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -202,11 +202,11 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - ⚠️ **这不是流。** 一个阶段里的一百个证据事件，只生出一个帧。
 - **守护进程把帧写成一行**——`{"frame": "<一行 ASCII>", "sent": false, "at": …, "session": …}`——而那一行由电线测试所守的同一个编码器产出，**所以日志不会偏离契约。**
 - ✅ **任务点了端口时就会发送**——同一行被写进端口，而 `sent` 说的是主机的 tty 是否收下了它。⛔ **`sent: true` 说的是主机的 tty，不是板子收到了它**：送达只被证明过一次，**靠板子自己的控制台把帧打印出来**。✅ **屏幕在对面自 0.19.12 起有了渲染器**——板子从帧里的词画出原厂的脸——而 ⛔ **仍然为真的一点是: 这一层从不画它。** ✅ **2026-10-18，已安装的守护进程在一次真实钩子事件上写下了第一个帧行**——而 ⛔ **观测到的是一行，不是运动。**
-- ✅ **自 0.19.28 起，日志可以被读回来**——`python3 -m projects.stackchan.day <path>` 数它: 启动、判定、帧以及每一帧是否送出、流（计划·应用·迟·保持）、读回（**heard** 与 **positions** 分开），以及到达端口的帧的词。**核心接收行**（`day/summary.py`，十七项测试）；**边缘打开交给它的那一个路径，没有默认值**——安装好的作业只命名日志一次。⛔ **它数的是身体做过的事，说不出一天是否被活过，也说不出重启的理由。**
+- ✅ **自 0.19.28 起，日志可以被读回来**——`python3 -m projects.stackchan.day <path>` 数它: 启动、判定、帧以及每一帧是否送出、流（计划·应用·迟·保持）、读回（**heard** 与 **positions** 分开），以及到达端口的帧的词。✅ **自 0.19.38 起，它也数板子自己的判定**——`pose: N applied, M refused, K clamped`，在流的最后一行之后读出——**放在自己的栏里**，因为 ⛔ **宿主的 `applied` 数的是写出的行，板子数的是收下的行。** ⚠️ **而在那一天之前，探针的行有两种形状**，于是每一次成功的读回都被算作无法读取: 改变之前 `readbacks 46` / `positions 0` / `unreadable 58`，改变之后 `readbacks 107` / `positions 61` / `unreadable 0`。**核心接收行**（`day/summary.py`，十九项测试）；**边缘打开交给它的那一个路径，没有默认值**——安装好的作业只命名日志一次。⛔ **它数的是身体做过的事，说不出一天是否被活过，也说不出重启的理由。**
 
 ## 检查了什么
 
-**`tests/test_stackchan_behaviors.py` 有三十五条主张，`tests/test_stackchan_daemon.py` 有三十六条，`tests/test_stackchan_hook_client.py` 有二十一条，`tests/test_stackchan_wire.py` 有二十八条，`tests/test_stackchan_outbound.py` 有十三条，`tests/test_stackchan_neck.py` 有四十条，`tests/test_stackchan_readback.py` 有十条**，它们与其余检查一起运行:
+**`tests/test_stackchan_behaviors.py` 有三十五条主张，`tests/test_stackchan_daemon.py` 有四十一条，`tests/test_stackchan_hook_client.py` 有二十一条，`tests/test_stackchan_wire.py` 有二十八条，`tests/test_stackchan_outbound.py` 有十三条，`tests/test_stackchan_neck.py` 有四十二条，`tests/test_stackchan_readback.py` 有十五条**，它们与其余检查一起运行:
 
 - 列表是三十三个，没有重复；每个事件恰好属于三种类型之一，三种类型分割整个列表。
 - 每个事件都带理由代码——**没有空白。**

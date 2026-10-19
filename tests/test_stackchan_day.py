@@ -125,6 +125,43 @@ def test_heard_and_position_are_two_different_counts():
     assert s.positions == 1
 
 
+def test_the_boards_own_verdict_is_counted_and_kept_apart_from_the_hosts():
+    """⛔ **「送った数」と「基板が適用した数」は、別の欄である。**
+
+    ⚠️ **2026-10-19 の `recoil`**: デーモンは `applied: 18` と書き、頭は1カウントも
+    動かなかった。**2つの数が同じ欄にあれば、その食い違いはログから読めない。**
+    ⇒ **判定の行は、`verdict` の欄で数える。**
+    """
+    s = summarize([
+        line({"neck": "recoil", "applied": 18, "late": 16, "held": 27, "at": 2.0}),
+        line({"neck": "recoil", "verdict": {"applied": 45, "refused": 2, "clamped": 1},
+              "read": "pose: 45 applied, 2 refused, 1 clamped\n", "at": 3.0}),
+        line({"neck": "look_up", "verdict": None, "read": "", "at": 4.0}),
+    ])
+    assert (s.applied, s.late, s.held) == (18, 16, 27)
+    assert (s.verdicts, s.verdict_silent) == (1, 1)
+    assert (s.board_applied, s.board_refused, s.board_clamped) == (45, 2, 1)
+
+
+def test_a_probe_that_carried_a_position_is_not_unreadable():
+    """⛔ **成功した読み戻しが、読めない行として数えられていた。**
+
+    ⚠️ **2026-10-19 のログで測った**: デーモンは成功した探針を `heard` の無い形
+    （`{"position": [...], "at": …}`）で書いていたので、この計器は
+    **58行を `unreadable` に入れ、`readbacks 46`・`positions 0` と言っていた**——
+    **段7の計器そのものが、計器から見えていなかった。**
+    ⇒ **古い形も、新しい形も、同じ1つの読み戻しである。**
+    """
+    old = line({"position": [100, 506], "at": 1.0})        # 2026-10-19 までの形
+    new = line({"position": [328, 506], "heard": True, "read": "", "at": 2.0})
+    s = summarize([old, new])
+    assert s.unreadable == 0
+    assert s.readbacks == 2
+    assert s.positions == 2
+    # ⚠️ **位置が読めたなら、コンソールは答えた。** 古い形は `heard` を持たない。
+    assert s.heard == 2
+
+
 def test_the_count_does_not_depend_on_the_order():
     """⚠️ **数え上げである。** 行の順序は数を変えない。"""
     lines = [
@@ -153,6 +190,7 @@ def test_rendering_names_every_count():
         "daemon starts 1", "decisions 1", "frames 1", "frames sent 1",
         "poses applied 3", "late 1", "held 2", "readbacks 1", "heard 1",
         "positions 0", "sounds chime 1", "phases working 1",
+        "verdicts 0", "board refused 0",
     ):
         assert needle in flat
 
