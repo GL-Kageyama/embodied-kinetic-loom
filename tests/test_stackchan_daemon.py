@@ -574,6 +574,29 @@ def test_a_swallowed_query_is_asked_once_more(sock):
     assert missed and "console: unknown command" in missed[0]["read"], missed
 
 
+def test_a_pose_refusal_is_a_swallowed_query_too(sock):
+    """⛔ **3つ目の綴りを、規則が持っていなかった。**
+
+    ⚠️ **2026-10-19 に測った**: レールの電源サイクル以降の59回の探査のうち、
+    **3回がこの形で終わった**——`pose: refused (malformed)`、`heard: false`。
+    `_MANGLED` は `console: unknown command` と `frame: refused` の2つしか
+    持っていなかったので、**尋ね直しは一度も発火しなかった。**
+
+    ⇒ **この行が、その3回を数える。** ⛔ **符号は `read` に残る**——
+    `(malformed)` と `(too-long)` と `(no-answer)` を、尋ね直しは混ぜない。
+    """
+    port = sock.parent / "console"
+    port.write_text("pose: refused (malformed)\n", encoding="ascii")
+    with Daemon(sock, port=port) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    raw = port.read_text(encoding="ascii")
+    assert raw.count("bench pos") == 2, raw
+    rows = [json.loads(line) for line in daemon.out.splitlines() if line.strip()]
+    missed = [row for row in rows if row.get("heard") is False]
+    assert missed and "pose: refused (malformed)" in missed[0]["read"], missed
+
+
 def test_a_console_that_answers_is_streamed_from_where_it_says(sock):
     """✅ **答えが返れば、最初の遷移から姿勢の行で流れる。**
 

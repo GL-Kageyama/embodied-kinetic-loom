@@ -179,8 +179,16 @@ PORT_WAIT = 0.5
 SEEN_LIMIT = 160
 
 
-#: **問いを飲み込んだ行の印。** ⚠️ 基板が「これは命令ではない」と言った2つの綴り。
-_MANGLED = re.compile(r"^(?:console: unknown command|frame: refused)", re.M)
+#: **問いを飲み込んだ行の印。** ⚠️ **基板が「この行は取らなかった」と言う綴りである。**
+#: ⛔ **2026-10-19 まで2つしか無かった**——`console: unknown command` と `frame: refused`。
+#: **そして、その日に残った3つの失敗は、どれも3つ目の綴りだった**:
+#: `pose: refused (malformed)`——**尋ねた行が、前の姿勢の行と繋がって届いた**印である
+#: （`at=22397.9` / `24989.5` / `25330.7`）。⇒ **尋ね直しは一度も発火しなかった。**
+#: ⚠️ **`(too-long)` も同じ印である**: 繋がった行は 64 バイトの上限を越える。
+#: ⇒ **符号を1つずつ書かない。** `pose: refused` は「その行を取らなかった」であり、
+#: **符号そのものは `read` に残る**——**尋ね直しは、その区別を消さない。**
+_MANGLED = re.compile(
+    r"^(?:console: unknown command|frame: refused|pose: refused)", re.M)
 
 
 def _seen(text: str) -> str:
