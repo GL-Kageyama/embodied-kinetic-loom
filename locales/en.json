@@ -31,6 +31,7 @@
   "stackchan_cli": {
     "description": "The layer between Claude Code's hook events and Stack-chan. Six phases, four channels, and no numbers for machine 2 — so nothing is sent",
     "help_motion": "Move the neck at transitions (on) or keep it still (off). Default: on",
+    "help_presence": "How lively the channels this layer added are: quiet (no work light, no failure flash, no wake word), normal, or lively (a shorter dwell). Default: normal",
     "help_sound": "Make a sound at transitions (on) or stay silent (off). Default: off — the speaker has not been verified",
     "help_event": "An event as NAME, NAME@SECONDS or WINDOW:NAME@SECONDS; repeatable. Example: --event SessionStart@0 --event Stop@3",
     "help_table": "Print every hook event and how it is classified",

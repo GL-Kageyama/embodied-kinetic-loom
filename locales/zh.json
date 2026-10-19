@@ -31,6 +31,7 @@
   "stackchan_cli": {
     "description": "Claude Code 的钩子事件与 Stack-chan 之间的层。六个阶段、四条通道，没有机器 2 的数——所以什么也不发送",
     "help_motion": "在转换时动脖子（on）或保持不动（off）。默认: on",
+    "help_presence": "这一层新增通道的热闹程度——quiet（没有作业的光、没有失败闪烁、没有醒来的一声）、normal、lively（停留更短）。默认: normal",
     "help_sound": "在转换时发声（on）或保持安静（off）。默认: off——扬声器尚未验证",
     "help_event": "事件写作 NAME、NAME@秒 或 窗口:NAME@秒；可重复。例: --event SessionStart@0 --event Stop@3",
     "help_table": "打印每一个钩子事件及其分类",

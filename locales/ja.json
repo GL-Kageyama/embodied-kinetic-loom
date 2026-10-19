@@ -31,6 +31,7 @@
   "stackchan_cli": {
     "description": "Claude Code のフック事象とスタックチャンのあいだの層。6つの段階、4つのチャンネル、そして機体2の数は無い——だから何も送らない",
     "help_motion": "遷移で首を動かす（on）か、動かさない（off）。既定: on",
+    "help_presence": "この層が足したチャンネルの賑やかさ——quiet（作業の光も、失敗の点滅も、起きたときの1語も無い）、normal、lively（滞留が短い）。既定: normal",
     "help_sound": "遷移で音を出す（on）か、出さない（off）。既定: off——スピーカーは未検証である",
     "help_event": "NAME、NAME@秒、窓:NAME@秒 の事象。繰り返せる。例: --event SessionStart@0 --event Stop@3",
     "help_table": "フック事象をすべて印字し、それぞれの分類を示す",
