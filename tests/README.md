@@ -4,7 +4,7 @@
 
 # tests/
 
-**Thirty-eight files, seven hundred and forty-two tests, all green — measured 2026-10-20.**
+**forty files, seven hundred and forty-six tests, all green — measured 2026-10-20.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -263,6 +263,15 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | no daemon, malformed input and an over-long input are silent with exit 0, and a listener that never answers does not hold the turn | `test_stackchan_next_hook.py` | **a hook must never fail the turn it is reporting** |
 | the second job has its own label, its own module and its own log | `test_stackchan_next_launchd.py` | ⛔ **two daemons appending to one log make every count in a day ambiguous** |
 | the dial is written out, the hour is not, and the port is named once | `test_stackchan_next_launchd.py` | ⚠️ **a blank is filled by someone else's default**; ⛔ **the quiet hours live in `quiet.py`** |
+
+**Four more hold the layer that chooses the light — the word, the chapter and the background window (0.19.51):**
+
+| the check | where | what it is for |
+|---|---|---|
+| a background window's tool changes no light, and its word is not remembered | `test_stackchan_next_presence.py` | ⛔ **the 2026-10-20 demo: a distant `run` turned the held window's `writing` into `busy`** — "a background window changes nothing" is a rule of the layer below too |
+| a background failure does not flash | `test_stackchan_next_presence.py` | ⛔ **the two-second `alert` had no owner** — a failure in a window nobody is watching is not shown on the one that is |
+| a new chapter does not inherit the last word | `test_stackchan_next_presence.py` | ⚠️ **the word belongs to the chapter**; forgetting it is what lets the first tool show immediately |
+| a blocked pause keeps the word | `test_stackchan_next_presence.py` | ⚠️ **a permission wait is inside the chapter, not its end** — clearing it would show `dim` until the next tool |
 
 **Twenty-one more hold the client — the process a hook would run:**
 

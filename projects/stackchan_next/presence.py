@@ -18,6 +18,25 @@
 ⛔ **`working` へ入ることは滞留に数えない。** 章の出入りは即座である。
 ✅ **だから、最初の `write` はすぐ見える**——入った時刻を「5秒前」として数える。
 
+⚠️ **語は部屋に1つであり、章に属する。** ⇒ **章が終われば忘れる**
+（`closing` / `present` / `resting` / `greeting` へ出た時点で捨てる。
+⛔ **`blocked` では捨てない**——許可待ちは章の途中であり、戻ったときに
+同じ作業が続いているからである）。**忘れなければ、次の章は前の章の
+最後の道具の色で開き**、しかもその色が**最初の道具の滞留を食う**——
+✅ **2026-10-20 のデモが、実際にそれを起こした。**
+
+⛔ **背後の窓の語は覚えない。** `Focus` は見ていない窓の事象を `distant` として
+返すが、その語で光を選べば**見ている窓の光が背後の窓の道具で変わる**——
+⚠️ **これも同じデモで起きた**（「背景の窓は何も変えない」という既存の規則に反する）。
+⇒ **`distant` の判定は、この層を1行も通らない。**
+
+⚠️ **窓ごとに語を持つ設計は選んでいない。** 部屋は1つであり、語も1つである。
+⇒ **2つの窓が同時に作業しているとき、光は最後に見ている窓の道具に従う。**
+⚠️ **奪った直後の章は、前の窓の語を最初の道具まで着ていることがある**——
+`UserPromptSubmit` は `working` へ直接入り、`greeting` を通らないからである。
+**窓ごとの正しさは測っていない。** ⛔ **ここで `Focus` の規則を写して先回りしない**
+——写せば、片方が黙って緩んだ日に、もう片方が鳴らない。
+
 ## 2. 失敗の長さ
 
 ⚠️ **1回の失敗は、いままで完全に見えなかった**——3回続かないと何も出ないからである。
@@ -59,6 +78,7 @@ from dataclasses import dataclass, field, replace
 from projects.stackchan.behaviors import (
     BODY_NONE,
     CONCERN,
+    DISTANT,
     Decision,
     Focus,
     Light,
@@ -162,10 +182,20 @@ class Presence:
 
         ⚠️ **`work` は、その事象が運ぶときだけ来る**（`work.WORK_EVENTS`）。
         ⛔ **知らない語は覚えない**——覚えれば、次の判定がその語で光る。
+
+        ⚠️ **背後の窓の語は、覚えたあとで戻す。** 語は判定を選ぶ前に要る
+        （この事象の光がその語で決まる）が、**その事象が見ている側でなければ
+        覚えてはならない**——⚠️ **判定が `distant` を名乗った時点で分かる**ので、
+        覚えた値を1つ前に戻す。⛔ **`Focus` の規則をここに写して先に判定しない**——
+        写せば、片方が黙って緩んだ日に、もう片方が鳴らない。
         """
+        remembered = self._work
         if work in work_words.WORK_WORDS and work_words.carries_work(event):
             self._work = work
-        return self._apply(self.room.offer(session, event, at, quiet=quiet), at, quiet)
+        decision = self.room.offer(session, event, at, quiet=quiet)
+        if decision.reason == DISTANT:
+            self._work = remembered
+        return self._apply(decision, at, quiet)
 
     def tick(self, at: float) -> Decision | None:
         """**事象の無い時刻を1つ進める。** ⚠️ **変わらなければ `None`。**
@@ -188,12 +218,30 @@ class Presence:
         return result
 
     def _decide(self, decision: Decision, at: float, quiet: bool) -> Decision:
+        if decision.reason == DISTANT:
+            # ⛔ **見ていない窓の事象は、この層を1行も通らない。**
+            #    通せば、背後の `run` が見ている窓の光を変え、背後の失敗が
+            #    見ている窓の `alert` を点す——**「背景は何も変えない」に反する。**
+            # ⚠️ **だが、光の欄は素通しできない。** `witness` は `Companion` の
+            #    素の光（`working` なら `dim`）を運ぶので、そのまま返せば
+            #    **枠が1つ出て、見えている光が `dim` へ落ちる。**
+            #    ⇒ **いま見えている光を返す**——**状態は1つも動かさない。**
+            if decision.phase is Phase.WORKING and self._showing is not None:
+                return replace(decision, light=self._showing)
+            return decision
+
         if self._woke(decision):
             decision = self._greet(decision, quiet)
 
         if decision.phase is not Phase.WORKING:
             self._showing = None
             self._flash_until = None
+            if decision.phase is not Phase.BLOCKED:
+                # ⚠️ **章が終わったら語を忘れる。** 忘れなければ、次の章は
+                #    前の章の最後の道具の色で開き、その色が最初の道具の滞留を食う。
+                #    ⛔ **`blocked` は章の途中である**——許可待ちから戻ったとき、
+                #    同じ作業が続いている。
+                self._work = None
             return decision
 
         if decision.reason == CONCERN:

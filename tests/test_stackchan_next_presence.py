@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 from projects.stackchan.behaviors import (
+    DISTANT,
     IDLE_SECONDS,
     Companion,
     Focus,
@@ -94,6 +95,62 @@ def test_leaving_the_chapter_is_not_held_by_the_dwell():
     back = room.offer("main", "PostToolUse", 0.7, work="run")
     assert back.phase is Phase.WORKING
     assert back.light is Light.BUSY, "入り直した章は、滞留を待たない"
+
+
+def test_a_background_window_does_not_touch_the_light():
+    """⛔ **「背景の窓は何も変えない」は、この層でも真でなければならない。**
+
+    ⚠️ **2026-10-20 のデモで、これが偽だった**——背後の窓の `run` が、見ている窓の
+    光を `writing` から `busy` へ変えた。**語は部屋に1つだからである。**
+    """
+    room = _presence()
+    _start(room, 0.0)
+    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WRITING
+
+    distant = room.offer("other", "PreToolUse", 6.0, work="run")
+    assert distant.reason == DISTANT
+    assert distant.light is Light.WRITING, "背後の窓の語で、見ている窓の光が変わった"
+
+    # ⛔ **語を覚えていてもいけない。** 覚えれば、次の道具が `busy` へ飛ぶ。
+    assert room.offer("main", "PreToolUse", 6.1, work="write").light is Light.WRITING
+
+
+def test_a_background_failure_does_not_flash():
+    """⛔ **背後の窓の失敗は、見ている窓の `alert` を点さない。**"""
+    room = _presence()
+    _start(room, 0.0)
+    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WRITING
+
+    distant = room.offer("other", "PostToolUseFailure", 0.6)
+    assert distant.reason == DISTANT
+    assert distant.light is Light.WRITING
+
+    # ⚠️ **点滅の期限が置かれていれば、この刻みが `flashed` を返す。**
+    assert room.tick(0.6 + FAILURE_FLASH_SECONDS) is None
+
+
+def test_a_new_chapter_does_not_inherit_the_last_word():
+    """⚠️ **語は章に属する。** 前の章の最後の道具の色で、次の章を開かない。"""
+    room = _presence()
+    _start(room, 0.0)
+    assert room.offer("main", "PreToolUse", 0.5, work="run").light is Light.BUSY
+    assert room.offer("main", "Stop", 1.0).phase is Phase.CLOSING
+
+    decision = room.offer("main", "UserPromptSubmit", 2.0)
+    assert decision.phase is Phase.WORKING
+    assert decision.light is Light.DIM, "前の章の run を、次の章が着ていた"
+
+
+def test_a_blocked_pause_keeps_the_word():
+    """⚠️ **許可待ちは章の途中である。** 戻ったとき、同じ作業が続いている。"""
+    room = _presence()
+    _start(room, 0.0)
+    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WRITING
+    assert room.offer("main", "PermissionRequest", 0.6).phase is Phase.BLOCKED
+
+    back = room.offer("main", "PostToolUse", 0.7)   # ⚠️ 語を運ばない事象
+    assert back.phase is Phase.WORKING
+    assert back.light is Light.WRITING
 
 
 def test_a_work_word_on_an_event_that_carries_none_is_ignored():
