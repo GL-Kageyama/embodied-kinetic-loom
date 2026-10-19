@@ -4,7 +4,7 @@
 
 # tests/
 
-**Thirty-five files, six hundred and twenty-one tests, all green — measured 2026-10-20.**
+**Thirty-eight files, seven hundred and twenty-six tests, all green — measured 2026-10-20.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -210,7 +210,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | no machine-1 name or number is in the package | `test_stackchan_behaviors.py` | over **AST identifiers and numeric constants**, not text — and it also asserts that no `motions/` directory exists |
 | the parser builds in three languages, and the help differs | `test_stackchan_behaviors.py` | the same assertion `test_strings.py` makes for the Pet's entry point |
 
-**Thirty-seven more hold the daemon — the process that keeps the phase between hook processes:**
+**Forty-nine more hold the daemon — the process that keeps the phase between hook processes:**
 
 | the check | where | what it is for |
 |---|---|---|
@@ -237,6 +237,18 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | **a port that takes nothing ends the stream** (0.19.15) | `test_stackchan_daemon.py` | each write is bounded by `PORT_WAIT = 0.5`; ⛔ **waiting with no upper limit is what stopped the daemon on 2026-10-19** |
 | **a port that cannot be opened leaves the gesture in the frame** (0.19.15) | `test_stackchan_daemon.py` | the board plays it instead, and the room carries on |
 | **an unanswered probe keeps what the board said, and a swallowed query is asked once more** (0.19.33) | `test_stackchan_daemon.py` | ⛔ **`heard: false` alone cannot tell silence from a merged line** — `ConsoleTask` does not read while a gesture or a sound plays |
+
+**Forty-two more hold the second layer's daemon — the same room, on its own socket (0.19.49):**
+
+| the check | where | what it is for |
+|---|---|---|
+| a request may carry a third word, and exactly the six are accepted | `test_stackchan_next_daemon.py` | ⛔ **an unknown word is `bad-value`, not a silent `other`** — a client's typo would otherwise shine as *some other work* and never be seen |
+| the two daemons bind different places and run at the same time | `test_stackchan_next_daemon.py` | ✅ **the installed job keeps answering while this one is tried** — ⛔ nothing is reinstalled to look at it |
+| the word is stamped on the row, and the key is absent when the event carries none | `test_stackchan_next_daemon.py` | ⚠️ **a day cannot be counted by a word it never sees**; ⛔ `null` would merge *not told* with *other* |
+| `write` → `writing`, and `run` → `busy` only after the five-second dwell | `test_stackchan_next_daemon.py` | ⛔ **the dwell is the rule, so the test waits for it** — a test that passes without waiting has measured nothing |
+| a greeting is not recoloured by the last tool | `test_stackchan_next_daemon.py` | a transition is a chapter, not work |
+| the quiet dial still answers, and the startup row names it | `test_stackchan_next_daemon.py` | quiet is not absence; ⚠️ **which dial is running is the first line of the log** |
+| the edge copies none of the machinery — only `handle` and `serve` are its own | `test_stackchan_next_daemon.py` | ⛔ **two spellings of a frame drift**; the second `serve` exists because the first resolves its own `handle` by name |
 
 **Twenty-one more hold the client — the process a hook would run:**
 

@@ -8,8 +8,9 @@
    （`tools/` など）は、これが無いと `import` できない。
 2. **`FakeClock` を1つだけ置く。** ⚠️ **`test_cycle.py` と `test_backend.py` が
    同じ時計を要る**——**2つ書けば、片方だけが直る。**
-3. **`sock` フィクスチャを1つだけ置く。** ⚠️ **`test_stackchan_daemon.py` と
-   `test_stackchan_hook_client.py` が同じ短いパスを要る**——**同じ理由である。**
+3. **`sock` フィクスチャを1つだけ置く。** ⚠️ **`test_stackchan_daemon.py`・
+   `test_stackchan_hook_client.py`・`test_stackchan_next_daemon.py` が同じ短いパスを要る**
+   ——**同じ理由である。**
 
 ⚠️ **`FakeClock` は何も検査しない。** **検査は、これを使う側に在る。**
 ⚠️ **このファイルは `time` を import しない**（`engine/` の純粋性とは別の話である——
