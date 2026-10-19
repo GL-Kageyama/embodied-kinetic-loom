@@ -203,8 +203,9 @@ def test_an_unanswered_query_is_written_and_not_believed(tmp_path, capsys):
     assert neck._fd is None, "演じさせた後も、ポートを握っている"
 
     rows = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    # ⚠️ **先頭の空行は 0.19.44 からである**——開いた直後の1バイト（切れ端を落とす）。
     assert rows == [
-        {"position": None, "heard": False, "read": "bench pos\n", "at": 0.0}
+        {"position": None, "heard": False, "read": "\nbench pos\n", "at": 0.0}
     ]
 
 
@@ -223,7 +224,7 @@ def test_the_console_can_answer_without_a_position(tmp_path, capsys):
         {
             "position": None,
             "heard": True,
-            "read": "bench: yaw=no answer pitch=no answer\nbench pos\n",
+            "read": "bench: yaw=no answer pitch=no answer\n\nbench pos\n",
             "at": 0.0,
         }
     ]

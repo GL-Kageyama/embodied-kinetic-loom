@@ -206,7 +206,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ## What is checked
 
-**`tests/test_stackchan_behaviors.py` holds thirty-five claims, `tests/test_stackchan_daemon.py` holds forty-six, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds twenty-eight, `tests/test_stackchan_outbound.py` holds thirteen, `tests/test_stackchan_neck.py` holds forty-two, and `tests/test_stackchan_readback.py` holds nineteen**, and they run with the rest of the suite:
+**`tests/test_stackchan_behaviors.py` holds thirty-five claims, `tests/test_stackchan_daemon.py` holds forty-nine, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds twenty-eight, `tests/test_stackchan_outbound.py` holds thirteen, `tests/test_stackchan_neck.py` holds forty-two, and `tests/test_stackchan_readback.py` holds nineteen**, and they run with the rest of the suite:
 
 - the list is 33 and none is repeated; every event has exactly one of three kinds, and the kinds partition it;
 - every event carries a reason code — **there is no blank**;

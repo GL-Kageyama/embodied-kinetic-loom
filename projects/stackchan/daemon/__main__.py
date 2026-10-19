@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import errno
 import json
 import os
 import re
@@ -136,16 +137,22 @@ def frame_line(frame: Frame) -> str:
 
 
 def frame_row(line: str, at: float, session: str | None, sent: bool,
-              accepted: bool | None = None) -> dict:
+              accepted: bool | None = None, why: str | None = None) -> dict:
     """**枠の1行を、ログの1行にする。** ⛔ **書いたことは、渡ったことではない。**
 
     ⚠️ `sent` は **`os.write` が行の長さを返したときだけ** `True` である。
     ⚠️ **`accepted` は基板の言葉である**——`True` は基板が受理の行を印字したこと、
     `False` は名指しで断ったこと、`None` は**何も印字しなかった**ことである。
     ⛔ **`None` を `False` と読まない**——言わなかったことと、断ったことは別である。
+
+    ✅ **2026-10-20 から `err` を持つ**——**書けなかった理由である。**
+    ⛔ **空欄は中立ではない。** その夜、00:29 から2時間30分のあいだに24の枠が
+    `sent: false` とだけ言い、**「端末が無い」と「誰かが握っている」を区別できなかった**
+    ——ホストが知っていた `ENOENT` は捨てられ、原因は `/dev` を見に行くまで分からなかった。
+    ⚠️ **書けたときは `None` である**——`None` は「失敗が無かった」であって、空欄ではない。
     """
     return {"frame": line.rstrip("\n"), "sent": sent, "accepted": accepted,
-            "at": at, "session": session}
+            "err": why, "at": at, "session": session}
 
 
 def send_line(path: str, line: str | bytes) -> bool:
@@ -178,12 +185,20 @@ def send_line(path: str, line: str | bytes) -> bool:
             pass
 
 
-def send_frame_and_read(path: str, line: str) -> tuple[bool, bool | None]:
+def errno_name(error: OSError) -> str:
+    """**開けなかった理由を、名指しで残す。** ⛔ **数だけでは読めない。**
+    """
+    return errno.errorcode.get(error.errno, f"E{error.errno}")
+
+
+def send_frame_and_read(path: str, line: str) -> tuple[bool, bool | None, str | None]:
     """**枠を1行書き、基板自身の受理の言葉を `PORT_WAIT` まで読む。**
 
-    ⚠️ **`(sent, accepted)` を返す。** `sent` は今まで通り tty が行を受けたことであり、
+    ⚠️ **`(sent, accepted, why)` を返す。** `sent` は今まで通り tty が行を受けたことであり、
     `accepted` は**基板が印字した行**（`neck/readback.py` の `frame_accepted`）である。
     ⛔ **片方が他方を言い換えない**——tty が受けた行を、基板が断ることはある。
+    ✅ **`why` は書けなかった理由である**（`ENOENT`、`EBUSY`、`EIO`、`short`）。
+    書けたときは `None` である——⚠️ **理由の欄を、失敗のときだけ埋めない。**
 
     ⚠️ **fd は書く前に開き、読むのと同じ fd で書く。2026-10-19 の測定が理由である。**
     その日、書いた後に開いた fd では、**その直前に印字された行を取りこぼした**
@@ -196,8 +211,8 @@ def send_frame_and_read(path: str, line: str) -> tuple[bool, bool | None]:
     """
     try:
         fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK | os.O_APPEND)
-    except OSError:
-        return False, None
+    except OSError as error:
+        return False, None, errno_name(error)
     try:
         try:
             os.lseek(fd, 0, os.SEEK_SET)
@@ -211,37 +226,42 @@ def send_frame_and_read(path: str, line: str) -> tuple[bool, bool | None]:
         payload = line.encode("ascii")
         try:
             if os.write(fd, payload) != len(payload):
-                return False, None
-        except OSError:
-            return False, None
+                # ⚠️ **端末が受け取りきらなかった。** 数ではなく、そのまま名指しする。
+                return False, None, "short"
+        except OSError as error:
+            return False, None, errno_name(error)
         try:
             os.lseek(fd, 0, os.SEEK_SET)
         except OSError:
             pass
         deadline = time.monotonic() + PORT_WAIT
-        text = ""
+        text, raw = "", b""
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0.0:
-                return True, readback.frame_accepted(text)
+                return True, readback.frame_accepted(text), None
             try:
                 ready, _, _ = select.select([fd], [], [], remaining)
             except (OSError, ValueError):
-                return True, readback.frame_accepted(text)
+                return True, readback.frame_accepted(text), None
             if not ready:
-                return True, readback.frame_accepted(text)
+                return True, readback.frame_accepted(text), None
             try:
                 chunk = os.read(fd, 256)
             except BlockingIOError:
                 continue
             except OSError:
-                return True, readback.frame_accepted(text)
+                return True, readback.frame_accepted(text), None
             if not chunk:
-                return True, readback.frame_accepted(text)
-            text += chunk.decode("ascii", "replace")
+                return True, readback.frame_accepted(text), None
+            # ⚠️ **バイトを溜めてから UTF-8 で読む。** 基板の印字は ASCII ではない
+            #    （`pose: stream started — …`）。⚠️ **塊ごとに読むと、`—` の3バイトが
+            #    2つの塊に割れた瞬間に `���` になる**——2026-10-20 の記録がそうだった。
+            raw += chunk
+            text = raw.decode("utf-8", "replace")
             accepted = readback.frame_accepted(text)
             if accepted is not None:
-                return True, accepted
+                return True, accepted, None
     finally:
         try:
             os.close(fd)
@@ -348,6 +368,15 @@ class Neck:
         except OSError:
             self._fd = None
             return False
+        # ⛔ **開いた直後の1バイトは、空行である。** 2026-10-20 03:00 に測った:
+        #    基板が切れた夜、差し直した直後の最初の `bench pos` は、切れる前の流しが
+        #    残した終端の欠けた1行に繋がれ、基板は `pose: refused (malformed)` と答え、
+        #    尋ね直しがもう1度尋ねて初めて答えた。⇒ **問いも姿勢の行も、前の行の
+        #    終端に依存しない。** 枠が 0.19.39 に得たのと同じ1バイトである。
+        if not self._write_to(self._fd, b"\n"):
+            # ⚠️ **空行すら書けない端末では、流さない。** 枠が身振りを運ぶ。
+            self._close()
+            return False
         return True
 
     def _close(self) -> None:
@@ -424,7 +453,8 @@ class Neck:
             if not chunk:
                 break
             out += chunk
-        return out.decode("ascii", "replace")
+        # ⚠️ **溜めてから UTF-8 で読む。** 基板の印字は ASCII ではない。
+        return out.decode("utf-8", "replace")
 
     def _settle(self, at: float) -> None:
         """**基板自身の判定を、1行にする。** ⛔ **届いた時点で閉じる。**
@@ -488,7 +518,7 @@ class Neck:
         except OSError:
             pass
         deadline = time.monotonic() + PORT_WAIT
-        text = ""
+        text, raw = "", b""
         reasked = False
         while True:
             remaining = deadline - time.monotonic()
@@ -508,7 +538,10 @@ class Neck:
                 return readback.answered(text), readback.parse(text), _seen(text)
             if not chunk:
                 return readback.answered(text), readback.parse(text), _seen(text)
-            text += chunk.decode("ascii", "replace")
+            # ⚠️ **バイトを溜めてから UTF-8 で読む。** 塊ごとに読むと、`—` の3バイトが
+            #    2つの塊に割れた瞬間に `���` になり、その行が記録に残る（2026-10-20）。
+            raw += chunk
+            text = raw.decode("utf-8", "replace")
             pose = readback.parse(text)
             if pose is not None:
                 return True, pose, _seen(text)
@@ -680,10 +713,10 @@ def deliver(frame: Frame, at: float, session: str | None, port: str | None) -> N
     """
     line = frame_line(frame)
     if port is None:
-        sent, accepted = False, None
+        sent, accepted, why = False, None, None
     else:
-        sent, accepted = send_frame_and_read(port, "\n" + line)
-    emit(frame_row(line, at, session, sent, accepted))
+        sent, accepted, why = send_frame_and_read(port, "\n" + line)
+    emit(frame_row(line, at, session, sent, accepted, why))
 
 
 def decide(room: Room, session: str, event: str, at: float,

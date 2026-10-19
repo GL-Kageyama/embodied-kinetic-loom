@@ -206,7 +206,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ## 何を検査しているか
 
-**`tests/test_stackchan_behaviors.py` が35の主張を持ち、`tests/test_stackchan_daemon.py` が46、`tests/test_stackchan_hook_client.py` が21、`tests/test_stackchan_wire.py` が28、`tests/test_stackchan_outbound.py` が13、`tests/test_stackchan_neck.py` が42、`tests/test_stackchan_readback.py` が19を持つ。** 残りの検査と一緒に走る:
+**`tests/test_stackchan_behaviors.py` が35の主張を持ち、`tests/test_stackchan_daemon.py` が49、`tests/test_stackchan_hook_client.py` が21、`tests/test_stackchan_wire.py` が28、`tests/test_stackchan_outbound.py` が13、`tests/test_stackchan_neck.py` が42、`tests/test_stackchan_readback.py` が19を持つ。** 残りの検査と一緒に走る:
 
 - 一覧は33で、重複が無い。すべての事象が3つの種類のどれか1つに属し、種類が一覧を分割する。
 - すべての事象が理由の符号を持つ——**空欄が無い。**

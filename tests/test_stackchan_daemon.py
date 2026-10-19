@@ -513,6 +513,32 @@ def test_a_missing_port_is_not_a_refusal(sock):
     assert not port.exists()
 
 
+def test_a_frame_that_cannot_be_written_names_why(sock):
+    """⛔ **「書けなかった」だけでは、理由にならない。** 2026-10-20 にそれが要った。
+
+    その夜、00:29 から2時間30分のあいだに24の枠が `sent: false` で、ログは
+    **「端末が無い」と「誰かが握っている」を区別できなかった**——ホストは `ENOENT` を
+    知っていて捨てていた。⇒ **理由を名指しで残す。**
+    ⚠️ **書けた枠の欄は `None` である**——それは「失敗が無かった」であって、空欄ではない。
+    """
+    absent = sock.parent / "absent"
+    with Daemon(sock, port=absent) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    frame = daemon.frames()[0]
+    assert frame["sent"] is False
+    assert frame["err"] == "ENOENT", frame
+
+    port = sock.parent / "console"
+    port.touch()
+    with Daemon(sock, port=port) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    written = daemon.frames()[0]
+    assert written["sent"] is True
+    assert written["err"] is None, written
+
+
 def test_without_a_port_nothing_is_written(sock):
     """⚠️ **既定では、端末を開かない。** `sent` は今まで通り `False`。"""
     with Daemon(sock) as daemon:
@@ -606,7 +632,27 @@ def test_the_first_gesture_is_not_streamed_when_the_console_does_not_answer(sock
     # ✅ **そして、その行は「何も届かなかった」ではなく「これが届いた」を言う。**
     # ⛔ **窓に届いた文字を捨てれば、次の問いでは区別できない**——
     #    2026-10-19、9回の問いのうち5回がこの行で終わり、理由は残らなかった。
-    assert missed[0]["read"] == "bench pos\n", missed[0]
+    # ⚠️ **先頭の空行は、0.19.44 から書かれるものである**（下の検査を参照）。
+    assert missed[0]["read"] == "\nbench pos\n", missed[0]
+
+
+def test_a_query_is_written_after_a_blank_line(sock):
+    """⛔ **問いも、前の行の終端に依存しない。** 2026-10-20 03:00 に測った。
+
+    基板が切れた夜、差し直した直後の最初の `bench pos` は、切れる前の流しが残した
+    **終端の欠けた1行**に繋がれ、基板は `pose: refused (malformed)` と答えた——
+    尋ね直しがもう1度尋ねて、初めて答えた（その行は `read` に残っている）。
+    ⇒ **開いた直後の1バイトを空行にする。** 枠が 0.19.39 に得たのと同じ1バイトである。
+
+    ⚠️ **測るのは書いた側である**——端末のファイルの先頭が、空行で始まっていること。
+    """
+    port = sock.parent / "console"
+    port.touch()
+    with Daemon(sock, port=port) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    text = port.read_text(encoding="ascii")
+    assert text.startswith("\nbench pos\n"), f"問いの前に空行が無い: {text!r}"
 
 
 def test_a_console_that_says_something_else_keeps_what_it_said(sock):
@@ -628,6 +674,31 @@ def test_a_console_that_says_something_else_keeps_what_it_said(sock):
     assert "console: unknown command" in missed[0]["read"], missed[0]
     # ⛔ **尋ねたことは、言い訳に使えない。** 問いは書かれている。
     assert "bench pos" in port.read_text(encoding="ascii")
+
+
+def test_a_board_line_is_read_as_utf8(sock):
+    """⛔ **基板の印字は ASCII ではない。** `—` が `���` になって記録に残っていた。
+
+    2026-10-20 のログには `pose: stream started ��� goals on the present positions …` が
+    残っている——**基板は UTF-8 で印字し、ホストは ASCII として読み替えていた。**
+    ⚠️ **塊ごとに読むと、3バイトの文字が2つの塊に割れた瞬間に壊れる**ので、バイトを溜める。
+    """
+    port = sock.parent / "console"
+    port.write_text(
+        "pose: stream started — yaw 504\n"
+        "bench: yaw=ok pitch=ok\n"
+        "bench: yaw raw 512, angle 2.5 deg (zero 504)\n"
+        "bench: pitch raw 788, angle 2.5 deg (zero 780)\n",
+        encoding="utf-8",
+    )
+    with Daemon(sock, port=port) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    rows = [json.loads(line) for line in daemon.out.splitlines() if line.strip()]
+    measured = [row for row in rows if "read" in row and row.get("heard") is True]
+    assert measured, "答えを読んだ行が無い——この検査は何も見ていない"
+    assert "—" in measured[0]["read"], measured[0]
+    assert "�" not in measured[0]["read"], measured[0]
 
 
 def test_a_swallowed_query_is_asked_once_more(sock):

@@ -206,7 +206,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ## 检查了什么
 
-**`tests/test_stackchan_behaviors.py` 有三十五条主张，`tests/test_stackchan_daemon.py` 有四十六条，`tests/test_stackchan_hook_client.py` 有二十一条，`tests/test_stackchan_wire.py` 有二十八条，`tests/test_stackchan_outbound.py` 有十三条，`tests/test_stackchan_neck.py` 有四十二条，`tests/test_stackchan_readback.py` 有十九条**，它们与其余检查一起运行:
+**`tests/test_stackchan_behaviors.py` 有三十五条主张，`tests/test_stackchan_daemon.py` 有四十九条，`tests/test_stackchan_hook_client.py` 有二十一条，`tests/test_stackchan_wire.py` 有二十八条，`tests/test_stackchan_outbound.py` 有十三条，`tests/test_stackchan_neck.py` 有四十二条，`tests/test_stackchan_readback.py` 有十九条**，它们与其余检查一起运行:
 
 - 列表是三十三个，没有重复；每个事件恰好属于三种类型之一，三种类型分割整个列表。
 - 每个事件都带理由代码——**没有空白。**
