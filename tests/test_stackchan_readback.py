@@ -115,6 +115,44 @@ def test_nothing_printed_is_not_a_verdict_of_zero():
     assert readback.verdict("pose 12 34*41\n") is None
 
 
+def test_the_frame_acceptance_is_the_boards_own_line():
+    """✅ **枠を受け取ったかは、基板が印字する。** ⛔ ホストの `sent` とは別の問いである。
+
+    ⚠️ **綴りの正本も `main.cpp` に在る**（`HandleFrame`）。ここは写しである。
+    """
+    source = MAIN_CPP.read_text(encoding="utf-8")
+    assert 'frame: light=%s face=%s gesture=%s sound=%s' in source
+    assert 'frame: refused (%s)' in source
+
+    accepted = ("frame: light=warm face=greeting gesture=none sound=hello\r\n")
+    assert readback.frame_accepted(accepted) is True
+    assert readback.frame_accepted("frame: refused (unknown value)\r\n") is False
+
+
+def test_a_gesture_line_is_not_the_frame_being_accepted():
+    """⛔ **身振りの印字は、枠の受理ではない。** 混ぜると、断られた枠が通ったことになる。
+
+    ⚠️ 基板は `frame: gesture %s -> raw yaw=%d pitch=%d` も印字する——
+    **同じ接頭辞で始まるが、別の問いへの答えである。**
+    """
+    gesture = "frame: gesture look_up -> raw yaw=1 pitch=2 (measured posture)\n"
+    assert readback.frame_accepted(gesture) is None
+
+
+def test_nothing_printed_is_not_a_refusal():
+    """⛔ **「何も言わなかった」と「名指しで断った」は別である。** `None` と `False`。"""
+    assert readback.frame_accepted("") is None
+    assert readback.frame_accepted(ANSWERS) is None
+
+
+def test_a_window_with_two_frames_keeps_the_last():
+    """⚠️ **新しい方が効いている。** 前の枠の受理を、今の枠の答えとして読まない。"""
+    ok = "frame: light=warm face=greeting gesture=none sound=hello\n"
+    refused = "frame: refused (malformed)\n"
+    assert readback.frame_accepted(ok + refused) is False
+    assert readback.frame_accepted(refused + ok) is True
+
+
 # ---------------------------------------------------------------------------
 # 縁。⚠️ 端末の代わりに、ただのファイルを開く。
 # ---------------------------------------------------------------------------

@@ -15,6 +15,9 @@
 ⚠️ **開いて書き、閉じる**——**1枠ごとに。** コンソールは1本のポートであり、
 握ったままのデーモンは `bench` と `idf.py flash` の間に座り込む。
 ⚠️ **`--port` が無いとき、`sent` は今まで通り `False` である。**
+✅ **0.19.41 から、枠の受理は基板の言葉で読む**——同じ fd に書いて `PORT_WAIT` まで読み、
+行は `accepted`（`True`・`False`・**何も言わなかった `None`**）を持つ。
+⛔ **`sent: true` は今も tty のことであり、`accepted` が基板のことである。**
 
 ⚠️ **そして 2026-10-19 から、音には時刻の門がある**——21:00–05:00 は静かな時間であり、
 `sound` の欄が閉じる（`quiet.py`）。⛔ **顔も光も首は従わない。**
@@ -132,12 +135,17 @@ def frame_line(frame: Frame) -> str:
     return wire.encode(command).decode("ascii")
 
 
-def frame_row(line: str, at: float, session: str | None, sent: bool) -> dict:
+def frame_row(line: str, at: float, session: str | None, sent: bool,
+              accepted: bool | None = None) -> dict:
     """**枠の1行を、ログの1行にする。** ⛔ **書いたことは、渡ったことではない。**
 
     ⚠️ `sent` は **`os.write` が行の長さを返したときだけ** `True` である。
+    ⚠️ **`accepted` は基板の言葉である**——`True` は基板が受理の行を印字したこと、
+    `False` は名指しで断ったこと、`None` は**何も印字しなかった**ことである。
+    ⛔ **`None` を `False` と読まない**——言わなかったことと、断ったことは別である。
     """
-    return {"frame": line.rstrip("\n"), "sent": sent, "at": at, "session": session}
+    return {"frame": line.rstrip("\n"), "sent": sent, "accepted": accepted,
+            "at": at, "session": session}
 
 
 def send_line(path: str, line: str | bytes) -> bool:
@@ -163,6 +171,77 @@ def send_line(path: str, line: str | bytes) -> bool:
         return os.write(fd, payload) == len(payload)
     except OSError:
         return False
+    finally:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
+
+def send_frame_and_read(path: str, line: str) -> tuple[bool, bool | None]:
+    """**枠を1行書き、基板自身の受理の言葉を `PORT_WAIT` まで読む。**
+
+    ⚠️ **`(sent, accepted)` を返す。** `sent` は今まで通り tty が行を受けたことであり、
+    `accepted` は**基板が印字した行**（`neck/readback.py` の `frame_accepted`）である。
+    ⛔ **片方が他方を言い換えない**——tty が受けた行を、基板が断ることはある。
+
+    ⚠️ **fd は書く前に開き、読むのと同じ fd で書く。2026-10-19 の測定が理由である。**
+    その日、書いた後に開いた fd では、**その直前に印字された行を取りこぼした**
+    ——⇒ **開いた後に書けば、答えは必ずその fd に来る。** 流しの判定（0.19.38）と
+    同じ形であり、`bench pos` の探針とも同じである。
+
+    ⚠️ **書く前に、溜まっていた出力を捨てる**——前に印字された受理の行を、
+    今の枠の答えとして読まない。⚠️ **普通のファイルは試験台である**: tty では
+    `lseek` が失敗するので、そのときだけ捨て、ファイルでは先頭から読む。
+    """
+    try:
+        fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK | os.O_APPEND)
+    except OSError:
+        return False, None
+    try:
+        try:
+            os.lseek(fd, 0, os.SEEK_SET)
+        except OSError:
+            while True:
+                try:
+                    if not os.read(fd, 4096):
+                        break
+                except (BlockingIOError, OSError):
+                    break
+        payload = line.encode("ascii")
+        try:
+            if os.write(fd, payload) != len(payload):
+                return False, None
+        except OSError:
+            return False, None
+        try:
+            os.lseek(fd, 0, os.SEEK_SET)
+        except OSError:
+            pass
+        deadline = time.monotonic() + PORT_WAIT
+        text = ""
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.0:
+                return True, readback.frame_accepted(text)
+            try:
+                ready, _, _ = select.select([fd], [], [], remaining)
+            except (OSError, ValueError):
+                return True, readback.frame_accepted(text)
+            if not ready:
+                return True, readback.frame_accepted(text)
+            try:
+                chunk = os.read(fd, 256)
+            except BlockingIOError:
+                continue
+            except OSError:
+                return True, readback.frame_accepted(text)
+            if not chunk:
+                return True, readback.frame_accepted(text)
+            text += chunk.decode("ascii", "replace")
+            accepted = readback.frame_accepted(text)
+            if accepted is not None:
+                return True, accepted
     finally:
         try:
             os.close(fd)
@@ -593,10 +672,18 @@ def deliver(frame: Frame, at: float, session: str | None, port: str | None) -> N
     ⇒ **空行は基板が捨てる**（`g_line_len > 0` のときだけ行を渡す）ので、1バイトで足りる。
     ⚠️ **問い（`bench pos`）には置かない**——そこには既に尋ね直しが在り、
     そちらは「答えを読み直す」ことで直る（0.19.33）。枠は、尋ね直す相手ではない。
+
+    ✅ **0.19.41 から、書いた後に基板の言葉を読む**（`send_frame_and_read`）。
+    ⛔ **読めるのは、その答えが来たときだけである**——来なければ `accepted: null` であり、
+    **それは「断られた」ではない。** 窓は `PORT_WAIT` で縛られ、返ればすぐ閉じる。
+    ⚠️ **枠は尋ね直さない**——同じ枠を2度書けば、顔も光も2度動く。
     """
     line = frame_line(frame)
-    sent = send_line(port, "\n" + line) if port is not None else False
-    emit(frame_row(line, at, session, sent))
+    if port is None:
+        sent, accepted = False, None
+    else:
+        sent, accepted = send_frame_and_read(port, "\n" + line)
+    emit(frame_row(line, at, session, sent, accepted))
 
 
 def decide(room: Room, session: str, event: str, at: float,

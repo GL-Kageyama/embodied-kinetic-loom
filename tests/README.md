@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.29.0 | canonical: tests/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.30.0 | canonical: tests/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -224,6 +224,9 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | **the configured port receives the logged line** | `test_stackchan_daemon.py` | ⚠️ **the log row and the bytes come from one call to the codec**, so they cannot drift |
 | **a frame is written after a blank line** (0.19.39) | `test_stackchan_daemon.py` | ⛔ **the board accumulates until `\n`, and a fragment glued the next line to itself** — measured on the unit |
 | **the signal handler is installed before the socket is bound** (0.19.40) | `test_stackchan_daemon.py` | ⛔ **a socket existed while a `SIGTERM` still had the default disposition** — one test touched the window, once |
+| **the board's word on the frame is logged as `accepted`** (0.19.41) | `test_stackchan_daemon.py` | ⛔ **an fd opened after the write misses the line** — the acceptance line and the refusal line are read on the fd that wrote the frame |
+| **a board that said nothing leaves `accepted: null`, not `false`** (0.19.41) | `test_stackchan_daemon.py` | ⛔ **saying nothing and refusing are two failures** — the same rule `verdict: null` has had since 0.19.38 |
+| **a frame's acceptance is the board's line, and `frame: gesture` is not it** (0.19.41) | `test_stackchan_readback.py` | ⛔ **the same prefix carries a different question** — the spellings are read out of `main.cpp` |
 | a missing port is `sent: false`, not a refusal | `test_stackchan_daemon.py` | ⛔ **a replug can rename the console**; a missing path must not be fatal under `KeepAlive` |
 | without a port, nothing is written anywhere | `test_stackchan_daemon.py` | the device is optional, and that is still the default |
 | a write that returns short is not `sent` | `test_stackchan_daemon.py` | ⛔ **`sent` is the host's tty taking the whole line — not the board receiving it** |

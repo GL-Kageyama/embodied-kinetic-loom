@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.29.0 | canonical: tests/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.30.0 | canonical: tests/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -245,6 +245,9 @@
 | **指名的端口收到日志里的那一行** | `test_stackchan_daemon.py` | ⚠️ **日志行和字节来自对编码器的一次调用**，所以不可能偏离 |
 | **帧写在空行之后**（0.19.39） | `test_stackchan_daemon.py` | ⛔ **板子会一直积到 `\n`，残片把下一行粘住了**——在机体上测得 |
 | **信号的处理装在绑定套接字之前**（0.19.40） | `test_stackchan_daemon.py` | ⛔ **套接字已存在，而 `SIGTERM` 还是默认处置**——检查恰好碰到过一次那个窗口 |
+| **板子对帧的话被记为 `accepted`**（0.19.41） | `test_stackchan_daemon.py` | ⛔ **写完才打开的 fd 会漏掉那一行**——受理行与拒绝行都在写下帧的那个 fd 上读 |
+| **什么都没说的板子留下 `accepted: null` 而不是 `false`**（0.19.41） | `test_stackchan_daemon.py` | ⛔ **不说与拒绝是两种失败**——与 `verdict: null` 自 0.19.38 起的规则相同 |
+| **帧的受理是板子的行，`frame: gesture` 不是它**（0.19.41） | `test_stackchan_readback.py` | ⛔ **同一个前缀承载不同的问题**——拼法从 `main.cpp` 读出 |
 | 不存在的端口是 `sent: false`，不是拒绝 | `test_stackchan_daemon.py` | ⛔ **插拔可能改写控制台的名字**; 不存在的路径在 `KeepAlive` 之下不能是致命的 |
 | 没有端口时，哪里都不写 | `test_stackchan_daemon.py` | 机器是可选的，而那仍然是默认 |
 | 返回短了的写入不算 `sent` | `test_stackchan_daemon.py` | ⛔ **`sent` 是主机的 tty 取走了整行——不是板子收到了它** |

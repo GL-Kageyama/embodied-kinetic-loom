@@ -20,10 +20,11 @@ def line(obj: dict) -> str:
     return json.dumps(obj, ensure_ascii=False)
 
 
-def frame(sent: bool = True, **words: object) -> str:
+def frame(sent: bool = True, accepted: object = None, **words: object) -> str:
     body = {"face": None, "light": "dim", "gesture": None, "sound": None}
     body.update(words)
-    return line({"frame": json.dumps(body), "sent": sent, "at": 1.0, "session": "s"})
+    return line({"frame": json.dumps(body), "sent": sent, "accepted": accepted,
+                 "at": 1.0, "session": "s"})
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +81,20 @@ def test_an_unsent_frame_is_counted_but_its_words_are_not():
     s = summarize([frame(sent=False, sound="hello", face="greeting")])
     assert s.frames == 1 and s.frames_sent == 0
     assert s.sounds == {} and s.faces == {}
+
+
+def test_the_boards_word_on_a_frame_is_counted_three_ways():
+    """⛔ **受理・拒否・聞こえなかった、は3つの数である。**
+
+    ⚠️ **`None` は「断られた」ではない**——基板が何も言わなかったことである。
+    0.19.41 より前の行は `accepted` を持たないので、**同じ `unheard` に数える**。
+    """
+    old = line({"frame": json.dumps({"light": "warm"}), "sent": True, "at": 1.0})
+    s = summarize([frame(accepted=True), frame(accepted=False), frame(accepted=None), old])
+    assert s.frames == 4
+    assert s.frames_accepted == 1
+    assert s.frames_refused == 1
+    assert s.frames_unheard == 2
 
 
 def test_a_frame_whose_body_is_not_json_is_counted_apart():

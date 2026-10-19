@@ -457,6 +457,47 @@ def test_a_frame_is_written_after_a_blank_line(sock):
     assert "\n" + frames[0]["frame"] + "\n" in text, f"枠の前に空行が無い: {text!r}"
 
 
+def test_the_boards_word_on_the_frame_is_logged(sock):
+    """✅ **枠が通ったかは、基板が印字した行で読む。** ⛔ `sent` は tty のことである。
+
+    ⚠️ **端末の代わりは、ただのファイルである。** 基板の答えを先に置いておくと、
+    デーモンは同じ fd に書き、書いた後にその答えを読む——**0.19.38 の判定と同じ形。**
+    """
+    port = sock.parent / "console"
+    port.write_text("frame: light=warm face=greeting gesture=none sound=hello\r\n",
+                    encoding="ascii")
+    with Daemon(sock, port=port) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    frames = daemon.frames()
+    assert frames and frames[0]["sent"] is True
+    assert frames[0]["accepted"] is True
+
+
+def test_a_frame_the_board_refused_is_logged_as_refused(sock):
+    """⛔ **基板が名指しで断った枠は、`accepted: false` である。**"""
+    port = sock.parent / "console"
+    port.write_text("frame: refused (unknown value)\r\n", encoding="ascii")
+    with Daemon(sock, port=port) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    frames = daemon.frames()
+    assert frames and frames[0]["sent"] is True
+    assert frames[0]["accepted"] is False
+
+
+def test_a_frame_with_no_board_answer_is_not_a_refusal(sock):
+    """⛔ **何も言わなかったことは、断ったことではない。** `None` と `False` は別である。"""
+    port = sock.parent / "console"
+    port.touch()
+    with Daemon(sock, port=port) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    frames = daemon.frames()
+    assert frames and frames[0]["sent"] is True
+    assert frames[0]["accepted"] is None
+
+
 def test_a_missing_port_is_not_a_refusal(sock):
     """⛔ **端末が無いことは、事象の拒否ではない。** 部屋は答える。"""
     port = sock.parent / "absent"

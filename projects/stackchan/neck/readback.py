@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""**基板に、今どこに居るかを尋ねた答えを読む。** ⛔ **時計もポートも読まない**——綴りだけである。
+"""**基板がコンソールへ印字した行を読む。** ⛔ **時計もポートも読まない**——綴りだけである。
+
+⚠️ **主な問いは「今どこに居るか」である**（`bench pos` の答え）。✅ **0.19.38 からは
+流しの終わりの判定も、0.19.41 からは枠の受理も、同じ場所で読む**——どれも
+**基板が自分で印字した行**であり、ホストの数ではない。
 
 ⚠️ **尋ねる行は、この機体の bench が既に持っている**（`main.cpp` の `bench pos`）。
 ⛔ **新しい命令を発明しない。** 尋ねる綴りも、答える綴りも、基板の側に在る——
@@ -17,7 +21,7 @@ import re
 
 from engine.backend.protocol_stackchan_pose import Pose
 
-__all__ = ["QUERY", "tenths", "answered", "parse", "verdict"]
+__all__ = ["QUERY", "tenths", "answered", "parse", "verdict", "frame_accepted"]
 
 #: **基板へ尋ねる1行。** ⚠️ **改行で終わる**——`fgets` は行で返る。
 QUERY = b"bench pos\n"
@@ -84,6 +88,35 @@ def verdict(text: str) -> dict | None:
         "refused": int(found.group(2)),
         "clamped": int(found.group(3)),
     }
+
+
+#: ⚠️ **基板が枠を受けたときに印字する行である**（`main.cpp` の `HandleFrame`）。
+#: 形は `frame: light=%s face=%s gesture=%s sound=%s`。
+_FRAME_OK = re.compile(r"^frame: light=\S+ face=\S+ gesture=\S+ sound=\S+", re.M)
+
+#: ⛔ **基板が枠を断ったときの行である。** 括弧の中は理由
+#: （`malformed`、`too-long`、`unknown value` など）——**理由は読むが、選ばない。**
+_FRAME_REFUSED = re.compile(r"^frame: refused \(", re.M)
+
+
+def frame_accepted(text: str) -> bool | None:
+    """**基板が、この枠を受け取ったと言ったか。** ⚠️ **言っていなければ `None`。**
+
+    ⛔ **`None` は「断られた」ではない。** 基板が何も印字しなかったこと
+    （窓の中に届かなかった、行が繋がれた、まだ処理されていない）であり、
+    **`False` は基板が名指しで断ったことである**——2つを同じ欄にしない。
+
+    ⚠️ **最後の判定を返す**——窓の中で2つの枠が出ていれば、新しい方が効いている。
+    ⛔ **`frame: gesture …` の行は数えない。** あれは身振りをどう扱ったかの印字であり、
+    **枠の受理そのものではない**（受理の行は `frame: light=` で始まる）。
+    """
+    found: tuple[int, bool] | None = None
+    for match in _FRAME_OK.finditer(text):
+        found = (match.start(), True)
+    for match in _FRAME_REFUSED.finditer(text):
+        if found is None or match.start() > found[0]:
+            found = (match.start(), False)
+    return None if found is None else found[1]
 
 
 def parse(text: str) -> Pose | None:

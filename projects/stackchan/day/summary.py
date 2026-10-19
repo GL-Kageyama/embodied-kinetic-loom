@@ -53,6 +53,11 @@ class Summary:
     decisions: int = 0          # `ok` の行
     frames: int = 0             # `frame` の行（送られたかは問わない）
     frames_sent: int = 0        # そのうち `sent: true`
+    # ✅ **2026-10-19（0.19.41）から、基板の受理の言葉も数える。**
+    # ⛔ **`sent` は tty のことであり、`accepted` は基板のことである。**
+    frames_accepted: int = 0    # 基板が受理の行を印字した
+    frames_refused: int = 0     # 基板が名指しで断った
+    frames_unheard: int = 0     # 何も言わなかった（**断ったのではない**）
     streamed: int = 0           # 首の予定（`neck` と `poses`）
     poses: int = 0              # 予定された姿勢の数の合計
     applied: int = 0            # **デーモンが**書いた姿勢の合計（＝送った数である）
@@ -100,6 +105,15 @@ def summarize(lines: Iterable[str]) -> Summary:
 
         if "frame" in obj:
             s.frames += 1
+            # ⚠️ **3つに分ける。** ⛔ `None`（と、この欄より前の行）は「聞こえなかった」
+            #    であり、「断られた」ではない——2つを同じ数にしない。
+            accepted = obj.get("accepted")
+            if accepted is True:
+                s.frames_accepted += 1
+            elif accepted is False:
+                s.frames_refused += 1
+            else:
+                s.frames_unheard += 1
             if obj.get("sent") is True:
                 s.frames_sent += 1
                 body = obj.get("frame")
@@ -187,6 +201,9 @@ def render(s: Summary) -> str:
         row("decisions", s.decisions),
         row("frames", s.frames),
         row("frames sent", s.frames_sent),
+        row("  accepted", s.frames_accepted),
+        row("  refused", s.frames_refused),
+        row("  unheard", s.frames_unheard),
         row("neck streamed", s.streamed),
         row("poses planned", s.poses),
         row("poses applied", s.applied),
