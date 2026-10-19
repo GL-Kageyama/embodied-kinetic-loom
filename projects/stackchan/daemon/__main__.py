@@ -724,15 +724,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
-    try:
-        listener = bind(args.socket)
-    except OSError as exc:
-        sys.stderr.write(f"cannot bind {args.socket}: {exc}\n")
-        return 1
-    if listener is None:
-        sys.stderr.write(f"another daemon is alive on {args.socket}\n")
-        return EXIT_ALREADY_RUNNING
-
+    # ⛔ **信号の受け口を、ソケットより先に作る。** 2026-10-19 に一度だけ落ちた検査の
+    # 順序である: `bind()` が先だと、**ソケットが在るのに SIGTERM が既定の動作で
+    # プロセスを殺す隙間**ができる——終了コードは 0 でなく、ソケットも片付かない。
+    # ⚠️ **この順序が「ソケットの存在は、片付けられる準備ができたことを意味する」を
+    # 真にする**——試験はソケットを準備完了の合図にしている。
     wake_r, wake_w = os.pipe()
 
     def stop(signum: int, frame: object) -> None:
@@ -743,6 +739,19 @@ def main(argv: list[str] | None = None) -> int:
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
+
+    try:
+        listener = bind(args.socket)
+    except OSError as exc:
+        sys.stderr.write(f"cannot bind {args.socket}: {exc}\n")
+        os.close(wake_r)
+        os.close(wake_w)
+        return 1
+    if listener is None:
+        sys.stderr.write(f"another daemon is alive on {args.socket}\n")
+        os.close(wake_r)
+        os.close(wake_w)
+        return EXIT_ALREADY_RUNNING
 
     room = Room(motion=args.motion == "on", sound=args.sound == "on")
     outbound = Outbound()

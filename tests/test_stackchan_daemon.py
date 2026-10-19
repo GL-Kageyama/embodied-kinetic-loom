@@ -280,12 +280,30 @@ def test_the_socket_answers_and_logs_the_same_row(sock):
 
 
 def test_the_socket_is_removed_and_the_exit_is_clean(sock):
+    """⛔ **ソケットが在るなら、片付けられる準備はできている。**
+
+    ⚠️ **この検査は 2026-10-19 に一度だけ落ちた**——`bind()` が信号の受け口より
+    先に在り、**ソケットができてから SIGTERM を既定の動作で受け取るまでの隙間**が
+    あった。`_wait_until_ready` はソケットを準備完了の合図にしているので、
+    その隙間は検査の側から見える。⇒ **`main()` の順序を入れ替えて閉じた。**
+    """
     path = sock
     with Daemon(path) as daemon:
         assert path.exists()
 
     assert daemon.code == 0
     assert not path.exists()
+
+
+def test_the_signal_handler_is_installed_before_the_socket_is_bound():
+    """⛔ **順序そのものを読む。** 上の検査は確率でしか触れない隙間である。
+
+    ⚠️ **ソケットの存在が準備完了の合図であるためには、受け口が先に無ければならない。**
+    """
+    source = (REPO_ROOT / "projects/stackchan/daemon/__main__.py").read_text(encoding="utf-8")
+    assert source.count("signal.signal(signal.SIGTERM") == 1
+    assert source.count("listener = bind(") == 1
+    assert source.index("signal.signal(signal.SIGTERM") < source.index("listener = bind(")
 
 
 def test_a_stale_socket_is_unlinked_and_replaced(sock):

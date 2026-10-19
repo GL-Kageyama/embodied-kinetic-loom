@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.28.0 | canonical: tests/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.29.0 | canonical: tests/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -244,6 +244,7 @@
 | **挨拶は、枠の行を1つ残し、ポートが無ければ `sent` は `False` である** | `test_stackchan_daemon.py` | ⛔ **`--port` が無ければ、その行が言うのは「渡すはずだった」であり、プロセスからは何も出ていない** |
 | **名指されたポートが、ログの行を受け取る** | `test_stackchan_daemon.py` | ⚠️ **ログの行とバイトは、符号器への1回の呼び出しから来る**ので、ずれようがない |
 | **枠は空行のあとに書かれる**（0.19.39） | `test_stackchan_daemon.py` | ⛔ **基板は `\n` まで溜め、切れ端が次の行を繋ぎ止めていた**——機体で測った |
+| **シグナルの扱いはソケットを束ねる前に据えられる**（0.19.40） | `test_stackchan_daemon.py` | ⛔ **`SIGTERM` がまだ既定の振る舞いのままソケットが在った**——検査がその窓に1度だけ触れた |
 | 存在しないポートは `sent: false` であり、拒否ではない | `test_stackchan_daemon.py` | ⛔ **抜き差しでコンソールの名が変わりうる**; 存在しない経路が `KeepAlive` の下で致命になってはならない |
 | ポートが無ければ、どこにも何も書かれない | `test_stackchan_daemon.py` | 機体は任意であり、それは今も既定である |
 | 短く返った書き込みは、`sent` ではない | `test_stackchan_daemon.py` | ⛔ **`sent` はホストの tty が行の全体を取ったことであり、基板が受け取ったことではない** |

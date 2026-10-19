@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.28.0 | canonical: tests/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.29.0 | canonical: tests/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -244,6 +244,7 @@
 | **问候留下一个帧行，而没有端口时 `sent` 是 `False`** | `test_stackchan_daemon.py` | ⛔ **没有 `--port` 时，那一行说的是「本该送出」，进程之外什么都没有** |
 | **指名的端口收到日志里的那一行** | `test_stackchan_daemon.py` | ⚠️ **日志行和字节来自对编码器的一次调用**，所以不可能偏离 |
 | **帧写在空行之后**（0.19.39） | `test_stackchan_daemon.py` | ⛔ **板子会一直积到 `\n`，残片把下一行粘住了**——在机体上测得 |
+| **信号的处理装在绑定套接字之前**（0.19.40） | `test_stackchan_daemon.py` | ⛔ **套接字已存在，而 `SIGTERM` 还是默认处置**——检查恰好碰到过一次那个窗口 |
 | 不存在的端口是 `sent: false`，不是拒绝 | `test_stackchan_daemon.py` | ⛔ **插拔可能改写控制台的名字**; 不存在的路径在 `KeepAlive` 之下不能是致命的 |
 | 没有端口时，哪里都不写 | `test_stackchan_daemon.py` | 机器是可选的，而那仍然是默认 |
 | 返回短了的写入不算 `sent` | `test_stackchan_daemon.py` | ⛔ **`sent` 是主机的 tty 取走了整行——不是板子收到了它** |
