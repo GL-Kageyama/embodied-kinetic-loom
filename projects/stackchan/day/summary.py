@@ -26,6 +26,13 @@
 ⇒ **`sent` の数と `emitted` の数を分けて数える。**
 
 ⚠️ **読めない行は捨てない。** 数える——**ログ自身が壊れていることも、測定である。**
+
+⚠️ **作業の語は、語を運んだ行だけを数える。** 0.19.52 から第2層は
+`PreToolUse` / `PostToolUse` の判定行に `work` を載せるが、**載らない事象のほうが
+多い**。⇒ **「載っていない」を `other` に数えない**——`other` は *表に無い道具* で
+あり、不在ではない。**混ぜれば、一日の内訳が「他の作業ばかり」になる**
+（`projects/stackchan_next/work.py` の規則であり、`daemon/room.py` の
+`bad-value` も同じ区別の上に在る）。
 """
 from __future__ import annotations
 
@@ -76,6 +83,10 @@ class Summary:
     heard: int = 0              # コンソールが答えた
     positions: int = 0          # サーボが位置を返した
     phases: dict[str, int] = field(default_factory=dict)
+    # ✅ **2026-10-20（0.19.52）から、作業の語も数える。**
+    # ⚠️ **鍵が無い行は数えない**——`None` に数えれば、*知らされていない* と
+    # *other* が同じ欄に混ざる（`work.py` の規則）。**`other` は語であり、不在ではない。**
+    works: dict[str, int] = field(default_factory=dict)
     faces: dict[str, int] = field(default_factory=dict)
     lights: dict[str, int] = field(default_factory=dict)
     sounds: dict[str, int] = field(default_factory=dict)
@@ -180,6 +191,10 @@ def summarize(lines: Iterable[str]) -> Summary:
         if "ok" in obj:
             s.decisions += 1
             _bump(s.phases, obj.get("phase"))
+            # ⚠️ **語は、それを運んだ行のものである。** `PreToolUse` / `PostToolUse`
+            #    だけが運び、他の31の事象は運ばない——**運ばなかった行を `other` に
+            #    数えれば、一日の内訳が「他の作業ばかり」になる。**
+            _bump(s.works, obj.get("work"))
             continue
 
         # ⚠️ 知らない形の JSON は、数えずに捨てる——**捨てたことを言うために数える。**
@@ -220,6 +235,7 @@ def render(s: Summary) -> str:
     ]
     for name, counter in (
         ("phases", s.phases),
+        ("works", s.works),
         ("faces", s.faces),
         ("lights", s.lights),
         ("sounds", s.sounds),

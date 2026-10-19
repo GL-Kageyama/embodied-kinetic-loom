@@ -4,7 +4,7 @@
 
 # tests/
 
-**forty files, seven hundred and forty-six tests, all green — measured 2026-10-20.**
+**forty files, seven hundred and fifty-one tests, all green — measured 2026-10-20.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -273,6 +273,16 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | a new chapter does not inherit the last word | `test_stackchan_next_presence.py` | ⚠️ **the word belongs to the chapter**; forgetting it is what lets the first tool show immediately |
 | a blocked pause keeps the word | `test_stackchan_next_presence.py` | ⚠️ **a permission wait is inside the chapter, not its end** — clearing it would show `dim` until the next tool |
 
+**Five more hold the day instrument's new column — the work words a day carried (0.19.52):**
+
+| the check | where | what it is for |
+|---|---|---|
+| a decision's word is counted, and two of a word are two | `test_stackchan_day.py` | ✅ **0.19.49 put the word on the row so that a day could be counted; until 0.19.52 the instrument did not count it** |
+| a decision that carries no word is not counted as `other` | `test_stackchan_day.py` | ⛔ **the word rides on two events and not on thirty-one** — counting absence as `other` would make every day *mostly other work* |
+| `null`, an empty string and a number are not words | `test_stackchan_day.py` | ⚠️ **an empty field is not a word** — the rule a frame's `null` already follows |
+| the rendered day names the words | `test_stackchan_day.py` | ⚠️ **a count that is not printed is not read** |
+| a log with no word renders `-`, not `0` | `test_stackchan_day.py` | ⛔ **a blank cannot be told from a zero** |
+
 **Twenty-one more hold the client — the process a hook would run:**
 
 | the check | where | what it is for |
@@ -461,7 +471,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The log, read back (0.19.28)
 
-**`projects/stackchan/day/` reads the daemon's own log; `test_stackchan_day.py` holds it with seventeen claims.**
+**`projects/stackchan/day/` reads the daemon's own log; `test_stackchan_day.py` holds it with twenty-five claims** — twenty-three functions, one of them parametrized three ways. ⚠️ **The line said seventeen until 0.19.52**, and the file already held twenty — **the same drift the document rules warn about, found while moving the count.**
 
 ⚠️ **The log existed before its reader did.** By 05:36 on 2026-10-19 it held **3,852 lines** and **not one of them was unreadable** — ⛔ **and nothing in the repository read it.** A record nobody reads is a file with a timetable in it.
 

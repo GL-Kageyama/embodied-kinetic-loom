@@ -177,6 +177,54 @@ def test_a_probe_that_carried_a_position_is_not_unreadable():
     assert s.heard == 2
 
 
+def test_a_decision_carries_its_work_word():
+    """✅ **2026-10-20（0.19.52）。** 第2層は `work` を判定の行に載せる。
+
+    ⚠️ **載せた理由は、一日の内訳を数えるためである**（`daemon/__main__.py` の
+    `handle`）。⇒ **計器がそれを数えなければ、載せた理由がまだ無い。**
+    """
+    s = summarize([
+        line({"ok": True, "phase": "working", "work": "write"}),
+        line({"ok": True, "phase": "working", "work": "write"}),
+        line({"ok": True, "phase": "working", "work": "run"}),
+    ])
+    assert s.works == {"write": 2, "run": 1}
+    assert s.decisions == 3
+
+
+def test_a_decision_without_a_word_is_not_other():
+    """⛔ **「知らされていない」を `other` に数えない。** 31の事象は語を運ばない。"""
+    s = summarize([
+        line({"ok": True, "phase": "working"}),                 # 語を運ばない事象
+        line({"ok": True, "phase": "working", "work": "other"}), # 表に無い道具
+    ])
+    assert s.works == {"other": 1}, "運ばなかった行が other として数えられた"
+    assert s.decisions == 2
+
+
+def test_an_empty_work_field_is_not_a_word():
+    """⚠️ **`null` と空文字は語ではない。** 数えれば、不在が語になる。"""
+    s = summarize([
+        line({"ok": True, "phase": "working", "work": None}),
+        line({"ok": True, "phase": "working", "work": ""}),
+        line({"ok": True, "phase": "working", "work": 7}),
+    ])
+    assert s.works == {}
+    assert s.decisions == 3
+
+
+def test_rendering_names_the_work_words():
+    """⚠️ **印字されない数は、読まれない数である。**"""
+    s = summarize([line({"ok": True, "phase": "working", "work": "search"})])
+    assert "works search 1" in " ".join(render(s).split())
+
+
+def test_rendering_marks_an_absent_work_column():
+    """⚠️ **1語も無ければ `-` である。** 空欄は、0と見分けられない。"""
+    flat = " ".join(render(summarize([line({"ok": True, "phase": "working"})])).split())
+    assert "works -" in flat
+
+
 def test_the_count_does_not_depend_on_the_order():
     """⚠️ **数え上げである。** 行の順序は数を変えない。"""
     lines = [
