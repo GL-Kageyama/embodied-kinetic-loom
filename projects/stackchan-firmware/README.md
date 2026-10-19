@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.11.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.12.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -235,11 +235,31 @@
 
 ⛔ **So the silence is a state the servos hold.** It survives a reset of the ESP32 — a DTR/RTS pulse that rebooted the board left the bus silent — and only cutting the servos' power clears it. A bounded `bench move 0 60` then turned the head (yaw 474→460, pitch 767→812), and **the bus went silent again after that move**; another rail cycle returned it.
 
-✅ **Since 0.19.31 `app_main` throws the rail switch itself**, before the bus comes up: `servo_power(false)`, 300 ms, `servo_power(true)`, 300 ms, then `scs::begin()`. ⚠️ **No torque is on that early, so nothing can move because of it** — but a head that was being held when the chip reset will droop for those 300 ms.
+✅ **Since 0.19.31 `app_main` throws the rail switch itself**, before the bus comes up: `servo_power(false)`, `servo_power(true)`, then `scs::begin()`. ⚠️ **No torque is on that early, so nothing can move because of it** — but a head that was being held when the chip reset will droop while the rail is off. ⛔ **Until 0.19.34 that off time was 300 ms** — a number that had been chosen and never measured; **it is now the measured three seconds.**
 
 ⚠️ **`bench raw <id>` was added the same day**, because `read_position` calls a non-zero status byte "no answer" — **a servo that refuses and a servo that is absent were the same word.** It prints every byte, names the status by bit, and refuses nothing.
 
 ⛔ **What is still not answered**: what puts the servos into that state. It followed a bounded move once and was absent for many minutes at other times, so the trigger is not yet named — **and a boot that cycles the rail is a recovery, not a diagnosis.**
+
+### The board watches the bus — 2026-10-19
+
+⚠️ **The third silence was found in the host's log, and it left a window behind it.** The last read-back that carried a position was `[100, 487]` at `at=17537.504`; the first probe that provably met nothing was at `at=18906.163` — **1,368.7 s, about 22.8 minutes**, with **no gesture sent and no restart** in it. ⇒ **The bus silences itself with nothing being asked of it.**
+
+⛔ **Seven shapes were then tried by command to make it happen, and all seven were answered**: a timed 45° move read every 200 ms for 70 s, a 50-pose stream, `bench sound hello`, a frame then a 78-pose stream, the daemon's own order (probe, stream, frame), a frame written **mid-stream** on its own fd, and 24 gestures back to back.
+
+⇒ **A `ServoWatchdog()` now runs in the main loop**, beside the pose watchdog and for the same reason — **the console task blocks in `read()`, so it cannot notice a silence it is not in.** Both ids are pinged every **5 s** when idle; **three silences in a row** are a state, and the rail is thrown for the measured **3 s**; then the present positions are written as goals and torque is released — **the same after-care as a hand-typed `bench power on`.**
+
+✅ **Measured by taking the hands away**: `bench power off` was typed into the console, and the board said
+
+```
+servo: no answer (1 of 3 before the rail is cycled)
+servo: no answer (2 of 3 before the rail is cycled)
+servo: silent for 3 checks — cycling the rail (1 since this boot)
+servo: rail cycled — ping yaw=0/3 pitch=3/3
+servo: present yaw=496 pitch=777; goals set; torque off
+```
+
+— the first strike at **0.5 s**, the second at **5.5 s**, the cycle at **10.5 s**, the bus back at **15.0 s**, the position at **15.2 s**. ⇒ **From a rail switched off to a bus answering in about fifteen seconds.** ⚠️ **The yaw servo missed three pings 0.3 s after power returned and read 496 on the next try** — the two axes do not come up at the same instant, and one count of pings cannot say how long that gap is. ⛔ **This is a recovery, not a diagnosis**, and **a single failed ping is counted as a silence like any other** — how often one fails on a healthy bus has not been measured. The record is `records/2026-10-19-the-machine-recovers-itself.md`.
 
 **Through the stream's own call.** Thirty `pose 350 500*<checksum>` lines at 40 ms, which the board applied with `time=20 speed=0` — the call the daemon uses. Goal raw yaw 572, held 565: **−7, leftward** — the same landing as `bench set` at speed 80. Pitch goal 780, held 781: +1.
 

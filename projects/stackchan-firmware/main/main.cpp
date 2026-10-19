@@ -66,6 +66,22 @@ constexpr int64_t kPoseSilenceUs = 500000;  // 500 ms of silence releases torque
 constexpr int kPoseTimeMs = 20;  // the vendor's own value; measured: 112 counts in < 200 ms
 constexpr int kPoseSpeed = 0;    // 0 = the servo's own ceiling, not a cap of ours
 
+// --- the servo bus watchdog ------------------------------------------------
+// ⚠️ Written on 2026-10-19. Twice that day the bus went silent with no command
+//    in front of it: the servos stop answering, and neither the host's log nor
+//    the console named the moment. What clears that state is measured — `bench
+//    power off`, three seconds, `bench power on` — and nothing shorter has been
+//    shown to. ⇒ This loop keeps asking the bus, and throws that switch when
+//    the answer stops, so the machine recovers without a hand on it.
+// ⛔ It does not name the trigger. A recovery is not a diagnosis.
+constexpr int kServoWatchMs = 5000;    // how often the bus is asked, when idle
+constexpr int kServoWatchStrikes = 3;  // three silences in a row are a state, not a race
+constexpr uint32_t kRailOffMs = 3000;  // the measured clearing duration
+
+int g_servo_strikes = 0;
+uint32_t g_servo_asked_ms = 0;
+int g_rail_cycles = 0;
+
 bool g_streaming = false;
 int64_t g_last_pose_us = 0;
 int g_pose_count = 0;
@@ -1180,6 +1196,59 @@ int PingCount(int id) {
   return answered;
 }
 
+// ⚠️ Called from the main loop, beside the pose watchdog, for the same reason:
+//    the console's read blocks, so the console task cannot notice a silence it
+//    is not in. ⛔ This one asks a different question — whether the servos are
+//    still there at all — and its answer is a rail cycle, not a sentence.
+void ServoWatchdog() {
+  if (g_streaming || !g_servos_ready) {
+    return;
+  }
+  const uint32_t now = static_cast<uint32_t>(esp_timer_get_time() / 1000);
+  if (now - g_servo_asked_ms < kServoWatchMs) {
+    return;
+  }
+  g_servo_asked_ms = now;
+
+  if (scs::ping(board::kYawId) && scs::ping(board::kPitchId)) {
+    g_servo_strikes = 0;
+    return;
+  }
+  if (++g_servo_strikes < kServoWatchStrikes) {
+    printf("servo: no answer (%d of %d before the rail is cycled)\n", g_servo_strikes,
+           kServoWatchStrikes);
+    return;
+  }
+
+  g_servo_strikes = 0;
+  ++g_rail_cycles;
+  // ⚠️ Torque is off here by construction: a stream would have set g_streaming,
+  //    and a finished stream releases torque after 500 ms. The head is limp.
+  printf("servo: silent for %d checks — cycling the rail (%d since this boot)\n",
+         kServoWatchStrikes, g_rail_cycles);
+  leds::servo_power(false);
+  vTaskDelay(pdMS_TO_TICKS(kRailOffMs));
+  leds::servo_power(true);
+  vTaskDelay(pdMS_TO_TICKS(300));
+
+  const int yaw_ping = PingCount(board::kYawId);
+  const int pitch_ping = PingCount(board::kPitchId);
+  printf("servo: rail cycled — ping yaw=%d/3 pitch=%d/3\n", yaw_ping, pitch_ping);
+
+  int yaw = -1;
+  int pitch = -1;
+  if (scs::read_position(board::kYawId, &yaw) &&
+      scs::read_position(board::kPitchId, &pitch)) {
+    scs::write_position(board::kYawId, yaw, 0, 0);
+    scs::write_position(board::kPitchId, pitch, 0, 0);
+    scs::set_torque(board::kYawId, false);
+    scs::set_torque(board::kPitchId, false);
+    printf("servo: present yaw=%d pitch=%d; goals set; torque off\n", yaw, pitch);
+  } else {
+    printf("servo: still silent after the rail cycle\n");
+  }
+}
+
 }  // namespace
 
 extern "C" void app_main() {
@@ -1242,10 +1311,14 @@ extern "C" void app_main() {
   //    `bench scan` found 0 id(s) — and one power cycle of the rail brought
   //    both ids back, reporting 5.1 V and status 0. ⛔ The servos keep that
   //    state across a reset of this chip, and the rail is the only switch that
-  //    clears it, so boot throws that switch itself. It costs 600 ms, and no
-  //    torque is on this early, so nothing can move because of it.
+  //    clears it, so boot throws that switch itself. No torque is on this
+  //    early, so nothing can move because of it.
+  // ⚠️ The off time is the duration that was measured to clear the state —
+  //    three seconds — and not a shorter one. ⛔ Until 0.19.34 this line said
+  //    300 ms, a number that had been chosen and never measured; the measured
+  //    clearing is `bench power off`, three seconds, `bench power on`.
   leds::servo_power(false);
-  vTaskDelay(pdMS_TO_TICKS(300));
+  vTaskDelay(pdMS_TO_TICKS(kRailOffMs));
   leds::servo_power(true);
   vTaskDelay(pdMS_TO_TICKS(300));
 
@@ -1290,6 +1363,7 @@ extern "C" void app_main() {
   while (true) {
     leds::tick();
     PoseWatchdog();
+    ServoWatchdog();
     vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
