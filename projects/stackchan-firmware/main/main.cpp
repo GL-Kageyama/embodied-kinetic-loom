@@ -83,6 +83,14 @@ uint32_t g_servo_asked_ms = 0;
 int g_rail_cycles = 0;
 
 bool g_streaming = false;
+// ⛔ Measured on 2026-10-19, the day after the watchdog was written: during a
+//    `bench move` — which reads a position once a second — the watchdog counted
+//    six silences and cycled the rail six times, and the bench's own printed
+//    readings show the bus answering throughout. Two readers on one half-duplex
+//    bus take each other's replies, so a silence the watchdog hears is not
+//    necessarily a silence. While the console is executing a command, the
+//    watchdog stands down: one reader at a time.
+bool g_console_busy = false;
 int64_t g_last_pose_us = 0;
 int g_pose_count = 0;
 int g_pose_refused = 0;
@@ -1170,7 +1178,11 @@ void ConsoleTask(void*) {
       if (c == '\n') {
         if (g_line_len > 0) {
           g_line[g_line_len] = '\0';
+          // ⛔ The watchdog asks the same bus this call is about to use. It is
+          //    told, rather than left to infer it from a reply it did not get.
+          g_console_busy = true;
           Dispatch(g_line, g_line_len);
+          g_console_busy = false;
           g_line_len = 0;
         }
         continue;
@@ -1201,7 +1213,7 @@ int PingCount(int id) {
 //    is not in. ⛔ This one asks a different question — whether the servos are
 //    still there at all — and its answer is a rail cycle, not a sentence.
 void ServoWatchdog() {
-  if (g_streaming || !g_servos_ready) {
+  if (g_streaming || g_console_busy || !g_servos_ready) {
     return;
   }
   const uint32_t now = static_cast<uint32_t>(esp_timer_get_time() / 1000);

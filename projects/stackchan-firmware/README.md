@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.12.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.13.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -277,6 +277,28 @@ servo: present yaw=496 pitch=777; goals set; torque off
 
 ⛔ **Nothing was compensated.** A constant bias would be wrong half the time, because the sign follows the travel direction; a directional bias would be a new machine-specific number written into the host or the firmware. **Whether to write one, and where, is a decision not taken here.**
 
-⚠️ **What it means for the join**: the daemon plans each gesture from the last pose it wrote, and the head sits six to eight counts short of that pose. The next plan's first sample is near the same place, so the discrepancy is bounded by the offset rather than accumulating across gestures — **but the jump between two gestures has not been measured**, and ⚠️ **the daemon asks the board for its position at each gesture since 0.19.23, but on this unit the servo bus answers nothing** (`bench scan` → 0 ids), so the query is answered without a pose.
+⚠️ **What it means for the join**: the daemon plans each gesture from the last pose it wrote, and the head sits six to eight counts short of that pose. The next plan's first sample is near the same place, so the discrepancy is bounded by the offset rather than accumulating across gestures — **but the jump between two gestures has not been measured**, and ⚠️ **the daemon asks the board for its position at each gesture since 0.19.23** — ⛔ **on the morning this section was written the servo bus answered nothing** (`bench scan` → 0 ids), **so the query was answered without a pose**; ✅ **later the same day the rail's power cycle brought the bus back** (see *The rail's switch*, above), **and since 0.19.35 the read-back answers with the place the gesture started from — and, on its first use, with the fact that `look_up` had not moved the head at all.**
 
 ⚠️ **The head was left at yaw 8.0°, pitch 50.0°** — raw yaw 491, pitch 781, torque on. **That is the posture the daemon believes the head is in**, so the next streamed gesture starts within the offset of where the daemon thinks it starts.
+
+### The watchdog and the console wanted the same bus — 2026-10-19
+
+⛔ **The watchdog was written on the day before this one, and on the first day it was used it counted a bus that was answering.** `bench move` is a slow goal stepper: `MoveAxis` writes three counts of goal, waits one second, and reads a position — **once a second, for as long as the move runs**, which for 45° is 138 counts and about 46 seconds.
+
+⇒ **Two readers on one half-duplex bus take each other's replies.** The bench's step lines went on printing positions while the watchdog counted its own pings unanswered — three in a row are a state by its rule — and it threw the rail **six times in one boot**, every one of them during a bench command. ⚠️ **Two of the six were read line by line; the rest are named by the board's own counter.**
+
+✅ **Since 0.19.35 the console tells the watchdog that it is using the bus**: `g_console_busy` is set around `Dispatch()` in `ConsoleTask`, and `ServoWatchdog()` stands down while it is set. **One reader at a time** — and the rule the watchdog was written for is unchanged: a silence nobody is causing is still noticed, cleared and printed.
+
+✅ **Measured after the change**: `bench move 80` — clamped to this bench's 45° — stepped for **46 s**, about **nine** of the watchdog's 5 s windows, and printed **no `no answer` and no rail cycle**. Before the change, the same shape cycled the rail within 15 s.
+
+⚠️ **`bench move` advances the goal, not the head.** `MoveAxis` never reads back before it returns, and torque is released at once: the goal was **604** and the head was **592** when it let go. **The 12 counts are the servo's lag, not a lost command.**
+
+⛔ **The console's own gate is the answer to the long-standing "no answer"**: asking `bench pos` while a pose stream runs prints
+
+```
+bench: refused — a pose stream is running; wait for 500 ms of silence
+```
+
+— and an idle `bench pos` answers in about 0.3 s. **The daemon's probe runs before its own stream, so it does not meet this gate**; what looked like a wedged console was the board refusing, and the refusal was printed.
+
+✅ **And the read-back's first use was to measure a gesture** — row 7 of `docs/stackchan-progress.md`: through the installed daemon, `look_up` moved the head **0 counts** and `look_side` **71**. ⛔ **No test compiles `main.cpp`**; what checks this is `idf.py build` and the board's own printing.
