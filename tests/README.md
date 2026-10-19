@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.30.0 | canonical: tests/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.30.1 | canonical: tests/README.md | translated: 2026-10-20 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**Thirty-five files, five hundred and ninety-six tests, all green — measured 2026-10-19.**
+**Thirty-five files, six hundred and eighteen tests, all green — measured 2026-10-20.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 

@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.30.0 | canonical: tests/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.30.1 | canonical: tests/README.md | translated: 2026-10-20 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**35 个文件、596 项测试，全部通过——实测 2026-10-19。**
+**35 个文件、618 项测试，全部通过——实测 2026-10-20。**
 
 **本文件曾经写着「一项也没有」。** **它与第一个测试在同一次提交里改变**——**那正是 `CLAUDE.md` 那一节所规定、而这个目录所维护的规则。**
 

@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.27.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.28.0 | canonical: docs/stackchan-daemon.md | translated: 2026-10-20 -->
 
 **Language:** [English](stackchan-daemon.md) | [日本語](stackchan-daemon-ja.md) | [中文](stackchan-daemon-zh.md)
 
 # Stack-chan 的守护进程 — 启动与停止
 
-✅ **循环、套接字和客户端都已经建好——2026-10-18。** `projects/stackchan/daemon/` 持有纯核心（`room.py`）和边缘（`__main__.py`），`projects/stackchan/hook/` 持有钩子运行的客户端，`tests/test_stackchan_daemon.py` 对前者持有四十三条主张，`tests/test_stackchan_hook_client.py` 对后者持有二十一条。✅ **而且同一天它被安装了**——launchd 用户代理在登录时启动守护进程，全部三十三个钩子事件都调用客户端。**安装是一台主机上的一个位置，不是仓库的性质**（见[安装的现况](#安装的现况)）。
+✅ **循环、套接字和客户端都已经建好——2026-10-18。** `projects/stackchan/daemon/` 持有纯核心（`room.py`）和边缘（`__main__.py`），`projects/stackchan/hook/` 持有钩子运行的客户端，`tests/test_stackchan_daemon.py` 对前者持有四十六条主张，`tests/test_stackchan_hook_client.py` 对后者持有二十一条。✅ **而且同一天它被安装了**——launchd 用户代理在登录时启动守护进程，全部三十三个钩子事件都调用客户端。**安装是一台主机上的一个位置，不是仓库的性质**（见[安装的现况](#安装的现况)）。
 
 ⚠️ **它是为了什么。** Claude Code 的钩子是一个事件一个进程，而 `Focus` 与 `Companion` 是一个必须在事件之间存活的物体。守护进程就是那个物体，加上一个时钟和一个套接字。它是链条的中段——**钩子 → 守护进程 → 电线 → 固件**——也正是它，让机器人属于房间，而不是属于一个开着的终端。
 
@@ -183,7 +183,11 @@ frame: gesture perk refused — no gesture -> angle table exists
 
 **在这里未决定的:**
 
-- ✅ **成帧已经定了（0.19.0），而这一页仍然不拥有它**——一行 ASCII JSON，`face` / `light` / `gesture` / `sound`，在 `schemas/stackchan-command.schema.json` 里，由 `engine/backend/protocol_stackchan.py` 编码。✅ **自 0.19.1 起，守护进程调用那个编码器。** ✅ **自 0.19.8 起传输路径也定了: 守护进程把那一行写进板子的控制台，每帧打开一次，安装的 plist 点名路径。** ✅ **而自同一天更晚的时候起，`projects/stackchan-firmware/` 会演出它收到的身势**——在这台个体上测得的五个姿态——**所以承载身势的帧会转动头部**（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）; ✅ **而自 0.19.11 起，引擎把它驱动得足够平滑，作者接受了这个运动**——固件的写法改成原厂自身的调用之后的 `projects/stackchan/neck/`（`records/2026-10-18-the-neck.md`）;
+- ✅ **成帧已经定了（0.19.0），而这一页仍然不拥有它**——一行 ASCII JSON，`face` / `light` / `gesture` / `sound`，在 `schemas/stackchan-command.schema.json` 里，由 `engine/backend/protocol_stackchan.py` 编码。
+  - ✅ **自 0.19.1 起，守护进程调用那个编码器**，写下它将要送出的一行。
+  - ✅ **自 0.19.8 起传输路径也定了**: 守护进程把那一行写进板子的控制台，每帧打开一次，安装的 plist 点名路径（见[传输](#传输)）。
+  - ✅ **而自同一天更晚的时候起，`projects/stackchan-firmware/` 会演出它收到的身势**——在这台个体上测得的五个姿态——**所以承载身势的帧会转动头部**（`projects/stackchan-firmware/records/2026-10-18-the-gestures.md`）。
+  - ✅ **而自 0.19.11 起，引擎把它驱动得足够平滑，作者接受了这个运动**——固件的写法改成原厂自身的调用之后的 `projects/stackchan/neck/`（`records/2026-10-18-the-neck.md`）。
 - 固件在待机时与停止后做什么;
 - 第二个身体——每台机器第二个守护进程——是否需要不同的东西。
 
@@ -211,7 +215,13 @@ rm -f /tmp/ekl-stackchan-501.sock /tmp/ekl-stackchan-daemon.log /tmp/ekl-stackch
 
 ## 什么会响，什么不会
 
-✅ **这一页的一部分会响。** 纯的部分在没有套接字的情况下被检查——请求的模式、未知键的拒绝、以及给定 `(session, event, at)` 的决定——而套接字作为一个真实的进程被检查: 它作答、拒绝、把返回的行写进日志，并在 `SIGTERM` 时干净地退出。**四十六条主张都在 `tests/test_stackchan_daemon.py` 里**——两条是: 问候写下 `sent: false` 的一个帧行，而不变的事件一个也不写; **其中十一条是关于端口的**——指名的那条路径收到日志里的那一行，不存在的路径是 `sent: false` 而不是拒绝，没有端口时什么都不写，返回短了的写入不算 `sent`，**一次流只开一次端口而不是每个姿势开一次，什么也接收不了的端口会让流结束而不是等待，而打不开的端口把身势留在帧里交给板子、**以及自 0.19.41 起的三条——板子的受理行被记为 `accepted: true`，拒绝为 `accepted: false`，而什么都没说的板子留下 `accepted: null` 而不是拒绝**; **另有两条关于脖子**——第二次转换从第一次结束的地方流出姿势，而其帧运着 `gesture: null`，以及第一次转换什么都不流。⛔ **打开端口的那些，打开的是普通文件，不是机器。** ✅ **另有十九条守住读回**——`tests/test_stackchan_readback.py`: 询问的词与回答的拼法从 `main.cpp` 读出、两条轴成为一个姿势、负角上的 C 截断、一条轴不是姿势、没有位置却回答了的控制台与什么都没说的控制台被分开、**自 0.19.38 起的两条**——流的最后一行成为一个 `verdict` 行，什么都没印的板子留下的是 `verdict: null` 而不是 `0 refused`——以及**自 0.19.41 起的四条关于帧的受理**，从源码读出 `main.cpp` 的两个 `printf`: 受理的行、拒绝的行、两者都不是的 `frame: gesture` 行，以及一个窗口里有两个时最后一个判定胜出。 ✅ **另有二十一条守住客户端**——输入里的提示词、cwd 与工具输入到不了那一行，未知事件在套接字之前被丢弃，路径只有一种拼写，而永不回应的对方也不会让它迟延——**在 `tests/test_stackchan_hook_client.py` 里。**
+✅ **这一页的一部分会响。** 纯的部分在没有套接字的情况下被检查——请求的模式、未知键的拒绝、以及给定 `(session, event, at)` 的决定——而套接字作为一个真实的进程被检查: 它作答、拒绝、把返回的行写进日志，并在 `SIGTERM` 时干净地退出。
+
+**主张的所在:**
+
+- ✅ **`tests/test_stackchan_daemon.py`——四十六条。** 两条是: 问候写下 `sent: false` 的一个帧行，而不变的事件一个也不写。**十一条是关于端口的**——指名的那条路径收到日志里的那一行，不存在的路径是 `sent: false` 而不是拒绝，没有端口时什么都不写，返回短了的写入不算 `sent`，**一次流只开一次端口而不是每个姿势开一次，什么也接收不了的端口会让流结束而不是等待，而打不开的端口把身势留在帧里交给板子、**以及自 0.19.41 起的三条——板子的受理行被记为 `accepted: true`，拒绝为 `accepted: false`，而什么都没说的板子留下 `accepted: null` 而不是拒绝**。**两条关于脖子**——第二次转换从第一次结束的地方流出姿势，而其帧运着 `gesture: null`，以及第一次转换什么都不流。**自 0.19.36 起的两条**——什么都不要求的计划不被流出，落在测得地板之内的也不被流出，两者都以 `"skipped": "no motion"` 的行收下身势。⛔ **打开端口的那些，打开的是普通文件，不是机器。**
+- ✅ **`tests/test_stackchan_readback.py`——另有十九条。** 询问的词与回答的拼法从 `main.cpp` 读出、两条轴成为一个姿势、负角上的 C 截断、一条轴不是姿势、没有位置却回答了的控制台与什么都没说的控制台被分开。**自 0.19.38 起的两条**——流的最后一行成为一个 `verdict` 行，什么都没印的板子留下的是 `verdict: null` 而不是 `0 refused`。**自 0.19.41 起的四条关于帧的受理**——从源码读出 `main.cpp` 的两个 `printf`: 受理的行、拒绝的行、两者都不是的 `frame: gesture` 行，以及一个窗口里有两个时最后一个判定胜出。
+- ✅ **`tests/test_stackchan_hook_client.py`——另有二十一条。** 输入里的提示词、cwd 与工具输入到不了那一行，未知事件在套接字之前被丢弃，路径只有一种拼写，而永不回应的对方也不会让它迟延。
 
 ⛔ **没有一个测试检查安装。** launchd 的 `RunAtLoad` 与 `KeepAlive`、登录与登出、plist，以及重启后出现的陈旧套接字，都是操作系统的行为，不是一个函数。✅ **取而代之的是上面写下的一次观察**: 2026-10-18，安装好的作业把一条真实的钩子链从头到尾跑了一遍，并被用手停止和重启。⚠️ **在一台主机上的观察不是检查**——它不会再跑，也不会在应该失败的时候失败。`tools/check_i18n.py` 仍然只确认三份副本一致。
 
