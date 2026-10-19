@@ -14,6 +14,9 @@
 - **眠い顔の目は、最も閉じている**——重み 35 は 75 より覆われる。
 - **縁は滑らかである**——0 でも 255 でもない中間の値を持つ画素が、円の縁に在る。
   ⛔ **これが無ければ、20 px の円は階段である**——一度そうなって、著者が見つけた。
+- **まばたきは目だけを閉じる**——口は 540 画素のまま同じ場所にあり、両目とも
+  同時に覆われる（片目だけ閉じるのは、まばたきではなく瞬きそこないである）。
+- **眠い顔は、まばたきしない**——`can_blink` が `sleepy` と `kNone` に偽を返す。
 
 ## ⛔ このファイルが確かめないこと
 
@@ -133,6 +136,18 @@ int main() {
       }
     }
 
+    // The mouth, byte for byte, so that the blink below can be compared to it.
+    std::vector<uint8_t> mouth_before;
+    for (int y = 143; y <= 148; ++y) {
+      for (int x = 115; x <= 204; ++x) {
+        mouth_before.push_back(static_cast<uint8_t>(At(grey, x, y)));
+      }
+    }
+    int face_sum = 0;
+    for (int b = 0; b < face_bitmap::kBytes; ++b) {
+      face_sum += grey[b];
+    }
+
     std::printf("FACE %s\n", names[i]);
     std::printf("BRIGHT %d\n", bright);
     std::printf("PARTIAL %d\n", partial);
@@ -148,6 +163,33 @@ int main() {
     std::printf("P %d %d %d\n", 90, 96, At(grey, 90, 96));
     std::printf("P %d %d %d\n", 90, 112, At(grey, 90, 112));
     std::printf("P %d %d %d\n", 90, 104, At(grey, 90, 104));
+
+    // The blink: the same drawing with both lids shut.
+    face_bitmap::render_blink(faces[i], grey.data());
+    int blink_sum = 0;
+    int blink_bright = 0;
+    for (int b = 0; b < face_bitmap::kBytes; ++b) {
+      blink_sum += grey[b];
+      blink_bright += grey[b] >= 128;
+    }
+    int blink_mouth = 0;
+    int mouth_moved = 0;
+    int k = 0;
+    for (int y = 143; y <= 148; ++y) {
+      for (int x = 115; x <= 204; ++x) {
+        blink_mouth += At(grey, x, y) == 255;
+        mouth_moved += At(grey, x, y) != mouth_before[static_cast<std::size_t>(k)];
+        ++k;
+      }
+    }
+    std::printf("BLINKSUMMED %d\n", blink_sum);
+    std::printf("BLINKBRIGHT %d\n", blink_bright);
+    std::printf("BLINKMOUTH %d\n", blink_mouth);
+    std::printf("MOUTHMOVED %d\n", mouth_moved);
+    std::printf("BLINKLEFT %d\n", Bright(grey, 78, 92, 102, 116));
+    std::printf("BLINKRIGHT %d\n", Bright(grey, 218, 92, 242, 116));
+    std::printf("FACESUM %d\n", face_sum);
+    std::printf("CANBLINK %d\n", face_bitmap::can_blink(faces[i]) ? 1 : 0);
   }
   return 0;
 }
@@ -155,6 +197,8 @@ int main() {
 
 MOUTH_PIXELS = 90 * 6
 DRAWN = ["curious", "greeting", "happy", "angry", "sleepy"]
+#: ⚠️ `sleepy` はこのリストに入らない——`can_blink` が偽を返す。
+BLINKABLE = ["curious", "greeting", "happy", "angry"]
 
 
 @pytest.fixture(scope="module")
@@ -260,6 +304,51 @@ def test_the_lid_follows_the_vendors_weight(drawn):
     assert drawn["curious"]["probes"][(90, 112)] > 0, "curious の下が白くない"
     assert drawn["sleepy"]["probes"][(90, 104)] == 0, "sleepy の目が閉じていない"
     assert drawn["sleepy"]["probes"][(90, 112)] > 0, "sleepy の下が白くない"
+
+
+def test_a_blink_closes_both_eyes_and_leaves_the_mouth_alone(drawn):
+    """⛔ **まばたきは目であり、6つ目の表情ではない。**
+
+    - 両目とも覆われる——片方だけ閉じたら、それはまばたきではなく不具合である。
+    - 口は 540 画素のまま、1バイトも動かない——vendor の口は `setWeight` を
+      持たない、目のためのつまみである（`face_bitmap.cpp` の注記）。
+    - 閉じた画面に残るのは口だけである——目以外が動けば、それは別の絵である。
+    - 閉じた絵は開いた絵と違う——重みを無視する描画器なら、ここで落ちる。
+    """
+    for name in BLINKABLE:
+        assert drawn[name]["blinkleft"] == 0, f"{name}: 左目が閉じていない"
+        assert drawn[name]["blinkright"] == 0, f"{name}: 右目が閉じていない"
+        assert drawn[name]["blinkmouth"] == MOUTH_PIXELS, (
+            f"{name}: まばたきの口が {drawn[name]['blinkmouth']} 画素"
+        )
+        assert drawn[name]["mouthmoved"] == 0, (
+            f"{name}: まばたきで口が {drawn[name]['mouthmoved']} 画素動いた"
+        )
+        assert drawn[name]["blinkbright"] == MOUTH_PIXELS, (
+            f"{name}: 閉じた画面に口以外の明るい画素が "
+            f"{drawn[name]['blinkbright'] - MOUTH_PIXELS} 個ある"
+        )
+        assert drawn[name]["blinksummed"] != drawn[name]["facesum"], (
+            f"{name}: まばたきが開いた顔と同じ絵になっている——重みが効いていない"
+        )
+
+
+def test_the_shared_figure_blinks_as_one(drawn):
+    """⚠️ `happy` と `greeting` が同じ顔なら、閉じた絵も同じである。"""
+    assert drawn["happy"]["blinksummed"] == drawn["greeting"]["blinksummed"]
+
+
+def test_sleepy_and_none_do_not_blink(drawn):
+    """⛔ **眠い顔はまばたきしない**——すでに重み 35 で閉じており、そこから
+    閉じきるのは「眠る」であって「まばたく」ではない。`kNone` は顔ですらない。
+
+    ⚠️ 判定は `face_bitmap::can_blink` に置いてある——`display.cpp` の中に
+    置けば、ホストから訊けない規則になる。
+    """
+    assert drawn["sleepy"]["canblink"] == 0, "眠い顔がまばたきする"
+    assert drawn["none"]["canblink"] == 0, "顔の無い画面がまばたきする"
+    for name in BLINKABLE:
+        assert drawn[name]["canblink"] == 1, f"{name} がまばたきしない"
 
 
 def test_the_shared_figure_is_shared_on_screen_too(drawn):

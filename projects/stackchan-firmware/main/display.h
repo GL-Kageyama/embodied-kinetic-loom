@@ -20,6 +20,13 @@ bool begin();
 // draw a sixth face.
 void show(Face face);
 
+// Call often from the main loop, one context only. Closes and reopens the lids
+// by itself — ⚠️ two frames, about 60 ms, every 3.2–6.8 s, and never on `sleepy`
+// (whose lids are already nearly shut). The mouth does not move: a blink is an
+// eye, not an expression. ⛔ Nothing is sent over the wire for it, so no log
+// grows and no host is involved.
+void tick();
+
 // ⚠️ The AW88298's reset line is P0.2 on the AW9523 — the expander this module
 //    already owns. The speaker asks for that pulse here rather than opening the
 //    expander twice: one bus, one owner. False if this module never came up.

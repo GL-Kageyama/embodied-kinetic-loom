@@ -149,8 +149,14 @@ Rgb ColorFor(Light light) {
   switch (light) {
     case Light::kOff:
       return {0, 0, 0};
+    // ⚠️ What the unit shows is (24, 24, 40): `SetLedColor` keeps the top five
+    //    bits of each channel for RGB565, and 28 & 0xF8 == 24 & 0xF8 == 24,
+    //    44 & 0xF8 == 40. ⛔ The three values are written one band higher than
+    //    they look, so that the swell below crosses a band edge halfway through
+    //    its cycle — at 24 the light would sit on the bottom edge of its band,
+    //    and the first percent of every dip would drop a whole step at once.
     case Light::kDim:
-      return {24, 24, 40};
+      return {28, 28, 44};
     // ⚠️ Added on 2026-10-20 with the two words. Both are choices, not
     //    measurements, and neither has been looked at on the unit yet: the
     //    question they answer is whether an eye can tell them apart on a desk,
@@ -181,10 +187,45 @@ int BreathScalePercent() {
   return 20 + triangle * 80 / 100;
 }
 
+// A triangle wave between 72% and 100% over seven seconds — a swell, not a
+// breath. ⚠️ `breathe` is 20–100% over three seconds, so this is a quarter of
+// its depth and more than twice as slow. ⛔ The panel shows only one step of it
+// (see `ColorFor`'s note on the bands), so what reaches the eye is a slow swell
+// between two neighbouring brightnesses rather than a fade. ⚠️ Whether that
+// reads as alive or as a flicker is the author's eye's question; nothing here
+// has been looked at on the unit.
+int DimScalePercent() {
+  const int period_ms = 7000;
+  const int phase = static_cast<int>((esp_timer_get_time() / 1000) % period_ms);
+  const int triangle = phase < period_ms / 2
+                           ? (phase * 200 / period_ms)
+                           : ((period_ms - phase) * 200 / period_ms);
+  return 72 + triangle * 28 / 100;
+}
+
+// The scale this light is shown at, in percent. ⚠️ Only two lights move; every
+// other one is 100 and is written once, when it is chosen.
+int ScaleFor(Light light) {
+  switch (light) {
+    case Light::kBreathe:
+      return BreathScalePercent();
+    case Light::kDim:
+      return DimScalePercent();
+    default:
+      break;
+  }
+  return 100;
+}
+
+//: ⚠️ The scale the expander was last given *and accepted*. ⛔ Not the scale it
+//: should be at: this is a record of what the twelve pixels hold, and it is
+//: what lets a tick skip a write that would change nothing.
+int g_written_scale = -1;
+
 bool Render(Light light) {
   Rgb color = ColorFor(light);
-  if (light == Light::kBreathe) {
-    const int scale = BreathScalePercent();
+  const int scale = ScaleFor(light);
+  if (scale != 100) {
     color.r = static_cast<unsigned char>(color.r * scale / 100);
     color.g = static_cast<unsigned char>(color.g * scale / 100);
     color.b = static_cast<unsigned char>(color.b * scale / 100);
@@ -194,6 +235,9 @@ bool Render(Light light) {
     ok = SetLedColor(i, color.r, color.g, color.b) && ok;
   }
   ok = RefreshLeds() && ok;
+  if (ok) {
+    g_written_scale = scale;
+  }
   return ok;
 }
 
@@ -271,9 +315,22 @@ void leds::set_light(Light light) {
 
 void leds::tick() {
   Guard guard;
-  if (g_ready && g_light == Light::kBreathe) {
-    Render(g_light);
+  if (!g_ready) {
+    return;
   }
+  // ⚠️ Two lights move, and neither is written unless the value it would carry
+  //    has changed. ⛔ Not every tick: the tick is 20 ms, twelve pixels are
+  //    twenty-four register writes, and the expander is the same I2C bus the
+  //    screen and the servo rail are on. `breathe` still changes on almost
+  //    every tick (its scale moves about once per 15 ms); `dim` changes some
+  //    twelve times in seven seconds.
+  if (g_light != Light::kBreathe && g_light != Light::kDim) {
+    return;
+  }
+  if (ScaleFor(g_light) == g_written_scale) {
+    return;
+  }
+  Render(g_light);
 }
 
 bool leds::servo_power(bool on) {

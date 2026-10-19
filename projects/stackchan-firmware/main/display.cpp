@@ -6,6 +6,7 @@
 #include "driver/i2c_master.h"
 #include "driver/spi_master.h"
 #include "esp_lcd_panel_io.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -23,6 +24,51 @@ SemaphoreHandle_t g_flushed = nullptr;
 
 uint8_t g_grey[face_bitmap::kBytes] = {};
 uint16_t g_line[board::kDisplayWidth * 8] = {};
+
+// ⛔ Two tasks reach this buffer now: `show` from the console task (a frame
+//    arrived) and `tick` from the main loop (a blink). ⚠️ A half-drawn frame is
+//    not a wrong face — it is the tear that took a day to find (0.19.x, the
+//    DMA buffer), so the lock is not about the face being interesting.
+SemaphoreHandle_t g_lock = nullptr;
+
+struct Guard {
+  Guard() {
+    if (g_lock != nullptr) {
+      xSemaphoreTake(g_lock, portMAX_DELAY);
+    }
+  }
+  ~Guard() {
+    if (g_lock != nullptr) {
+      xSemaphoreGive(g_lock);
+    }
+  }
+};
+
+// ⚠️ The blink clock. ⛔ Its gaps are a choice, not a measurement: a blink is a
+//    drawing the author's eye has not seen yet. They are irregular on purpose —
+//    an even period reads as a metronome, and a metronome is not alive. ⛔ No
+//    RNG: a schedule that cannot be read out of the source cannot be checked by
+//    anyone, and this list can.
+constexpr int kBlinkGapsMs[] = {3200, 5400, 4100, 6800, 3700, 5900, 4600};
+constexpr int kBlinkGapCount = static_cast<int>(sizeof(kBlinkGapsMs) / sizeof(kBlinkGapsMs[0]));
+//: ⚠️ How long the lids stay shut. A real blink is 100–400 ms; this one is short
+//: because a whole frame is 30 ms and the screen is the only thing moving.
+constexpr int kBlinkClosedMs = 80;
+
+//: ⚠️ The last face actually drawn. `Face::kNone` means "nothing drawn yet":
+//: since 0.19.45 a `face:null` frame does not reach `show` at all, so this is
+//: never cleared by the host saying "do not change".
+Face g_drawn = Face::kNone;
+int g_next_blink_ms = 0;
+int g_blink_until_ms = -1;
+int g_blink_index = 0;
+
+int NowMs() { return static_cast<int>(esp_timer_get_time() / 1000); }
+
+void ScheduleBlink(int now) {
+  g_next_blink_ms = now + kBlinkGapsMs[g_blink_index % kBlinkGapCount];
+  ++g_blink_index;
+}
 
 // ⛔ **`tx_color` queues a DMA transfer and returns; the buffer belongs to the
 //    DMA until this callback fires.** `esp_lcd_panel_io.h` says so in the one
@@ -310,6 +356,13 @@ bool display::begin() {
   if (g_io != nullptr) {
     return true;
   }
+  if (g_lock == nullptr) {
+    g_lock = xSemaphoreCreateMutex();
+    if (g_lock == nullptr) {
+      std::printf("display: no lock\n");
+      return false;
+    }
+  }
   if (!i2c_bus::begin()) {
     std::printf("display: no I2C bus\n");
     return false;
@@ -345,8 +398,52 @@ void display::show(Face face) {
   if (g_io == nullptr) {
     return;
   }
+  Guard guard;
   face_bitmap::render(face, g_grey);
-  Push();
+  g_drawn = face;
+  // ⚠️ A new face opens the lids: an expression arriving mid-blink is an
+  //    expression, and finishing the blink first would delay it by 80 ms.
+  g_blink_until_ms = -1;
+  if (Push()) {
+    ScheduleBlink(NowMs());
+  }
+}
+
+void display::tick() {
+  if (g_io == nullptr) {
+    return;
+  }
+  const int now = NowMs();
+
+  // ⚠️ One blink is two frames: shut, then open. Both are pushed from here, so
+  //    that the console task never waits for a blink to finish.
+  if (g_blink_until_ms >= 0) {
+    if (now < g_blink_until_ms) {
+      return;
+    }
+    Guard guard;
+    g_blink_until_ms = -1;
+    face_bitmap::render(g_drawn, g_grey);
+    // ⚠️ The next gap is scheduled *here*, on the frame that opens the lids. It
+    //    was scheduled only by `show()` at first, so after one blink the due time
+    //    stayed in the past and every tick from then on closed the lids again —
+    //    a light that did not blink but flickered. ⛔ A blink has two halves and
+    //    the schedule belongs to the half that finishes it.
+    if (Push()) {
+      ScheduleBlink(now);
+    }
+    return;
+  }
+
+  if (now < g_next_blink_ms || !face_bitmap::can_blink(g_drawn)) {
+    return;
+  }
+  Guard guard;
+  face_bitmap::render_blink(g_drawn, g_grey);
+  if (!Push()) {
+    return;
+  }
+  g_blink_until_ms = now + kBlinkClosedMs;
 }
 
 bool display::pulse_amplifier_reset() {

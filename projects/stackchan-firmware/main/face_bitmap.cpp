@@ -162,18 +162,45 @@ void DrawMouth(uint8_t* grey) {
 
 }  // namespace
 
-void face_bitmap::render(Face face, uint8_t* grey) {
-  std::memset(grey, 0, kBytes);
+namespace {
+
+// ⚠️ One renderer with the lid's weight as an argument, so that a blink and a
+//    face are the same shapes in the same places. `weight < 0` means "the face's
+//    own weight" — the vendor's `setWeight` is exactly this knob.
+void RenderWith(Face face, uint8_t* grey, int weight) {
+  std::memset(grey, 0, face_bitmap::kBytes);
   if (face == Face::kNone) {
     return;
   }
 
-  const Style style = StyleFor(face);
-  const int cx = kWidth / 2;
-  const int cy = kHeight / 2 + kEyeOffsetY;
+  Style style = StyleFor(face);
+  if (weight >= 0) {
+    style.weight = weight;
+  }
+  const int cx = face_bitmap::kWidth / 2;
+  const int cy = face_bitmap::kHeight / 2 + kEyeOffsetY;
   // ⚠️ The vendor's `apply_style` negates the rotation for the right eye:
   //    `_is_left_eye ? rotation : -rotation`.
   DrawEye(grey, cx - kEyeOffsetX, cy, style, +1);
   DrawEye(grey, cx + kEyeOffsetX, cy, style, -1);
   DrawMouth(grey);
+}
+
+}  // namespace
+
+void face_bitmap::render(Face face, uint8_t* grey) {
+  RenderWith(face, grey, -1);
+}
+
+void face_bitmap::render_blink(Face face, uint8_t* grey) {
+  // ⚠️ Weight 0 covers the eye completely (`StyleFor`'s own scale), so a blink
+  //    is the same drawing with one integer at its other end. ⛔ The mouth does
+  //    not move: a blink is an eye, not an expression.
+  RenderWith(face, grey, 0);
+}
+
+bool face_bitmap::can_blink(Face face) {
+  // ⛔ `sleepy` is nearly closed already (weight 35); closing it the rest of the
+  //    way reads as falling asleep, not as blinking. `kNone` is not a face.
+  return face != Face::kNone && face != Face::kSleepy;
 }

@@ -1387,6 +1387,7 @@ extern "C" void app_main() {
   xTaskCreate(ConsoleTask, "console", 4096, nullptr, 2, nullptr);
   while (true) {
     leds::tick();
+    display::tick();
     PoseWatchdog();
     ServoWatchdog();
     vTaskDelay(pdMS_TO_TICKS(20));

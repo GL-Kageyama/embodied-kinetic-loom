@@ -26,4 +26,14 @@ constexpr int kBytes = kWidth * kHeight;  // one byte of grey per pixel: 76,800
 //: the five.
 void render(Face face, uint8_t* grey);
 
+//: Draws the same face with both lids closed — one frame of a blink. ⚠️ Same
+//: mouth, same places; the lid is the only thing that moves, because a blink is
+//: an eye and not a sixth expression.
+void render_blink(Face face, uint8_t* grey);
+
+//: Whether a blink is drawn for this face. ⛔ False for `sleepy`, whose lids are
+//: already nearly shut, and for `kNone`, which is not a face. ⚠️ The rule lives
+//: here rather than in `display.cpp` so that it can be asked on a host.
+bool can_blink(Face face);
+
 }  // namespace face_bitmap

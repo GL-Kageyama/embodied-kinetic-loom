@@ -54,7 +54,7 @@
 
 - **the gesture table** — ✅ **measured 2026-10-18, and no longer on this list**: the five postures are in `main/main.cpp`, judged one at a time by the author's eye. ⛔ **What is still not decided is how a gesture should move** — the table names where it goes, not how it gets there;
 - **the LED colours** — ✅ **the order is RGB565 behind the expander, and since 2026-10-18 every light has a colour**; ⛔ **each one is a choice in `main/leds.cpp`, and no colour is a measurement of anything the Pet should look like**;
-- **the display renderer** — ✅ **decided on 2026-10-18: this repository's own rasterizer, drawing the vendor's default skin** (see [The face](#the-face--2026-10-18)). ⛔ **The eyelid's animation, the blink, the breath and the mouth's speech motion are not drawn** — the six emotion pairs are, as stills;
+- **the display renderer** — ✅ **decided on 2026-10-18: this repository's own rasterizer, drawing the vendor's default skin** (see [The face](#the-face--2026-10-18)). ⛔ **The eyelid's animation, the breath and the mouth's speech motion are not drawn** — the six emotion pairs are, as stills. ✅ **Since 0.19.48 a blink is**, and it is the only thing on this screen that moves without a frame arriving: `display::tick()`, called from the main loop, closes both lids for 80 ms every 3.2–6.8 s and hosts it in `face_bitmap::render_blink` — ⚠️ **the same drawing with the lid's weight at 0, so the mouth does not move and no expression is invented.** ⛔ **Its intervals are a choice, not a measurement**, and `sleepy` never blinks;
 - **the transport** — ✅ **decided on 2026-10-18, and it is the console**: the daemon opens the USB serial path, writes one line per frame and closes it. ⛔ **Nothing is held open, so `bench` and `idf.py` still own the port between frames.** ⚠️ **The path is not stable across a replug** — see [The lights](#the-lights--2026-10-18).
 
 ## The first flash — 2026-10-18
@@ -63,7 +63,7 @@
 
 ✅ **Then the image this directory produces was built and written.** `build/stackchan-vessel.bin`, 272,976 bytes, at `0x510000`, hash verified; the app reached `ready.` and the bench turned the head. ⚠️ **A later build the same day, 273,808 bytes, added `bench timed` and was written the same way** — the size here is that build's, not a constant. ⛔ **What that did not close is the gate at the top of this page:** at that point every gesture in a frame was still refused, because no angle had been measured. **The move was a bench command — no `Motion Intent`, no trajectory, no gate** (`records/2026-10-18-first-arrival.md`). ✅ **The gesture gate closed later the same day**, when the five postures were measured (`records/2026-10-18-the-gestures.md`).
 
-⚠️ **One thing rings on this directory now, and it is narrow.** ✅ **Since 2026-10-18 `tests/test_stackchan_frame_parser.py` compiles `command_frame.cpp` with `clang++` or `g++` and runs it** — fourteen claims about which lines it accepts and which it refuses. ⛔ **It does not build the firmware**: `main.cpp`, `leds.cpp`, `servo.cpp` and `display.cpp` are never compiled here, and `idf.py build` was run by hand and no check repeats it. ✅ **Since 0.19.12 a second file is compiled and run** — `tests/test_stackchan_face.py` builds `face_bitmap.cpp` and asks the pixels — ⛔ **and that is the layer the day's tear was *not* in.** `tests/test_stackchan_wire.py` still reads these literals and refuses the day they disagree with the schema — **a copy checked against a copy**. ⚠️ **The parser test exists because that gap had a defect in it**: on 2026-10-18 the parser refused every well-formed frame by failing to step over the closing brace, and the literal comparison passed it.
+⚠️ **One thing rings on this directory now, and it is narrow.** ✅ **Since 2026-10-18 `tests/test_stackchan_frame_parser.py` compiles `command_frame.cpp` with `clang++` or `g++` and runs it** — twenty claims about which lines it accepts and which it refuses. ⛔ **It does not build the firmware**: `main.cpp`, `leds.cpp`, `servo.cpp` and `display.cpp` are never compiled here, and `idf.py build` was run by hand and no check repeats it. ✅ **Since 0.19.12 a second file is compiled and run** — `tests/test_stackchan_face.py` builds `face_bitmap.cpp` and asks the pixels — ⛔ **and that is the layer the day's tear was *not* in.** `tests/test_stackchan_wire.py` still reads these literals and refuses the day they disagree with the schema — **a copy checked against a copy**. ⚠️ **The parser test exists because that gap had a defect in it**: on 2026-10-18 the parser refused every well-formed frame by failing to step over the closing brace, and the literal comparison passed it.
 
 ## What the servo's time field answered — 2026-10-18
 
@@ -102,13 +102,17 @@
 | light | colour (RGB565 source) | chosen in |
 |---|---|---|
 | `off` | `{0, 0, 0}` | `main/leds.cpp` |
-| `dim` | `{24, 24, 40}` | `main/leds.cpp` |
+| `dim` | `{28, 28, 44}`, a triangle between 72 % and 100 % over 7 s — ⚠️ **the panel shows `{24, 24, 40}` at full**, because RGB565 keeps five bits a channel and `28 & 0xF8 == 24 & 0xF8` | `main/leds.cpp` |
+| `writing` | `{104, 40, 76}` — ⚠️ **not looked at on the unit** | `main/leds.cpp` |
+| `busy` | `{24, 104, 88}` — ⚠️ **not looked at on the unit** | `main/leds.cpp` |
 | `breathe` | `{40, 48, 72}`, a triangle between 20 % and 100 % over 3 s | `main/leds.cpp` |
 | `warm` | `{112, 64, 24}` | `main/leds.cpp` |
 | `alert` | `{160, 104, 0}` | `main/leds.cpp` |
 | `error` | `{144, 0, 0}` | `main/leds.cpp` |
 
 ⛔ **Not one of those is a measurement.** The twelve are written behind a PY32 IO expander at I²C `0x6F`: `LED_CFG` at `0x24` carries the count in bits 0–5 and a refresh in bit 6, and the pixels are RGB565 little-endian from `0x30`.
+
+⚠️ **Two lights move, and both are re-rendered only when the value they would carry has changed** (`leds::tick`, 20 ms): `breathe`, whose scale moves almost every tick, and since 0.19.48 `dim`, whose scale moves some twelve times in seven seconds. ⛔ **Not on every tick** — twelve pixels are twenty-four register writes on the bus the screen and the servo rail share. ⇒ **`dim` is no longer a still light**: it swells between 72 % and 100 % over 7 s, a quarter of `breathe`'s depth and more than twice as slow, and ⚠️ **the panel is coarse enough at that brightness to show only one step of it.** **Whether that reads as alive or as a flicker is the author's eye's question; nothing here has been looked at.**
 
 ✅ **`bench leds` was added to make two questions out of one.** It reads the expander back — version, `LED_CFG`, the six registers behind the data pin, the first four pixels — then writes full red to all twelve and reads pixel 0 again. **"The registers took the values" and "a pixel is lit" are asked separately, and the answer is printed either way.**
 
@@ -141,7 +145,7 @@
 
 ⛔ **The defect that had been reported four times was not in the drawing and not in the panel: it was between them.** `esp_lcd_panel_io_tx_color()` queues a DMA transfer and returns, and `Push()` refilled the eight-row chunk buffer immediately — so the hardware read rows that had already been overwritten. **On the glass every shape had a thinner copy of itself below it, further below the lower the shape was**, which is why one fault was read as 「ギザギザ」, then as 「ずれている」, then as 「目の描画が、二行だけ、下に」, then as 「画面全体が下にずれる」. ✅ **The fix is `on_color_trans_done` and a semaphore taken after every chunk** — about 30 ms a frame, and a face changes on an event.
 
-⚠️ **A `-2` row shift was written into `face_bitmap.cpp` on the strength of the fourth report and then removed.** ⛔ **The nine tests in `tests/test_stackchan_face.py` did not catch it, because they were moved with it.** The file now draws the vendor's rows and carries a comment saying why no offset belongs there.
+⚠️ **A `-2` row shift was written into `face_bitmap.cpp` on the strength of the fourth report and then removed.** ⛔ **The nine tests `tests/test_stackchan_face.py` held that day did not catch it, because they were moved with it — the file holds twelve now.** The file now draws the vendor's rows and carries a comment saying why no offset belongs there.
 
 **The record is `records/2026-10-18-the-face.md`, and the observation is its spine.**
 
