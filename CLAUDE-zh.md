@@ -72,9 +72,9 @@
 
 ## 测试
 
-**37 个文件、675 项测试，全部通过——实测 2026-10-20。** **五项检查及其住处见 `tests/README.md`。** ⚠️ **有三项检查不是测试，也不在那里**——`claude plugin validate --strict .`、`tools/check_i18n.py`、`tools/check_vocabulary.py`。**后两者自带 `--self-test`。**
+**37 个文件、681 项测试，全部通过——实测 2026-10-20。** **五项检查及其住处见 `tests/README.md`。** ⚠️ **有三项检查不是测试，也不在那里**——`claude plugin validate --strict .`、`tools/check_i18n.py`、`tools/check_vocabulary.py`。**后两者自带 `--self-test`。**
 
-⚠️ **自 0.19.46 起，第二层以源码形式存在，尚未安装**——`projects/stackchan_next/` 增加了封闭的六词作业语汇、2 秒的失败闪烁、醒来时的一声与 `--presence` 旋钮，并且**叠在 `projects/stackchan/` 的规则之上而不复制它们**（一张阶段表、一个身体下限、一条注目规则）。⛔ **它不发送任何东西**——CLI 只打印判定，一个端口也不打开。**两个文件分别持有 37 与 17 项测试。**
+⚠️ **自 0.19.46 起，第二层以源码形式存在，尚未安装**——`projects/stackchan_next/` 增加了封闭的六词作业语汇、2 秒的失败闪烁、醒来时的一声与 `--presence` 旋钮，并且**叠在 `projects/stackchan/` 的规则之上而不复制它们**（一张阶段表、一个身体下限、一条注目规则）。⛔ **它不发送任何东西**——CLI 只打印判定，一个端口也不打开。**两个文件分别持有 37 与 19 项测试**，而自 0.19.47 起，光之八词中的 `writing` 与 `busy` 两个词只属于这一层。
 
 ⚠️ **核心已经实现**——**轨迹族、缓动、平滑、规划、限制、准入，以及 `Motion Intent` 的读取器。** **发送的一侧也已实现**——**帧协议、周期循环、运行时的门、轴对应、发送器，以及控制箱的 Mock。** ⛔ **而自 2026-10-15 起，在这一切之下的接缝**——`engine/backend/wire.py` 持有 `Command(轴, 值)` 与三方法的 `Wire`，**门与发送器一个机器名都不写。** **机器1的数，不再作为四个地方的默认值，而是以名字（`DofRealityWire`、`DOF_REALITY_ENVELOPE`）只出现一次。** ⚠️ **机器仍然只有一台，所以「可以替换」是关于设计的说法，不是实测。** **Pet 的画面也已实现**——`projects/pet/`，**五张脸，以及承载它们的帧。** **而有一个动作也从头到尾实现了**——`motions/greeting.json` 是磁盘上的意图，**而 `motion.py` 把它带着穿过准入与门送到 Mock，同时从同一个刻点画出脸。** ⛔ **这是本仓库第一次就「把两者接起来」作出主张，而且它被断言下来，不是被描述出来的**：**五张脸里有两张是同一幅画。** **关于那个接缝，被测试的是这些，也只是这些**——**插值、缓动、平滑、限幅、切帧、截止、拒绝、帧的形状，以及驱动脸与身体的是同一个时钟。** 
 
@@ -106,7 +106,7 @@
 
 ✅ **`projects/stackchan/outbound.py` 把可见状态差分成一个 `Frame`，守护进程把它写进日志，并在指名了端口时把同一行写向那里**——`{"frame": …, "sent": …}`。**十三项测试守住它**——`tests/test_stackchan_outbound.py`: 第一个决定一定发出，不变的决定什么也不发出，只有光变化时发出不带脸的帧，只有声音时也是一帧，而且**帧的任何一个栏位都不是数字。** 
 
-✅ **自 2026-10-18 起，那条电线作为源码存在**——`engine/backend/protocol_stackchan.py` 每次转换编码并解码一行 ASCII: `face`、`light`、`gesture`、`sound`——**最后一个是从四个词的封闭集合里取的一个词，而且是事件而非状态**（`null` 的意思是「这一帧静默」，绝不是「保持上一个」）。`schemas/stackchan-command.schema.json` 是两端共读的契约，而 `engine/backend/mock_stackchan.py` 记录本该被发送的东西，**什么也不回答。** **二十八项测试守住它**——`tests/test_stackchan_wire.py`: 1,080 个帧往返（其中 125 个不带任何 `null`），未知的键与未知的词都被拒绝，编码器恰好拒绝解码器所拒绝的，契约、编码器与固件拼出同样的词。
+✅ **自 2026-10-18 起，那条电线作为源码存在**——`engine/backend/protocol_stackchan.py` 每次转换编码并解码一行 ASCII: `face`、`light`、`gesture`、`sound`——**最后一个是从四个词的封闭集合里取的一个词，而且是事件而非状态**（`null` 的意思是「这一帧静默」，绝不是「保持上一个」）。`schemas/stackchan-command.schema.json` 是两端共读的契约，而 `engine/backend/mock_stackchan.py` 记录本该被发送的东西，**什么也不回答。** **三十项测试守住它**——`tests/test_stackchan_wire.py`: 1,440 个帧往返（其中 800 个不带任何 `null`），未知的键与未知的词都被拒绝，编码器恰好拒绝解码器所拒绝的，契约、编码器与固件拼出同样的词。
 
 ✅ **同一天还出现了第二种行**——`engine/backend/protocol_stackchan_pose.py` 每个刻度运一个姿势: `pose <yaw_tenths> <pitch_tenths>*<CC>`，度的十分之一，**两栏始终都在**，拼写只有一种，两位的和，以及一个两轴的 `Wire`；`schemas/stackchan-pose.schema.json` 是它的契约。**四十二项测试守住它**——7 × 7 个姿势往返，坏掉的字节被拒绝，换位的数字被**拼写而不是和**拒绝（**写进测试，以免被当作性质**），而源码既不提机器 1 的数，也不提这个个体的零点。
 

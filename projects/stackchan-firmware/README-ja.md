@@ -17,7 +17,7 @@
 | 欄 | 値 | 意味 |
 |---|---|---|
 | `face` | Pet の5つの顔、または `null` | この表情を出す。`null` = 変えない |
-| `light` | `off` / `dim` / `breathe` / `warm` / `alert` / `error` | 常に在り、`null` にならない |
+| `light` | `off` / `dim` / `writing` / `busy` / `breathe` / `warm` / `alert` / `error` | 常に在り、`null` にならない |
 | `gesture` | `look_up` / `nod` / `look_side` / `rest` / `recoil`、または `null` | 首を動かす。`null` = 動かさない |
 | `sound` | `hello` / `pip` / `chime` / `fall`、または `null` | この語を鳴らす。`null` = この枠は黙る |
 

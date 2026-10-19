@@ -2,10 +2,8 @@
 """**判定の後処理 —— この層が何を見て、何を返すか。**
 
 ⛔ **ここには機械が無い。** `Decision` を受け取って `Decision` を返す関数だけを
-押さえる。⚠️ **光の色そのものは主張しない**——`write` と `run` に自分の語が
-付くのは 0.19.47 であり、**その日まで両方 `dim` である**（`presence.WORK_LIGHTS`）。
-だから滞留と点滅の規則は、**写像を差し替えて**測る——
-**色が決まっていなくても、規則は決まっている。**
+押さえる。⚠️ **光の色そのものは主張しない**——色はファームウェアの選択であり、
+机の上で区別できるかは著者の目が決める。ここで測るのは**どの語を選ぶか**までである。
 """
 from __future__ import annotations
 
@@ -47,51 +45,58 @@ def _rest(room: Presence, at: float) -> None:
     assert slept is not None and slept.phase is Phase.RESTING
 
 
-@pytest.fixture
-def two_lights(monkeypatch):
-    """⚠️ **0.19.46 では `write` も `run` も `dim` である。**
-    色が決まる前でも規則を測れるよう、**写像だけを差し替える**——
-    ⛔ **規則そのものは差し替えない。**
-    """
-    monkeypatch.setitem(presence.WORK_LIGHTS, "write", Light.WARM)
-    monkeypatch.setitem(presence.WORK_LIGHTS, "run", Light.ERROR)
+# ───────────────────────── 写像そのもの ─────────────────────────
+
+
+def test_two_work_words_have_a_light_of_their_own():
+    """✅ **0.19.47。** ⛔ **語と光を同じ日に足す**——先に語だけ足せば、基板は枠ごと拒む。"""
+    assert presence.WORK_LIGHTS == {"write": Light.WRITING, "run": Light.BUSY}
+    assert presence.WORK_LIGHT_OTHER is Light.DIM
+
+
+def test_every_work_light_is_a_word_the_wire_can_carry():
+    """⛔ **`Light` に値を足して codec に語を足し忘れれば、枠は送れない。**"""
+    from engine.backend import protocol_stackchan as wire
+
+    for light in (*presence.WORK_LIGHTS.values(), presence.WORK_LIGHT_OTHER):
+        assert light.value in wire.LIGHTS
 
 
 # ───────────────────────── 作業の光 ─────────────────────────
 
 
-def test_a_write_shows_as_soon_as_the_chapter_opens(two_lights):
+def test_a_write_shows_as_soon_as_the_chapter_opens():
     """⚠️ **章へ入ることは滞留に数えない。** 最初の `write` はすぐ見える。"""
     room = _presence()
     assert _start(room, 0.0).light is Light.DIM
-    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WARM
+    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WRITING
 
 
-def test_the_work_light_does_not_change_more_often_than_the_dwell(two_lights):
+def test_the_work_light_does_not_change_more_often_than_the_dwell():
     """⚠️ **道具のたびに色が変われば、それは鏡であり、相棒ではない。**"""
     room = _presence()
     _start(room, 0.0)
-    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WARM
-    assert room.offer("main", "PreToolUse", 1.2, work="read").light is Light.WARM
-    assert room.offer("main", "PreToolUse", 5.4, work="read").light is Light.WARM
+    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WRITING
+    assert room.offer("main", "PreToolUse", 1.2, work="read").light is Light.WRITING
+    assert room.offer("main", "PreToolUse", 5.4, work="read").light is Light.WRITING
     assert room.offer("main", "PreToolUse", 5.5, work="read").light is Light.DIM
 
 
-def test_leaving_the_chapter_is_not_held_by_the_dwell(two_lights):
+def test_leaving_the_chapter_is_not_held_by_the_dwell():
     """⛔ **滞留は `working` の内側の規則である。** 章の出入りは即座である。"""
     room = _presence()
     _start(room, 0.0)
-    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WARM
+    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WRITING
 
     blocked = room.offer("main", "PermissionRequest", 0.6)
     assert blocked.phase is Phase.BLOCKED and blocked.light is Light.ALERT
 
     back = room.offer("main", "PostToolUse", 0.7, work="run")
     assert back.phase is Phase.WORKING
-    assert back.light is Light.ERROR, "入り直した章は、滞留を待たない"
+    assert back.light is Light.BUSY, "入り直した章は、滞留を待たない"
 
 
-def test_a_work_word_on_an_event_that_carries_none_is_ignored(two_lights):
+def test_a_work_word_on_an_event_that_carries_none_is_ignored():
     """⛔ **語は、それを運ぶ事象のものである。** `Stop` が `run` を名乗っても覚えない。"""
     room = _presence()
     _start(room, 0.0)
@@ -99,30 +104,30 @@ def test_a_work_word_on_an_event_that_carries_none_is_ignored(two_lights):
     room.tick(4.0)                                    # 締めの表情が明ける
     decision = room.offer("main", "UserPromptSubmit", 4.5)
     assert decision.phase is Phase.WORKING
-    assert decision.light is Light.DIM, "run の光ではなく、知らされていない作業の光"
+    assert decision.light is Light.DIM, "busy ではなく、知らされていない作業の光"
 
 
-def test_an_unknown_work_word_is_not_remembered(two_lights):
+def test_an_unknown_work_word_is_not_remembered():
     """⛔ **知らない語を覚えれば、次の判定がその語で光る。**"""
     room = _presence()
     _start(room, 0.0)
-    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WARM
-    assert room.offer("main", "PreToolUse", 6.0, work="dance").light is Light.WARM
+    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WRITING
+    assert room.offer("main", "PreToolUse", 6.0, work="dance").light is Light.WRITING
 
 
-def test_lively_changes_the_light_sooner(two_lights):
+def test_lively_changes_the_light_sooner():
     """⚠️ **賑やかな側は、滞留が短いだけである。** 光の意味は変わらない。"""
     room = _presence(PRESENCE_LIVELY)
     _start(room, 0.0)
-    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WARM
-    assert room.offer("main", "PreToolUse", 2.4, work="read").light is Light.WARM
+    assert room.offer("main", "PreToolUse", 0.5, work="write").light is Light.WRITING
+    assert room.offer("main", "PreToolUse", 2.4, work="read").light is Light.WRITING
     assert room.offer("main", "PreToolUse", 2.5, work="read").light is Light.DIM
 
 
 # ───────────────────────── 失敗の長さ ─────────────────────────
 
 
-def test_one_failure_is_visible_for_two_seconds(two_lights):
+def test_one_failure_is_visible_for_two_seconds():
     """⚠️ **1回の失敗は、0.19.45 まで完全に見えなかった。** 長さで見えるようにする。"""
     room = _presence()
     _start(room, 0.0)
@@ -143,7 +148,7 @@ def test_one_failure_is_visible_for_two_seconds(two_lights):
     assert done.light is Light.DIM
 
 
-def test_three_failures_hold_the_alert_past_the_flash(two_lights):
+def test_three_failures_hold_the_alert_past_the_flash():
     """⛔ **語は増やさない。長さで区別する。** 持続は既存の `concern` である。"""
     from projects.stackchan.behaviors import CONCERN
 
@@ -215,7 +220,7 @@ def test_waking_is_silent_in_the_quiet_hours():
 # ───────────────────────── ダイヤル ─────────────────────────
 
 
-def test_quiet_closes_every_channel_this_layer_added(two_lights):
+def test_quiet_closes_every_channel_this_layer_added():
     """⛔ **`quiet` は、この層が足した3つだけを閉じる。**"""
     room = _presence(PRESENCE_QUIET, sound=True)
     _start(room, 0.0)
@@ -236,7 +241,7 @@ def test_a_presence_that_is_not_one_of_the_three_is_refused():
 # ───────────────────────── 触らないこと ─────────────────────────
 
 
-def test_the_layer_changes_no_field_but_the_light(two_lights):
+def test_the_layer_changes_no_field_but_the_light():
     """⛔ **顔・身振り・体・音・`sent` は、この層のものではない。**"""
     room = _presence()
     _start(room, 0.0)
@@ -247,10 +252,10 @@ def test_the_layer_changes_no_field_but_the_light(two_lights):
     assert decision.sound is None
     assert decision.sent is False
     assert decision.event == "PreToolUse"
-    assert decision.light is Light.WARM
+    assert decision.light is Light.WRITING
 
 
-def test_without_a_flash_the_deadline_is_the_rooms(two_lights):
+def test_without_a_flash_the_deadline_is_the_rooms():
     """⚠️ **期限は1つ増える。増えていないときは、部屋のものがそのまま出る。**"""
     room = _presence()
     _start(room, 0.0)

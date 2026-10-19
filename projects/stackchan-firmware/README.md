@@ -17,7 +17,7 @@
 | field | values | meaning |
 |---|---|---|
 | `face` | the Pet's five faces, or `null` | show this expression; `null` = do not change |
-| `light` | `off` / `dim` / `breathe` / `warm` / `alert` / `error` | always present, never `null` |
+| `light` | `off` / `dim` / `writing` / `busy` / `breathe` / `warm` / `alert` / `error` | always present, never `null` |
 | `gesture` | `look_up` / `nod` / `look_side` / `rest` / `recoil`, or `null` | move the neck; `null` = do not move |
 | `sound` | `hello` / `pip` / `chime` / `fall`, or `null` | play this word; `null` = this frame is silent |
 

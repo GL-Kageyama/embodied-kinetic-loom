@@ -25,6 +25,11 @@ enum class Face : uint8_t {
 enum class Light : uint8_t {
   kOff,
   kDim,
+  // ⚠️ Two words added on 2026-10-20, so that `working` can say what it is
+  //    working on. ⛔ Their colours are choices, not measurements — the same
+  //    standing as the other six.
+  kWriting,
+  kBusy,
   kBreathe,
   kWarm,
   kAlert,

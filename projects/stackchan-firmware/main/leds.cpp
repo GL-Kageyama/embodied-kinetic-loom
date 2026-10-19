@@ -151,6 +151,14 @@ Rgb ColorFor(Light light) {
       return {0, 0, 0};
     case Light::kDim:
       return {24, 24, 40};
+    // ⚠️ Added on 2026-10-20 with the two words. Both are choices, not
+    //    measurements, and neither has been looked at on the unit yet: the
+    //    question they answer is whether an eye can tell them apart on a desk,
+    //    and only an eye answers it.
+    case Light::kWriting:
+      return {104, 40, 76};
+    case Light::kBusy:
+      return {24, 104, 88};
     case Light::kBreathe:
       return {40, 48, 72};
     case Light::kWarm:

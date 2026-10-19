@@ -123,10 +123,19 @@ def test_the_five_faces_are_all_reached():
     assert faces == {state.value for state in State}
 
 
-def test_the_six_lights_are_all_used():
-    """⚠️ **光は4つ目のチャンネルである。** 顔を見なくても、在席が分かる。"""
+def test_the_base_layer_uses_every_light_but_the_two_work_lights():
+    """⚠️ **光は4つ目のチャンネルである。** 顔を見なくても、在席が分かる。
+
+    ⛔ **`writing` と `busy` はこの層のものではない**——`working` の中身を分ける語で、
+    選ぶのは `projects/stackchan_next/presence.py` である（0.19.47）。
+    ⇒ **ここが赤くなることは、2つの層の分担が崩れたことである。**
+    """
+    from projects.stackchan_next.presence import WORK_LIGHTS
+
     lights = {row["light"] for row in trace(SCRIPT, True, False)}
-    assert lights == {light.value for light in Light}
+    assert lights == {light.value for light in Light} - {
+        light.value for light in WORK_LIGHTS.values()
+    }
 
 
 def test_a_long_turn_nods_and_a_short_turn_does_not():

@@ -88,7 +88,7 @@
 
 ✅ **从 2026-10-19 起，扬声器除了开关还有时刻。** `projects/stackchan/quiet.py` 只回答一个问题——**这个时点是否在 21:00 与 05:00 之间**——而守护进程在每个事件读一次墙上时钟，把答案作为值往下传（`Room.offer(..., quiet=)`）。⛔ **核心仍然不读时钟。** ⚠️ **安静时间只关闭声音字段，别的什么都不关**——脸、光和脖子照旧。**沉默不等于不在。** ⚠️ **边界是整点，不携带分钟**：20:59 是白天，21:00 是安静，05:00 又是白天。✅ **而自 0.19.26 起，安装好的作业指名 `--sound on`**——作者要求了它——所以白天开口，夜晚不开口; ⛔ **作业不指名时刻**，因为时刻只住在 `quiet.py`。
 
-✅ **光是意义，不是 RGB。** `Light` 是 `off`、`dim`、`breathe`、`warm`、`alert`、`error`。映射到十二个像素是固件的工作，**这一台的 LED 顺序和颜色顺序，这里的任何记录里都没有。** 原厂固件公开了 `set_led_color`；这一层不调用它。
+✅ **光是意义，不是 RGB。** `Light` 是 `off`、`dim`、`writing`、`busy`、`breathe`、`warm`、`alert`、`error`——⚠️ **这一层选八种中的六种；作业之光的那两个词由 `projects/stackchan_next/` 选择**。映射到十二个像素是固件的工作，**这一台的 LED 顺序和颜色顺序，这里的任何记录里都没有。** 原厂固件公开了 `set_led_color`；这一层不调用它。
 
 ## 密度——只在转换时
 
@@ -206,11 +206,11 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ## 检查了什么
 
-**`tests/test_stackchan_behaviors.py` 有三十五条主张，`tests/test_stackchan_daemon.py` 有四十九条，`tests/test_stackchan_hook_client.py` 有二十一条，`tests/test_stackchan_wire.py` 有二十八条，`tests/test_stackchan_outbound.py` 有十三条，`tests/test_stackchan_neck.py` 有四十二条，`tests/test_stackchan_readback.py` 有十九条**，它们与其余检查一起运行:
+**`tests/test_stackchan_behaviors.py` 有三十五条主张，`tests/test_stackchan_daemon.py` 有四十九条，`tests/test_stackchan_hook_client.py` 有二十一条，`tests/test_stackchan_wire.py` 有三十条，`tests/test_stackchan_outbound.py` 有十三条，`tests/test_stackchan_neck.py` 有四十二条，`tests/test_stackchan_readback.py` 有十九条**，它们与其余检查一起运行:
 
 - 列表是三十三个，没有重复；每个事件恰好属于三种类型之一，三种类型分割整个列表。
 - 每个事件都带理由代码——**没有空白。**
-- 一个剧本到达全部六个阶段、五张脸和六种光。
+- 一个剧本到达全部六个阶段、五张脸，以及八种光中的六种。
 - 长回合点头，短回合不点头。
 - 连续三次失败是第一个信号，第四次不是，成功会重置计数。
 - 到达 `angry` 的路只有 `StopFailure`。
@@ -265,9 +265,9 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - **一个守护进程在两个不同进程之间保住阶段**: 第一个进程的 `SessionStart` 与第二个的 `Stop` 读作 `greeting` 与 `closing`，**而两个进程都没有持有任何状态。**
 - **两个窗口经过两个客户端，注视仍然只有一个**，背景的 `Stop` 被报告为 `distant`，阶段不变。
 
-**电线再加二十八条**——帧、它的契约，以及它的机体那一端:
+**电线再加三十条**——帧、它的契约，以及它的机体那一端:
 
-- 1,080 个帧往返——**其中 125 个不带任何 `null`**——而没有哪一个携带数字;
+- 1,440 个帧往返——**其中 800 个不带任何 `null`**——而没有哪一个携带数字;
 - 帧是一行 ASCII，而 `null` 的栏位是以值在场，不是缺失;
 - 未知的键被拒绝（`prompt` 无法搭车），未知的词按栏位被拒绝，而 `light` 必须存在且永不为 `null`;
 - **`sound` 必须存在，可为 `null`，其值是四个词**——`null` 是*这一帧沉默*，不是*保持上一个*;

@@ -13,6 +13,7 @@ from __future__ import annotations
 import ast
 import json
 import pathlib
+import re
 
 import pytest
 
@@ -30,8 +31,8 @@ FIRMWARE = REPO_ROOT / "projects" / "stackchan-firmware"
 
 
 def test_every_symbol_round_trips():
-    """⚠️ **6 × 6 × 6 × 5 ＝ 1,080 の枠**（顔6・光6・身振り6・音5、うち `null` を
-    1つも持たないものが5×5×5＝125）。**すべてが戻る。**"""
+    """⚠️ **6 × 8 × 6 × 5 ＝ 1,440 の枠**（顔6・光8・身振り6・音5、うち `null` を
+    1つも持たないものが5×8×5×4＝800）。**すべてが戻る。**"""
     for face in (None, *wire.FACES):
         for light in wire.LIGHTS:
             for gesture in (None, *wire.GESTURES):
@@ -211,6 +212,36 @@ def test_the_firmware_names_the_same_words():
     )
     for word in (*wire.FACES, *wire.LIGHTS, *wire.GESTURES, *wire.SOUNDS):
         assert f'"{word}"' in source
+
+
+def test_the_firmware_has_a_colour_for_every_light_word():
+    """⚠️ **`leds.cpp` はどの検査もコンパイルしない。** だから綴りだけを見る。
+
+    ⛔ **語を足して色を忘れれば、`ColorFor` の `switch` は `default` を持たないので
+    落ちる**——`-Wswitch` が拾うかどうかは、`idf.py build` を走らせた者にしか
+    分からない。ここで赤くなるのは、**8語と8つの `case` がずれた日である。**
+    """
+    header = (FIRMWARE / "command_frame.h").read_text(encoding="utf-8")
+    enum = header.split("enum class Light : uint8_t {", 1)[1].split("};", 1)[0]
+    names = {name.lower() for name in re.findall(r"\bk([A-Za-z]+),", enum)}
+    assert names == set(wire.LIGHTS)
+
+    leds = (FIRMWARE / "main" / "leds.cpp").read_text(encoding="utf-8")
+    body = leds.split("Rgb ColorFor(Light light) {", 1)[1].split("\n}", 1)[0]
+    colours = {name.lower() for name in re.findall(r"case Light::k([A-Za-z]+):", body)}
+    assert colours == set(wire.LIGHTS)
+
+
+def test_the_firmware_can_print_every_light_word():
+    """⚠️ **`LightName` は `main.cpp` に在り、どの検査もコンパイルしない。**
+
+    ⛔ **語を足して名前を忘れれば、受理の行が `?` になる**——そして 0.19.41 から、
+    **その行が枠の受理そのものである**（`accepted` は基板の行である）。
+    """
+    source = (FIRMWARE / "main" / "main.cpp").read_text(encoding="utf-8")
+    body = source.split("const char* LightName(Light light) {", 1)[1].split("\n}", 1)[0]
+    for word in wire.LIGHTS:
+        assert f'"{word}"' in body
 
 
 def test_the_firmware_has_no_angle_for_either_machine():

@@ -54,9 +54,14 @@ __all__ = [
 #: ここはホスト側、契約は `schemas/stackchan-command.schema.json`、ファームは C++ の綴り。
 FACES: tuple[str, ...] = ("curious", "greeting", "happy", "angry", "sleepy")
 
-#: ⚠️ **6つの意味である**（`projects/stackchan/behaviors.py` の `Light`）。
+#: ⚠️ **8つの意味である**（`projects/stackchan/behaviors.py` の `Light`）。
 #: ⛔ **色ではない。** 12個の LED への対応はファームの仕事であり、並びも色順も記録に無い。
-LIGHTS: tuple[str, ...] = ("off", "dim", "breathe", "warm", "alert", "error")
+#: ✅ **`writing` と `busy` は 0.19.47 に足した**——`working` のあいだの光を、
+#: 何をしているかで分ける2語である。⚠️ **足したのは、色が決まったからではなく、
+#: デーモンがその語を送る日と、基板がそれを解する日を同じにするためである。**
+LIGHTS: tuple[str, ...] = (
+    "off", "dim", "writing", "busy", "breathe", "warm", "alert", "error",
+)
 
 #: ⛔ **候補語であって、語彙の行ではない**（`references/README.md`）。
 #: **数になった日に、行が書かれる。**

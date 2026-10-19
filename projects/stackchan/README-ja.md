@@ -88,7 +88,7 @@
 
 ✅ **2026-10-19 から、スピーカーにはスイッチだけでなく時刻がある。** `projects/stackchan/quiet.py` が答えるのは1つ——**この時は 21:00 と 05:00 の間か**——であり、デーモンが事象ごとに壁時計を1度読み、答えを値として下へ渡す（`Room.offer(..., quiet=)`）。⛔ **中核は今も時計を読まない。** ⚠️ **静かな時間が閉じるのは音の欄だけで、他は何も閉じない**——顔も光も首もそのままである。**静かであることは、居ないことではない。** ⚠️ **境界は正時であり、分は持たない**: 20:59 は昼、21:00 は静か、05:00 はまた昼である。✅ **そして 0.19.26 から、設置済みのジョブは `--sound on` を名指す**——著者が求めた——ので、昼は喋り夜は喋らない; ⛔ **ジョブは時を名指さない**、時は `quiet.py` だけに住むからである。
 
-✅ **光は意味であり、RGB ではない。** `Light` は `off`、`dim`、`breathe`、`warm`、`alert`、`error` である。12個の画素への変換はファームの仕事であり、**この個体の LED の並びも色の順も、ここのどの記録にも無い。** ストックのファームは `set_led_color` を公開しているが、この層はそれを呼ばない。
+✅ **光は意味であり、RGB ではない。** `Light` は `off`、`dim`、`writing`、`busy`、`breathe`、`warm`、`alert`、`error` である——⚠️ **この層が選ぶのは8つのうち6つであり、作業の光の2語は `projects/stackchan_next/` が選ぶ**。12個の画素への変換はファームの仕事であり、**この個体の LED の並びも色の順も、ここのどの記録にも無い。** ストックのファームは `set_led_color` を公開しているが、この層はそれを呼ばない。
 
 ## 密度——遷移だけ
 
@@ -206,11 +206,11 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ## 何を検査しているか
 
-**`tests/test_stackchan_behaviors.py` が35の主張を持ち、`tests/test_stackchan_daemon.py` が49、`tests/test_stackchan_hook_client.py` が21、`tests/test_stackchan_wire.py` が28、`tests/test_stackchan_outbound.py` が13、`tests/test_stackchan_neck.py` が42、`tests/test_stackchan_readback.py` が19を持つ。** 残りの検査と一緒に走る:
+**`tests/test_stackchan_behaviors.py` が35の主張を持ち、`tests/test_stackchan_daemon.py` が49、`tests/test_stackchan_hook_client.py` が21、`tests/test_stackchan_wire.py` が30、`tests/test_stackchan_outbound.py` が13、`tests/test_stackchan_neck.py` が42、`tests/test_stackchan_readback.py` が19を持つ。** 残りの検査と一緒に走る:
 
 - 一覧は33で、重複が無い。すべての事象が3つの種類のどれか1つに属し、種類が一覧を分割する。
 - すべての事象が理由の符号を持つ——**空欄が無い。**
-- 1本の台本で、6つの段階・5つの顔・6つの光のすべてに届く。
+- 1本の台本で、6つの段階・5つの顔・8つの光のうち6つに届く。
 - 長いターンはうなずき、短いターンはうなずかない。
 - 3回続けた失敗が最初の合図であり、4回目はそうではなく、成功が数を戻す。
 - `angry` に届く道は `StopFailure` だけである。
@@ -265,9 +265,9 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - **1つのデーモンが、2つの別プロセスの間で段階を保つ**: 1つ目の `SessionStart` と2つ目の `Stop` が `greeting` と `closing` を読み、**どちらのプロセスも状態を持っていない。**
 - **2つの窓が2つのクライアントを通っても、注視は1つ**であり、背後の `Stop` は段階を変えずに `distant` として報告される。
 
-**電線が、さらに28を加える**——枠と、その契約と、その機体側である:
+**電線が、さらに30を加える**——枠と、その契約と、その機体側である:
 
-- 1,080の枠が往復する——**うち125は `null` を1つも持たない**——そしてそのどれも数を運ばない;
+- 1,440の枠が往復する——**うち800は `null` を1つも持たない**——そしてそのどれも数を運ばない;
 - 枠は ASCII の1行であり、`null` の欄は欠けているのではなく値として在る;
 - 知らない鍵は拒まれ（`prompt` は同乗できない）、知らない語は欄ごとに拒まれ、`light` は必須で `null` にならない;
 - **`sound` は必須で、`null` を取りうる。値は4つの語である**——`null` は*この枠は黙る*であり、*最後のものを保て*ではない;

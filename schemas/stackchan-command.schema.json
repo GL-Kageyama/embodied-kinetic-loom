@@ -14,7 +14,7 @@
     "light": {
       "description": "The meaning the twelve RGB LEDs carry. ⛔ Always present and never null: the light is the one channel that is always on, so its state is sent with every frame rather than left for the device to infer. The mapping from this word to twelve pixels is firmware's job, and the LED order and colour order of the unit in hand are in no record.",
       "type": "string",
-      "enum": ["off", "dim", "breathe", "warm", "alert", "error"]
+      "enum": ["off", "dim", "writing", "busy", "breathe", "warm", "alert", "error"]
     },
     "gesture": {
       "description": "The gesture the neck is asked to make, or null for 'the neck does not move in this frame'. ⛔ These five are candidate words, not rows in the vocabulary: a row is written the day a word becomes numbers on that machine, and that has not happened. ⚠️ A gesture is chosen only at a phase transition, and one that falls inside the body's floor is dropped rather than queued — so a late gesture never appears on this wire.",

@@ -17,7 +17,7 @@
 | 栏 | 值 | 含义 |
 |---|---|---|
 | `face` | Pet 的五张脸，或 `null` | 显示这个表情。`null` = 不改变 |
-| `light` | `off` / `dim` / `breathe` / `warm` / `alert` / `error` | 始终存在，永不为 `null` |
+| `light` | `off` / `dim` / `writing` / `busy` / `breathe` / `warm` / `alert` / `error` | 始终存在，永不为 `null` |
 | `gesture` | `look_up` / `nod` / `look_side` / `rest` / `recoil`，或 `null` | 动脖子。`null` = 不动 |
 | `sound` | `hello` / `pip` / `chime` / `fall`，或 `null` | 播放这个词。`null` = 这一帧沉默 |
 

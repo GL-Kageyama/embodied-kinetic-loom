@@ -91,6 +91,11 @@ class Light(Enum):
 
     OFF = "off"
     DIM = "dim"
+    # ⚠️ **0.19.47 に足した2語である。** ⛔ **この層は選ばない**——`working` の
+    # 中身を分ける語であり、選ぶのは `projects/stackchan_next/presence.py` である。
+    # ここに在るのは、光が閉じた集合であり、その集合を**1か所に保つ**ためである。
+    WRITING = "writing"
+    BUSY = "busy"
     BREATHE = "breathe"
     WARM = "warm"
     ALERT = "alert"

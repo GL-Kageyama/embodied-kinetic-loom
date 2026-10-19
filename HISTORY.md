@@ -5,6 +5,42 @@
 
 ---
 
+## 0.19.47 — 2026-10-20 仕事の光は、作業の語で選ばれる——**そして、語と色は同じ日に足された**
+
+### 何が起きたか（順に）
+
+1. **0.19.46 の層は語を知っていたが、`write` と `run` の光は `dim` のままだった**（`WORK_LIGHTS` の両方が `Light.DIM`）。
+2. ⛔ **語だけ先にデーモンへ入れれば、基板は枠ごと拒む**——4つの欄が1行だから、顔も身振りも音も同時に落ちる。⇒ **語と、語を受ける側を同じ日に足した。**
+3. **`writing` と `busy` を、6か所へ足した:**
+   - `engine/backend/protocol_stackchan.py` の `LIGHTS`（6語 → 8語）
+   - `schemas/stackchan-command.schema.json` の `light` の `enum`
+   - `projects/stackchan-firmware/command_frame.h` の `enum class Light`
+   - `command_frame.cpp` の綴りと `DecideLight`
+   - `main/leds.cpp` の `ColorFor`——`writing` は (104, 40, 76)、`busy` は (24, 104, 88)
+   - `main/main.cpp` の `LightName`
+4. **`projects/stackchan/behaviors.py` の `Light` にも2語を足した。** ⛔ **この層は選ばない**——`working` の中身を分ける語であり、選ぶのは `presence.WORK_LIGHTS` である。ここに在るのは、**光が閉じた集合であり、その集合を1か所に保つ**ためである。
+5. `presence.WORK_LIGHTS` は `{"write": writing, "run": busy}` になった。**知らされていない作業は `dim` のままである。**
+6. **検査を2つ足した**（`tests/test_stackchan_wire.py`）——`command_frame.h` の enum・`ColorFor` の `case`・`LightName` の綴りが、**どれも8語ちょうどであること**。⛔ **どれもソースの綴りを見るだけで、コンパイルはしない。**
+7. **受理表に2行足した**（`tests/test_stackchan_frame_parser.py`）——こちらは**`command_frame.cpp` を実際にビルドして走らせる**ので、`DecideLight` を忘れれば `UNKNOWN_VALUE` で落ちる。**綴りを見る検査より1つ強い。**
+8. `tests/test_stackchan_behaviors.py` の「6つの光がすべて使われる」は**「作業の光の2つを除くすべて」**に変わった——**この層が6つ、新しい層が2つ**。分担が崩れた日に赤くなる形で書いてある。
+
+### 測ったこと
+
+| 何を | 値 | どこから |
+| --- | --- | --- |
+| テスト | **681**（37ファイル） | `pytest tests/ -q` |
+| この版が足したテスト | **6**（wire 2 / presence 2 / frame parser 2） | 同上 |
+| 光の語 | **8** | `protocol_stackchan.LIGHTS` |
+| 往復する枠 | **1,440**（6 × 8 × 6 × 5、うち `null` を1つも持たないもの **800**） | `tests/test_stackchan_wire.py` |
+
+### 何を言っていないか
+
+- ⛔ **2色が見分けられるとは言っていない。** 色は**選んだ**だけであり、この機体の12個の LED の上ではまだ誰も見ていない。**目が「同じに見える」と言えば、`busy` を落として `run` も `dim` に戻す**——計画にそう書いた。
+- ⛔ **焼いていない。** この版はソースと契約だけである——**0.19.48 のまばたきと同じ書き込みにまとめる**（同じファームウェアだからである）。
+- ⚠️ **一度だけ、無関係の検査が落ちた。** `tests/test_stackchan_daemon.py::test_the_socket_is_removed_and_the_exit_is_clean` が「the daemon did not stop」で赤くなり、**単独では緑、その後の全体実行でも緑**——**再現しなかった。** ⛔ **再現しなかったことを、直ったこととは書かない。**
+
+---
+
 ## 0.19.46 — 2026-10-20 2つ目の層は、写しではなく新しい規則だけを持つ——**そして、「起きた」は顔では読めなかった**
 
 ### 何が起きたか（順に）

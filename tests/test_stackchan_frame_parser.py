@@ -106,6 +106,11 @@ def test_the_enum_still_matches():
         ('{"face":"greeting","gesture":"look_up","light":"warm","sound":"hello"}', OK),
         ('{"face":"greeting","gesture":"look_up","light":"warm","sound":null}\n', OK),
         ('{"face":null,"gesture":null,"light":"breathe","sound":null}', OK),
+        # ✅ **0.19.47 の2語。** ⚠️ **語を足して `DecideLight` を忘れれば、
+        #    ここが `UNKNOWN_VALUE` になって落ちる**——ソースの綴りを見るだけの
+        #    検査（`test_stackchan_wire.py`）より、1つ強い。
+        ('{"face":null,"gesture":null,"light":"writing","sound":null}', OK),
+        ('{"face":null,"gesture":null,"light":"busy","sound":null}', OK),
         # ⚠️ **鍵の順は問わない**（パーサの docstring がそう言っている）。
         ('{"light":"dim","face":"curious","gesture":"nod","sound":"chime"}', OK),
         # ⛔ **1行に2つは拒む。**

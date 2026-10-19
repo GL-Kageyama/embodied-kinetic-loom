@@ -9,8 +9,8 @@
 
 | work | 光 |
 |---|---|
-| `write` | ⚠️ 0.19.47 で自分の語を得る。いまは `dim` |
-| `run` | ⚠️ 0.19.47 で自分の語を得る。いまは `dim` |
+| `write` | `writing` |
+| `run` | `busy` |
 | `read` / `search` / `plan` / `other` / 知らされていない | `dim` |
 
 ⚠️ **滞留 `WORK_DWELL` 秒。** 光は5秒に1回より速く変わらない——
@@ -94,12 +94,12 @@ FAILURE_FLASH_SECONDS = 2.0
 #: ⛔ **「観測した」でないのは、点滅が尽きたのが観測ではないからである。**
 FLASHED = "flashed"
 
-#: ⚠️ **作業の語から光への写像である。** ⛔ **0.19.46 では `write` と `run` も `dim`**——
-#: 2つの新しい光の語は、codec・schema・ファームウェアと**同じ日に**入る（0.19.47）。
-#: **語だけ先に増やせば、基板は枠ごと拒む。**
+#: ⚠️ **作業の語から光への写像である。** ✅ **0.19.47 に、2語が自分の光を得た**——
+#: codec・schema・ファームウェア・`command_frame.cpp` と**同じ日**である。
+#: ⛔ **語だけ先に増やせば、基板は枠ごと拒む。**
 WORK_LIGHTS: dict[str, Light] = {
-    "write": Light.DIM,
-    "run": Light.DIM,
+    "write": Light.WRITING,
+    "run": Light.BUSY,
 }
 
 #: ⚠️ **知らされていない作業の光である。**

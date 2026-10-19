@@ -28,6 +28,8 @@ const char* const kFaceSleepy = "sleepy";
 
 const char* const kLightOff = "off";
 const char* const kLightDim = "dim";
+const char* const kLightWriting = "writing";
+const char* const kLightBusy = "busy";
 const char* const kLightBreathe = "breathe";
 const char* const kLightWarm = "warm";
 const char* const kLightAlert = "alert";
@@ -116,6 +118,8 @@ ParseResult DecideFace(const char* text, int size, Face* out) {
 ParseResult DecideLight(const char* text, int size, Light* out) {
   if (Equals(text, size, kLightOff)) { *out = Light::kOff; return ParseResult::kOk; }
   if (Equals(text, size, kLightDim)) { *out = Light::kDim; return ParseResult::kOk; }
+  if (Equals(text, size, kLightWriting)) { *out = Light::kWriting; return ParseResult::kOk; }
+  if (Equals(text, size, kLightBusy)) { *out = Light::kBusy; return ParseResult::kOk; }
   if (Equals(text, size, kLightBreathe)) { *out = Light::kBreathe; return ParseResult::kOk; }
   if (Equals(text, size, kLightWarm)) { *out = Light::kWarm; return ParseResult::kOk; }
   if (Equals(text, size, kLightAlert)) { *out = Light::kAlert; return ParseResult::kOk; }

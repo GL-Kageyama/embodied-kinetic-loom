@@ -88,7 +88,7 @@
 
 ✅ **Since 2026-10-19 the speaker has an hour as well as a switch.** `projects/stackchan/quiet.py` answers one question — **is this hour between 21:00 and 05:00?** — and the daemon reads the wall clock once per event and passes the answer down as a value (`Room.offer(..., quiet=)`). ⛔ **The core still reads no clock.** ⚠️ **Quiet closes the sound field and nothing else**: the face, the light and the neck are unchanged — **being silent is not being absent.** ⚠️ **The boundaries are whole hours and minutes are not carried**: 20:59 is day, 21:00 is quiet, 05:00 is day again. ✅ **And since 0.19.26 the installed job names `--sound on`** — the author asked — so the daytime speaks and the night does not; ⛔ **the job names no hour**, because the hour lives in `quiet.py` alone.
 
-✅ **The light is semantic, not RGB.** `Light` is `off`, `dim`, `breathe`, `warm`, `alert` or `error`; the mapping to twelve pixels is firmware's job, and **the LED order and colour order of this unit are in no record here.** The stock firmware exposes `set_led_color`; this layer does not call it.
+✅ **The light is semantic, not RGB.** `Light` is `off`, `dim`, `writing`, `busy`, `breathe`, `warm`, `alert` or `error` — ⚠️ **this layer chooses six of the eight; the two work lights are chosen by `projects/stackchan_next/`**; the mapping to twelve pixels is firmware's job, and **the LED order and colour order of this unit are in no record here.** The stock firmware exposes `set_led_color`; this layer does not call it.
 
 ## Density: transitions only
 
@@ -206,11 +206,11 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 
 ## What is checked
 
-**`tests/test_stackchan_behaviors.py` holds thirty-five claims, `tests/test_stackchan_daemon.py` holds forty-nine, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds twenty-eight, `tests/test_stackchan_outbound.py` holds thirteen, `tests/test_stackchan_neck.py` holds forty-two, and `tests/test_stackchan_readback.py` holds nineteen**, and they run with the rest of the suite:
+**`tests/test_stackchan_behaviors.py` holds thirty-five claims, `tests/test_stackchan_daemon.py` holds forty-nine, `tests/test_stackchan_hook_client.py` holds twenty-one, `tests/test_stackchan_wire.py` holds thirty, `tests/test_stackchan_outbound.py` holds thirteen, `tests/test_stackchan_neck.py` holds forty-two, and `tests/test_stackchan_readback.py` holds nineteen**, and they run with the rest of the suite:
 
 - the list is 33 and none is repeated; every event has exactly one of three kinds, and the kinds partition it;
 - every event carries a reason code — **there is no blank**;
-- all six phases, all five faces and all six lights are reached by one script;
+- all six phases, all five faces, and six of the eight lights, are reached by one script;
 - a long turn nods and a short turn does not;
 - three failures in a row are the first concern, a fourth is not, and success resets the count;
 - `angry` is reached only through `StopFailure`;
@@ -265,9 +265,9 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - **one daemon carries the phase across two separate processes**: a `SessionStart` in one and a `Stop` in the next read `greeting` then `closing`, though neither process held any state;
 - **two windows through two clients keep one gaze**, and a background `Stop` is reported as `distant` without changing the phase.
 
-**The wire adds twenty-eight more** — the frame, its contract and the machine's end of it:
+**The wire adds thirty more** — the frame, its contract and the machine's end of it:
 
-- 1,080 frames round-trip — **125 of them carrying no `null`** — and not one carries a number;
+- 1,440 frames round-trip — **800 of them carrying no `null`** — and not one carries a number;
 - a frame is one ASCII line, and a `null` field is present as a value rather than missing;
 - an unknown key is refused (`prompt` cannot ride along), an unknown word is refused per field, and `light` is required and never `null`;
 - **`sound` is required, may be `null`, and its values are the four words** — `null` is *this frame is silent*, not *keep the last one*;

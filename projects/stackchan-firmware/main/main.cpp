@@ -134,6 +134,8 @@ const char* LightName(Light light) {
   switch (light) {
     case Light::kOff: return "off";
     case Light::kDim: return "dim";
+    case Light::kWriting: return "writing";
+    case Light::kBusy: return "busy";
     case Light::kBreathe: return "breathe";
     case Light::kWarm: return "warm";
     case Light::kAlert: return "alert";
