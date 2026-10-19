@@ -1100,7 +1100,18 @@ void HandleFrame(const char* line, int length) {
   }
 
   leds::set_light(command.light);
-  display::show(command.face);
+  // ⚠️ `face:null` is the host's *"the face has not changed"*, not *"blank the
+  //    screen"* — `projects/stackchan/outbound.py` sends it on any frame whose
+  //    light changed and whose face did not. ⛔ `face_bitmap::render(kNone)`
+  //    clears the framebuffer, so until 0.19.45 every such frame blanked the
+  //    display, and a `working` phase sends no further frame: the screen stayed
+  //    black for the whole of it. Measured in the daemon's log: 134 of 571
+  //    frames over 25 hours carried `face:null` (81 of them on `light:dim`).
+  //    The schema has always read null as "unchanged"; this line is where the
+  //    firmware disagreed with it.
+  if (command.face != Face::kNone) {
+    display::show(command.face);
+  }
   printf("frame: light=%s face=%s gesture=%s sound=%s\n", LightName(command.light),
          FaceName(command.face), GestureName(command.gesture), SoundName(command.sound));
 
