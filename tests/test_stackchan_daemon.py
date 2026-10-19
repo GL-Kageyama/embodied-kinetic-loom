@@ -712,3 +712,86 @@ def test_a_port_that_cannot_be_opened_leaves_the_gesture_to_the_board(tmp_path):
     assert neck.take(room.offer("main", "SessionStart", 0.0), 0.0) is False
     assert neck.take(room.offer("main", "PermissionRequest", 1.2), 1.2) is False
     assert neck._fd is None
+
+
+def test_a_plan_that_asks_for_no_motion_is_not_streamed(tmp_path, capsys):
+    """⛔ **動かない列を流さない。** それでも身振りは引き受ける（`True`）。
+
+    ⚠️ **2026-10-19 にログを数えた**: 85 の身振りのうち 38 が、`look_up` の姿勢から
+    `look_up` へ戻る 0 の動きだった——首はそこに停まっている。**武装200 msと0.8秒の
+    流しとトルクの点灯が、何も動かさないために使われていた**（`gestures.still`）。
+    ⛔ **`True` を返すのは、枠に身振りを運ばせないためである**——基板の `PlayGesture` は
+    メインループを数秒塞ぎ、**動かない姿勢のために**その窓を作ってしまう。
+
+    ⚠️ **答えは読戻しの格子でちょうど `look_side` の姿勢 `[350, 500]` になる2数である。**
+    """
+    port = tmp_path / "console"
+    port.touch()
+    neck = edge.Neck(str(port))
+    _park(neck)                      # 端末は答えない ⇒ 起点は look_up の姿勢 [80, 500]
+
+    port.write_text(
+        "bench: yaw raw 572, angle 35.0 deg (zero 460)\n"
+        "bench: pitch raw 780, angle 50.0 deg (zero 620)\n",
+        encoding="ascii",
+    )
+    at = 1.2
+    decision = Room().offer("main", "PermissionRequest", at)
+    assert decision.gesture == "look_side"
+    assert neck.take(decision, at) is True
+
+    # ⛔ **流れていない。** 期限も無く、ポートも持っていない。
+    assert neck.deadline is None
+    assert neck._fd is None
+    written = [line for line in port.read_text(encoding="ascii").splitlines()
+               if line.startswith("pose ")]
+    assert written == [], f"動かない列が流れた: {written}"
+
+    rows = [json.loads(line) for line in capsys.readouterr().out.splitlines() if line.strip()]
+    necks = [row for row in rows if "neck" in row]
+    assert necks, "首の行が1つも出ていない——この検査は何も見ていない"
+    assert necks[-1]["neck"] == "look_side"
+    assert necks[-1]["from"] == [350, 500]
+    assert necks[-1]["to"] == [350, 500]
+    assert necks[-1]["skipped"] == "no motion"
+    assert "poses" not in necks[-1]
+
+
+def test_a_plan_inside_the_measured_floor_is_not_streamed_either(tmp_path, capsys):
+    """✅ **位置を尋ねて答えが返る日は、こちらが主である。**
+
+    ⚠️ **基板の格子は粗い**: `look_up` の yaw 80 は、その位置にある首から `93` と読まれる。
+    ⇒ **列は 13 tenths 動く**（`still` ではない）が、**サーボは 4 counts では動かない**。
+    2026-10-19 のこの機体が、まさに `[93, 490]` から `[80, 500]` への列を
+    20 ms ごとに 11 回流し、**1 count も動かなかった**（`gestures.within_floor`）。
+
+    ⚠️ **答えの2数は、その格子でちょうど `[93, 490]` になる**——`(raw - zero) * 50 // 16`。
+    """
+    port = tmp_path / "console"
+    port.touch()
+    neck = edge.Neck(str(port))
+    _park(neck)                      # 答えない ⇒ 起点は look_up の姿勢 [80, 500]
+
+    port.write_text(
+        "bench: yaw raw 490, angle 8.0 deg (zero 460)\n"
+        "bench: pitch raw 777, angle 50.0 deg (zero 620)\n",
+        encoding="ascii",
+    )
+    at = 1.2
+    decision = Room().offer("main", "UserPromptSubmit", at)
+    assert decision.gesture == "look_up"
+    assert neck.take(decision, at) is True
+
+    assert neck.deadline is None
+    assert neck._fd is None
+    written = [line for line in port.read_text(encoding="ascii").splitlines()
+               if line.startswith("pose ")]
+    assert written == [], f"床の内側の列が流れた: {written}"
+
+    rows = [json.loads(line) for line in capsys.readouterr().out.splitlines() if line.strip()]
+    necks = [row for row in rows if "neck" in row]
+    assert necks, "首の行が1つも出ていない——この検査は何も見ていない"
+    assert necks[-1]["neck"] == "look_up"
+    assert necks[-1]["from"] == [93, 490]        # 測った格子の上
+    assert necks[-1]["to"] == [80, 500]          # 表の姿勢
+    assert necks[-1]["skipped"] == "no motion"

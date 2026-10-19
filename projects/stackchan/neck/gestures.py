@@ -38,6 +38,8 @@ __all__ = [
     "posture",
     "ends",
     "duration_for",
+    "still",
+    "within_floor",
     "plan",
 ]
 
@@ -105,6 +107,56 @@ def duration_for(starts: Pose, ends: Pose) -> float:
         abs(ends.pitch_tenths - starts.pitch_tenths),
     ) / 10.0
     return max(MIN_DURATION, distance / DEGREES_PER_SECOND)
+
+
+def still(plan: Motion) -> bool:
+    """**その列が、1歩も動かないか。** ⚠️ **始点と終点を比べない**——列を読む。
+
+    ⛔ **2026-10-19、デーモンのログの85の身振りのうち38が、`look_up` から
+    `look_up` への0の動きだった**——首は `look_up` の姿勢に停まっており、
+    `nod` もそこへ戻り、一番多い事象（`UserPromptSubmit`）がまた `look_up` を選ぶ。
+    **その列は、何も動かさないのに、200 ms の武装と0.6秒の流しとトルクの点灯を使う。**
+
+    ⚠️ **`from == to` で判定してはいけない。** `nod` は下の点へ行って戻るので、
+    **始点と終点が同じでも、列は動いている**——列の標本を読めば、その2つは別物になる。
+    """
+    if not plan.steps:
+        return True
+    first = plan.steps[0].pose
+    return all(step.pose == first for step in plan.steps)
+
+
+#: ⚠️ **この機体のサーボの床である。** 2026-10-19、`bench set` で一段ずつ測った
+#: （1つの目標、速度100、トルクは点けたまま、基板が `held at` を印字する）:
+#: **yaw は 8 counts 以下を要求しても動かない**——4→0/0、8→0/2、12→6/5（＋/−）。
+#: ⛔ **pitch の下りには床が無い**: 4 counts の要求で 5 counts 動いた——**重力が動かす。**
+#: **上りだけが床を持つ**: 4→1、8→5、12→9。⇒ **下りは 1 count でも「動く」に数える。**
+#: ⚠️ **この層の単位（度の10倍）で書く。** 8 counts ≈ 26、4 counts ≈ 13。
+#: ⛔ **基板の表の写しではない**——`main.cpp` にこの数は無い。**測った数である。**
+FLOOR_TENTHS = {"yaw": 26, "pitch_up": 13}
+
+
+def within_floor(plan: Motion) -> bool:
+    """**この列は、サーボが動かさない範囲に収まっているか。**
+
+    ⚠️ **`still` とは別の問いである。** `still` は「列が1歩も動かない」（数を使わない）、
+    こちらは「1歩は動くが、**この機体では動かない**」（測った数を使う）。
+    ⛔ **どちらも要る**: 位置を尋ねて答えが返ると、始点は基板の格子の上の数になり、
+    `look_up` の 80 は 93 と読まれる——**列は動くが、サーボは動かない。**
+    （2026-10-19、この機体で `[93, 490]` から `[80, 500]` への列がそれだった。）
+
+    ⚠️ **pitch は始点からの上りと下りを別々に読む**——下りに床は無い。
+    """
+    if not plan.steps:
+        return True
+    yaws = [step.pose.yaw_tenths for step in plan.steps]
+    if max(yaws) - min(yaws) >= FLOOR_TENTHS["yaw"]:
+        return False
+    start = plan.steps[0].pose.pitch_tenths
+    pitches = [step.pose.pitch_tenths for step in plan.steps]
+    if max(pitches) - start >= FLOOR_TENTHS["pitch_up"]:
+        return False
+    return start - min(pitches) <= 0
 
 
 def plan(gesture: str, starts: Pose, *, period: float = DEFAULT_PERIOD,

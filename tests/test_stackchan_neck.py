@@ -342,6 +342,45 @@ def test_duration_grows_with_distance_and_has_a_floor():
     assert far == pytest.approx(60.0 / gestures.DEGREES_PER_SECOND)
 
 
+def test_a_plan_that_asks_for_no_motion_is_still_and_a_nod_is_not():
+    """⛔ **`still` は列を読む。** 始点と終点を比べると、`nod` を取り違える。
+
+    ⚠️ **2026-10-19 のデーモンのログでは、85 の身振りのうち 38 が 0 の動きの
+    `look_up` だった**——首は `look_up` の姿勢に停まっており、`nod` もそこへ戻り、
+    一番多い事象（`UserPromptSubmit`）がまた `look_up` を選ぶ。
+    ⛔ **その列は、何も動かさないのに、武装と流しとトルクの点灯を使う。**
+    """
+    here = gestures.posture("look_up")
+    assert gestures.still(gestures.plan("look_up", here))
+
+    # ⚠️ **`nod` は始点と終点が同じでも、下の点まで動く。** 列は止まっていない。
+    nod = gestures.plan("nod", here)
+    assert nod.starts == here and nod.ends == here
+    assert not gestures.still(nod)
+
+    # ⚠️ **1歩でも動けば、止まってはいない。**
+    nudged = Pose(here.yaw_tenths + 10, here.pitch_tenths)
+    assert not gestures.still(gestures.plan("look_up", nudged))
+
+
+def test_a_plan_inside_the_measured_floor_is_not_a_move():
+    """⚠️ **床は測った数である**（`bench set` 一段ずつ、2026-10-19）。
+
+    ⛔ **`look_up` の 80 は、位置を尋ねると 93 と読まれる**——基板の格子が粗いからである。
+    **その列は動くが、サーボは 4 counts では動かない。**
+    """
+    near = gestures.plan("look_up", Pose(93, 490))
+    assert not gestures.still(near)
+    assert gestures.within_floor(near)
+
+    # ⚠️ **yaw が 26 tenths（8 counts）を越えれば、動いた**（12→6/5）。
+    assert not gestures.within_floor(gestures.plan("look_up", Pose(53, 490)))
+    # ⛔ **下りに床は無い。** 4 counts の要求で 5 counts 動いた——1 count でも数える。
+    assert not gestures.within_floor(gestures.plan("rest", Pose(0, 34)))
+    # ⚠️ **`nod` は床の外である**（470 tenths、下って戻る）。
+    assert not gestures.within_floor(gestures.plan("nod", gestures.posture("look_up")))
+
+
 def _drive(stream: Stream, at: float = 0.0) -> float:
     """**期限へ飛びながら、列を終わりまで追う。** ⚠️ 時計ではなく、値で追う。"""
     while True:

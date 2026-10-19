@@ -406,6 +406,25 @@ class Neck:
             return False
 
         plan = gestures.plan(decision.gesture, starts, period=self._period)
+        if gestures.still(plan) or gestures.within_floor(plan):
+            # ⛔ **動かない列は、流さない。** 2026-10-19、85の身振りのうち38が
+            #    これだった——首は `look_up` に停まっており、`look_up` がまた来る。
+            #    ⚠️ **それでも身振りは引き受ける**（`True` を返す）: 枠が運べば、
+            #    基板の `PlayGesture` がメインループを数秒塞ぐ——**動かない姿勢のために。**
+            # ⚠️ **2つの問いを並べる。** `still` は列が1歩も動かないこと（数を使わない）、
+            #    `within_floor` は動くが**この機体が動かさない**こと（測った床）。
+            #    ✅ **位置を尋ねて答えが返る日は、後者が主である**: `look_up` の 80 は
+            #    `93` と読まれ、列は動くが、サーボは 4 counts では動かない。
+            self._parked = plan.ends
+            self._close()
+            emit({
+                "neck": decision.gesture,
+                "from": [starts.yaw_tenths, starts.pitch_tenths],
+                "to": [plan.ends.yaw_tenths, plan.ends.pitch_tenths],
+                "skipped": "no motion",
+                "at": at,
+            })
+            return True
         self._stream.start(plan, at, name=decision.gesture)
         emit({
             "neck": decision.gesture,
