@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- ⚠️ This file names this host. A launchd user agent belongs to one user and
+         cannot be carried to another machine as it is. Both paths are absolute,
+         because launchd does not inherit a working directory.
+
+         ⛔ This is the second layer's job, and it is a different job from
+         `embodied-kinetic-loom.stackchan.plist` — a different label, a different
+         socket, a different log. Both can run at once; only one may hold the port. -->
+    <key>Label</key>
+    <string>embodied-kinetic-loom.stackchan-next</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/python3</string>
+        <string>-m</string>
+        <string>projects.stackchan_next.daemon</string>
+        <!-- ⚠️ Machine 2's console, named here and nowhere else. If the path changes
+             when the board is plugged in, it is this line that changes. -->
+        <string>--port</string>
+        <string>/dev/cu.usbmodem101</string>
+        <!-- ⚠️ The speaker is on, for the reason the first job's copy states: a
+             switch is a decision, and the quiet hours are a rule the daemon reads
+             off its own wall clock. -->
+        <string>--sound</string>
+        <string>on</string>
+        <!-- ⚠️ The dial is written out rather than left to its default. A blank is
+             filled by someone else's default, and this line is what a reader looks
+             for when the day was too loud. -->
+        <string>--presence</string>
+        <string>normal</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/user/AI創作工房/embodied-kinetic-loom</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- ⚠️ A different log from the first job's. Two daemons appending to one file
+         would make every count in `projects/stackchan/day` ambiguous. -->
+    <key>StandardOutPath</key>
+    <string>/tmp/ekl-stackchan-next.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/ekl-stackchan-next.err</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

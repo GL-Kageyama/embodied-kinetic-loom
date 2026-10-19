@@ -213,6 +213,18 @@ rm -f /tmp/ekl-stackchan-501.sock /tmp/ekl-stackchan-daemon.log /tmp/ekl-stackch
 
 and remove the `hooks` key from `~/.claude/settings.json`. ⚠️ **Nothing else is touched**: the daemon writes only the socket and those two logs, and **with no `--port` it sends nothing to a machine; with one, it writes a single line to that path and nothing else.**
 
+## A second job, installed (0.19.50)
+
+✅ **On 2026-10-20 at 07:10 the second layer replaced the first on this host.** The copy is `projects/stackchan_next/launchd/embodied-kinetic-loom.stackchan-next.plist` — label `embodied-kinetic-loom.stackchan-next`, module `projects.stackchan_next.daemon`, log `/tmp/ekl-stackchan-next.log`, and `--presence normal` written out rather than left to the default, because ⚠️ **a blank is filled by someone else's default and this is the line a reader looks for when a day was too loud.**
+
+**What the switch changed, and nothing else:** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan`; the first job's plist removed from `~/Library/LaunchAgents/`, since a plist left there starts again at the next login; `bootout`'s socket `/tmp/ekl-stackchan-501.sock` gone with it; `bootstrap` of the second plist; and the thirty-three `hooks` commands in `~/.claude/settings.json` naming `projects.stackchan_next.hook`. ⚠️ **The two jobs must not both name the port** — the board's console has one writer at a time — **so the first was stopped before the second started.**
+
+⚠️ **The permission layer refused the installation once, before the author was asked**, and the refusal is part of this record: **an installation is the author's word, not a plan's.** At that point `settings.json` was put back and the first job left running, so ⛔ **the desk was never silent for a moment during the attempt.**
+
+✅ **Observed after the switch, in `/tmp/ekl-stackchan-next.log`:** the startup row naming the socket, the port and the dial; then this session's own `Bash` calls arriving as `work: "run"`, one of them with a frame row reading **`sent: true, accepted: true`** — the acceptance read from the board's own line on the same fd. ⛔ **The old daemon's last row was `ConfigChange`** — the change that replaced it was the last event it saw.
+
+**To remove it:** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan-next`, remove the plist, and point `settings.json` back at `projects.stackchan.hook` — the first layer's code is untouched and its copy is still in `projects/stackchan/launchd/`. ⛔ **No hour has been run, and no sentence about noise exists yet.** `tests/test_stackchan_next_launchd.py`, six claims, reads the copy and says the two jobs have different labels, different modules and different logs, and that the hour is not written into either. ⛔ **Nothing checks the installation itself.**
+
 ## What rings, and what does not
 
 ✅ **Part of this page rings.** The pure parts are checked with no socket at all — the request schema, the refusal of an unknown key, and the decision for a given `(session, event, at)` — and the socket is checked as a real process: it answers, refuses, logs the row it returned, and exits cleanly on `SIGTERM`.

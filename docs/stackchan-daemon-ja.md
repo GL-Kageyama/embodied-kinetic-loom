@@ -213,6 +213,18 @@ rm -f /tmp/ekl-stackchan-501.sock /tmp/ekl-stackchan-daemon.log /tmp/ekl-stackch
 
 そして `~/.claude/settings.json` から `hooks` の鍵を外す。⚠️ **他には何も触らない**: デーモンが書くのはソケットとその2つのログだけで、**`--port` が無ければ機体へは何も送らず、あればその経路へ1行を書くだけである。**
 
+## 2つ目のジョブが、設置された（0.19.50）
+
+✅ **2026-10-20 の 07:10、2つ目の層がこのホストの1つ目を置き換えた。** 複製は `projects/stackchan_next/launchd/embodied-kinetic-loom.stackchan-next.plist` である——label は `embodied-kinetic-loom.stackchan-next`、モジュールは `projects.stackchan_next.daemon`、ログは `/tmp/ekl-stackchan-next.log`、そして `--presence normal` は既定に任せず書き出してある——⚠️ **空欄は他人の既定で埋まり、そしてこの行こそ、一日がうるさかったときに読み手が探す行だからである。**
+
+**切り替えが変えたものは、それだけで、他には何も無い:** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan`; 1つ目のジョブの plist を `~/Library/LaunchAgents/` から取り除くこと（そこに残せば、次のログインでまた始まる）; ソケット `/tmp/ekl-stackchan-501.sock` がそれとともに消えること; 2つ目の plist の `bootstrap`; そして `~/.claude/settings.json` の33の `hooks` のコマンドが `projects.stackchan_next.hook` を名指すこと。⚠️ **2つのジョブが同時にポートを名指してはならない**——基板のコンソールの書き手は、一度に1人である——**だから2つ目が始まる前に1つ目を止めた。**
+
+⚠️ **著者に問う前に、許可の層が一度、設置を断った**——そしてその断りもこの記録の一部である: **設置は計画の言葉ではなく、著者の言葉である。** その時点で `settings.json` は書き戻し、1つ目のジョブは走らせたままにした——⛔ **試みのあいだ、机の上は一瞬も黙らなかった。**
+
+✅ **切り替えのあと、`/tmp/ekl-stackchan-next.log` で観測した:** ソケットとポートとダイヤルを名乗る起動の行; そのあと、この会話自身の `Bash` が `work: "run"` として届き、そのうち1つは枠の行が **`sent: true, accepted: true`** であった——受理は、書いたのと同じ fd で基板自身の行から読んだものである。⛔ **古いデーモンが最後に見た行は `ConfigChange` であった**——自分を差し替えた変更が、それが最後に見た事象である。
+
+**取り除くには:** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan-next`、plist を外し、`settings.json` を `projects.stackchan.hook` へ戻す——1つ目の層のコードは1行も触っておらず、その複製は `projects/stackchan/launchd/` にまだ在る。⛔ **1時間はまだ走っておらず、「うるさかったか」についての文もまだ無い。** `tests/test_stackchan_next_launchd.py` の6つが複製を読み、2つのジョブは label もモジュールもログも違い、時はどちらにも書かれていないことを言う。⛔ **設置そのものを検査するものは無い。**
+
 ## 何が鳴り、何が鳴らないか
 
 ✅ **この頁の一部は鳴る。** 純粋な部分はソケット無しで検査される——要求のスキーマ、知らない鍵の拒否、与えられた `(session, event, at)` に対する決定——そしてソケットは本物のプロセスとして検査される: 答え、拒み、返した行をログに出し、`SIGTERM` できれいに終わる。

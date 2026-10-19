@@ -4,7 +4,7 @@
 
 # tests/
 
-**Thirty-eight files, seven hundred and twenty-six tests, all green — measured 2026-10-20.**
+**Thirty-eight files, seven hundred and forty-two tests, all green — measured 2026-10-20.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -249,6 +249,20 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | a greeting is not recoloured by the last tool | `test_stackchan_next_daemon.py` | a transition is a chapter, not work |
 | the quiet dial still answers, and the startup row names it | `test_stackchan_next_daemon.py` | quiet is not absence; ⚠️ **which dial is running is the first line of the log** |
 | the edge copies none of the machinery — only `handle` and `serve` are its own | `test_stackchan_next_daemon.py` | ⛔ **two spellings of a frame drift**; the second `serve` exists because the first resolves its own `handle` by name |
+
+**Sixteen more hold the second layer's door and the job that opens it — the process a hook runs, and the copy of what is installed (0.19.50):**
+
+| the check | where | what it is for |
+|---|---|---|
+| the door is the second daemon's, and the first room's spelling is not it | `test_stackchan_next_hook.py` | ⚠️ **one prefix apart** — that is all that lets the two layers run at once |
+| the edge borrows `read_payload` and writes only `main` and `build_parser` | `test_stackchan_next_hook.py` | ⛔ **two spellings of an input read drift** — the rule is borrowed, not copied |
+| a `PreToolUse` carrying `Edit` reaches the room as `write`, and the path inside `tool_input` is absent from the log | `test_stackchan_next_hook.py` | ✅ **the word is the tool's name, never its content** |
+| the word becomes a light on the logged frame, which is still `sent: false` | `test_stackchan_next_hook.py` | ⛔ **a logged frame is not a light on the desk** |
+| the five-second dwell holds `busy` across a tool, and releases it after the wait | `test_stackchan_next_hook.py` | ⛔ **the test waits, because the wait is the rule**; ⚠️ **the first word after entering `working` is immediate** |
+| the first room refuses the third word with `unknown-key` | `test_stackchan_next_hook.py` | ⛔ **a job pointed at the wrong socket is readable** — it fails loudly on tool events rather than silently |
+| no daemon, malformed input and an over-long input are silent with exit 0, and a listener that never answers does not hold the turn | `test_stackchan_next_hook.py` | **a hook must never fail the turn it is reporting** |
+| the second job has its own label, its own module and its own log | `test_stackchan_next_launchd.py` | ⛔ **two daemons appending to one log make every count in a day ambiguous** |
+| the dial is written out, the hour is not, and the port is named once | `test_stackchan_next_launchd.py` | ⚠️ **a blank is filled by someone else's default**; ⛔ **the quiet hours live in `quiet.py`** |
 
 **Twenty-one more hold the client — the process a hook would run:**
 

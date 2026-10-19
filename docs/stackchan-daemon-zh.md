@@ -213,6 +213,18 @@ rm -f /tmp/ekl-stackchan-501.sock /tmp/ekl-stackchan-daemon.log /tmp/ekl-stackch
 
 然后从 `~/.claude/settings.json` 里去掉 `hooks` 键。⚠️ **其他什么都不碰**: 守护进程只写套接字和那两个日志，而且**没有 `--port` 时它不向任何机器发送；有的话，它只向那个路径写一行，别的什么都不写。**
 
+## 第二个作业，已安装（0.19.50）
+
+✅ **2026-10-20 的 07:10，第二层在这台主机上替换了第一层。** 副本是 `projects/stackchan_next/launchd/embodied-kinetic-loom.stackchan-next.plist`——label 是 `embodied-kinetic-loom.stackchan-next`，模块是 `projects.stackchan_next.daemon`，日志是 `/tmp/ekl-stackchan-next.log`，而 `--presence normal` 是被写出来的，没有交给默认值——⚠️ **空栏会被别人的默认值填满，而这一行正是某一天太吵时，读者要去寻找的那一行。**
+
+**切换改变的，只有这些，别无其他：** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan`；把第一个作业的 plist 从 `~/Library/LaunchAgents/` 移走（留在那里，下次登录它又会启动）；套接字 `/tmp/ekl-stackchan-501.sock` 随之消失；对第二个 plist 的 `bootstrap`；以及 `~/.claude/settings.json` 里三十三条 `hooks` 命令改口指名 `projects.stackchan_next.hook`。⚠️ **两个作业不得同时指名那个端口**——基板的控制台一次只有一位写者——**所以第二个开始之前，第一个已经被停下。**
+
+⚠️ **在询问作者之前，许可层拒绝过一次安装**，而**这次拒绝也是这份记录的一部分**：**安装是作者的话，不是计划的。** 那一刻 `settings.json` 被放了回去，第一个作业继续运行——⛔ **在尝试的整个过程里，桌上没有一瞬是沉默的。**
+
+✅ **切换之后，在 `/tmp/ekl-stackchan-next.log` 里观测到：** 报出套接字、端口与表盘的启动行；随后，这个对话自己的 `Bash` 以 `work: "run"` 到达，其中一帧的日志行读作 **`sent: true, accepted: true`**——受理是从写它的同一个 fd 上、从基板自己的那一行读到的。
+
+**要移除它：** `launchctl bootout gui/501/embodied-kinetic-loom.stackchan-next`，移走 plist，把 `settings.json` 指回 `projects.stackchan.hook`——第一层的代码一行未动，其副本仍在 `projects/stackchan/launchd/`。⛔ **一小时还没有跑过，关于「是否太吵」的句子也还不存在。** `tests/test_stackchan_next_launchd.py` 的六项读那份副本，说两个作业的 label、模块与日志各不相同，而钟点哪一边都没有写。⛔ **没有任何东西检查安装本身。**
+
 ## 什么会响，什么不会
 
 ✅ **这一页的一部分会响。** 纯的部分在没有套接字的情况下被检查——请求的模式、未知键的拒绝、以及给定 `(session, event, at)` 的决定——而套接字作为一个真实的进程被检查: 它作答、拒绝、把返回的行写进日志，并在 `SIGTERM` 时干净地退出。
