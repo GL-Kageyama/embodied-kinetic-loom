@@ -584,9 +584,18 @@ def deliver(frame: Frame, at: float, session: str | None, port: str | None) -> N
 
     ⚠️ **ログの行は、送った後でも先でも同じ1行である。** 違うのは `sent` だけ。
     ⛔ **端末が無いことは失敗ではない**——`--port` を渡さなければ、今まで通り書かない。
+
+    ⛔ **枠の前に、改行を1つ置く。2026-10-19 に測った理由で置く。**
+    基板のコンソールは `\\n` までを溜める（`main.cpp` の `ConsoleTask`）ので、
+    **終端の欠けた切れ端が溜めの中に残っていると、次に書いた行はそれに繋がれて壊れる。**
+    その日、同じ枠を単独で書けば通り、切れ端の後ろに書けば
+    `frame: refused (malformed)` で落ちることを、この機体で確かめた。
+    ⇒ **空行は基板が捨てる**（`g_line_len > 0` のときだけ行を渡す）ので、1バイトで足りる。
+    ⚠️ **問い（`bench pos`）には置かない**——そこには既に尋ね直しが在り、
+    そちらは「答えを読み直す」ことで直る（0.19.33）。枠は、尋ね直す相手ではない。
     """
     line = frame_line(frame)
-    sent = send_line(port, line) if port is not None else False
+    sent = send_line(port, "\n" + line) if port is not None else False
     emit(frame_row(line, at, session, sent))
 
 

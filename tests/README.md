@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.27.0 | canonical: tests/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 1.28.0 | canonical: tests/README.md | translated: 2026-10-19 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -222,6 +222,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | **a greeting logs one frame row, and with no port `sent` is `False`** | `test_stackchan_daemon.py` | ⛔ **with no `--port` the line says *would have sent*; nothing leaves the process** |
 | **an unchanged event logs no second frame** | `test_stackchan_daemon.py` | ⚠️ **the frame is not a stream** — the same state is one line, not one per event |
 | **the configured port receives the logged line** | `test_stackchan_daemon.py` | ⚠️ **the log row and the bytes come from one call to the codec**, so they cannot drift |
+| **a frame is written after a blank line** (0.19.39) | `test_stackchan_daemon.py` | ⛔ **the board accumulates until `\n`, and a fragment glued the next line to itself** — measured on the unit |
 | a missing port is `sent: false`, not a refusal | `test_stackchan_daemon.py` | ⛔ **a replug can rename the console**; a missing path must not be fatal under `KeepAlive` |
 | without a port, nothing is written anywhere | `test_stackchan_daemon.py` | the device is optional, and that is still the default |
 | a write that returns short is not `sent` | `test_stackchan_daemon.py` | ⛔ **`sent` is the host's tty taking the whole line — not the board receiving it** |

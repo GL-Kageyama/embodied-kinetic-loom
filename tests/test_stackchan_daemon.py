@@ -415,9 +415,28 @@ def test_the_configured_port_receives_the_logged_line(sock):
     assert len(frames) == 1
     assert frames[0]["sent"] is True
     # ⚠️ **端末には、枠のほかに問い合わせの行（`bench pos`）が在る。** それは枠ではない。
+    # ⚠️ **そして枠の前には空行が1つ在る**——切れ端を落とすための1バイトである（0.19.39）。
     written = [line for line in port.read_text(encoding="ascii").splitlines()
-               if line != "bench pos"]
+               if line and line != "bench pos"]
     assert written == [frames[0]["frame"]]
+
+
+def test_a_frame_is_written_after_a_blank_line(sock):
+    """⛔ **枠は、前の行の終端に依存しない。** 2026-10-19 に基板で測った。
+
+    基板のコンソールは `\\n` までを溜める。**終端の欠けた切れ端が残っていると、
+    次に書いた枠はそれに繋がれて壊れる**——この機体で、同じ枠が単独では通り、
+    切れ端の後ろでは `frame: refused (malformed)` で落ちた。空行は基板が捨てる。
+    """
+    port = sock.parent / "console"
+    port.touch()
+    with Daemon(sock, port=port) as daemon:
+        daemon.send({"session": "main", "event": "SessionStart"})
+
+    frames = daemon.frames()
+    assert frames, "枠が1つも出ていない——この検査は何も見ていない"
+    text = port.read_text(encoding="ascii")
+    assert "\n" + frames[0]["frame"] + "\n" in text, f"枠の前に空行が無い: {text!r}"
 
 
 def test_a_missing_port_is_not_a_refusal(sock):
@@ -516,7 +535,7 @@ def test_the_first_gesture_is_not_streamed_when_the_console_does_not_answer(sock
 
     raw = port.read_text(encoding="ascii")
     assert "bench pos" in raw, "尋ねていない——この検査は何も見ていない"
-    lines = [line for line in raw.splitlines() if line != "bench pos"]
+    lines = [line for line in raw.splitlines() if line and line != "bench pos"]
     assert [line for line in lines if line.startswith("pose ")] == []
     assert json.loads(lines[0])["gesture"] == "look_up"
 
