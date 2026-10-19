@@ -115,7 +115,7 @@ eFuse 实测: **`SECURE_BOOT_EN` False**、**`SPI_BOOT_CRYPT_CNT` Disable**、**
 - **数做什么。** 在 10/04 那台上: `head 45 90` → yaw 322、`head 90 90` → 454、`head 135 90` → 597、`head center` → 454；`head 90 45` → pitch 637、`head 90 90` → 762。⚠️ **而拿厂商的标度去对，这三个点并不完全吻合**——322 / 454 / 597 意味着**每度约 3.06 个计数**，而厂商是 **3.2**。⇒ **近到足以同族，远到不足以算实测。** ⛔ **不要搬到手边这台上:** 手边这台的零点被向导改成了 460 / 620，**而零点至今仍不是标度。**
 - **传输层。** **两台都是** ESP32-S3 的 **native USB Serial/JTAG**——VID `0x303A` / PID `0x1001`。⛔ **没有 CP210x，也没有 CH9102**——所以线路设置和自动复位的行为，是 ESP32-S3 的，不是 USB-UART 桥的。
 - **能对 shell 说什么。** `head nod|shake|center|<pan> <tilt>`、`vmen on|off`、`track on|off|mirror`、`follow`、`search`、`say` / `greet` / `tts`、`brain <url>`、`wifi` / `scan` / `target` / `gw`、`rover`、`i2cint` / `camtest`、`status` / `ping` / `clear` / `reboot`。⚠️ **那是 10/04 那台的 shell，是跟着另一份固件来的。** ⛔ **手边这台上没有 shell。**
-- **闪存布局**（10/04 那台）: nvs 20 KB、otadata 8 KB、app0 3072 KB、app1 3072 KB、ffat 10112 KB、coredump 64 KB。⚠️ **布局相同不等于固件相同**——手边这台从 `0x510000` 的 `ota_1` 槽启动。
+- **闪存布局**（10/04 那台）: nvs 20 KB、otadata 8 KB、app0 3072 KB、app1 3072 KB、ffat 10112 KB、coredump 64 KB。⚠️ **布局相同不等于固件相同**——而且 ⛔ **连启动的槽位都不是恒定的**: 2026-10-18 这台的应用写到 `0x510000` 的 `ota_1`，2026-10-20 `otadata` 读出 `ota_seq = 1`——那是 **`0x20000` 的 `ota_0`**，而**那天写到 `0x510000` 的镜像通过了核对，却一次也没有运行。** ⇒ **在写之前读 `otadata`**（2026-10-20 测得；规则在 `projects/stackchan-firmware/README.md`）。
 
 ## ⛔ 有一条实测，与本引擎正面冲突
 

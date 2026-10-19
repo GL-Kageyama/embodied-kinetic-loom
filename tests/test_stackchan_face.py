@@ -10,6 +10,9 @@
 
 - **口は、vendor の既定の棒である**——90 x 6、どの感情でも同じ場所に 540 画素、隙間なし。
 - **2つの目は、鏡像である**——vendor は右目に回転の符号を反転させる。
+- ⚠️ **通常時の目だけは、vendor の形ではない**（0.19.53）——著者の要望
+  「通常時の目の形は、単純な⚫︎がいいな」で、重み 75 のまぶたを払った円盤になり、
+  **上下が釣り合う**ことを測る。⛔ **残る5つの顔は vendor の数値のままである。**
 - **目と口の外は、黒である**（`secondaryColor`）。
 - **眠い顔の目は、最も閉じている**——重み 35 は 75 より覆われる。
 - **縁は滑らかである**——0 でも 255 でもない中間の値を持つ画素が、円の縁に在る。
@@ -112,6 +115,10 @@ int main() {
     const int left = Bright(grey, 78, 92, 102, 116);
     const int right = Bright(grey, 218, 92, 242, 116);
     const int eye_edge = Dim(grey, 78, 92, 102, 116) + Dim(grey, 218, 92, 242, 116);
+    // The normal face's eye is a plain disc since 2026-10-20: its box is filled
+    // the same above and below the centre row (y = 104).
+    const int top = Bright(grey, 80, 94, 100, 103);
+    const int bottom = Bright(grey, 80, 104, 100, 113);
 
     // Mirror check about the vertical through x = 160. ⚠️ Pixel `x` covers
     // [x, x+1), so its mirror is `319 - x`, not `320 - x` — the off-by-one
@@ -156,6 +163,8 @@ int main() {
     std::printf("LEFT %d\n", left);
     std::printf("RIGHT %d\n", right);
     std::printf("EYE_EDGE %d\n", eye_edge);
+    std::printf("TOP %d\n", top);
+    std::printf("BOTTOM %d\n", bottom);
     std::printf("MIRROR_MISMATCH %d\n", mismatched);
     std::printf("OUTSIDE %d\n", outside);
 
@@ -297,13 +306,31 @@ def test_the_sleepy_eyes_are_the_most_closed(drawn):
 def test_the_lid_follows_the_vendors_weight(drawn):
     """⛔ まぶたの量を、見える場所で測る。
 
-    - `curious`（Doubt: 重み 75, 回転 0）: 目の上端 y=96 は覆われ、下端 y=112 は白い。
     - `sleepy`（Sleepy: 重み 35）: 中心 y=104 まで覆われ、y=112 はまだ白い。
+    ⚠️ **`curious` はもう vendor のまぶたを持たない**——下の検査が、その代わりを
+    測る（2026-10-20、著者の要望）。
     """
-    assert drawn["curious"]["probes"][(90, 96)] == 0, "curious の上まぶたが開いている"
-    assert drawn["curious"]["probes"][(90, 112)] > 0, "curious の下が白くない"
     assert drawn["sleepy"]["probes"][(90, 104)] == 0, "sleepy の目が閉じていない"
     assert drawn["sleepy"]["probes"][(90, 112)] > 0, "sleepy の下が白くない"
+
+
+def test_the_normal_eye_is_a_plain_disc(drawn):
+    """✅ **2026-10-20、著者の要望**: 通常時の目は単純な ● である。
+
+    ⚠️ **vendor の `Doubt`（重み 75）は、上の5行をまぶたで切り落とした円盤である。**
+    著者の言葉は「通常時の目の形は、単純な⚫︎がいいな」——⇒ 重み 100 は
+    `DefaultEyes::setWeight` のもう一方の端であり、まぶたが円盤から離れる。
+
+    - 目の上端 y=96 が白い（vendor の重みでは覆われていた）。
+    - 中心 y=104 の上下で、白い画素の数が等しい——**対称でなければ、それは円ではない。**
+    ⛔ **色や明るさは測っていない。** 測っているのは形だけである。
+    """
+    assert drawn["curious"]["probes"][(90, 96)] > 0, "curious の上端がまぶたで覆われている"
+    assert drawn["curious"]["top"] == drawn["curious"]["bottom"], (
+        f"curious の目が上下で釣り合っていない: "
+        f"{drawn['curious']['top']} / {drawn['curious']['bottom']}"
+    )
+    assert drawn["curious"]["top"] > 0
 
 
 def test_a_blink_closes_both_eyes_and_leaves_the_mouth_alone(drawn):

@@ -5,11 +5,13 @@
 
 namespace {
 
-// ⛔ The drawing is the vendor's default skin, not one of ours. Every number
-//    below is lifted from `vendor-src/StackChan/firmware/main/stackchan/avatar/
-//    skins/default/` (M5Stack, MIT, git 1b57655): `eyes.cpp` and `mouth.cpp`.
-//    The vendor draws it with LVGL containers; this file draws the same shapes
-//    with a rasterizer, because this firmware carries no LVGL.
+// ⛔ The drawing is the vendor's default skin, not one of ours — **with one
+//    exception, written where it happens**: the normal face's eye is a plain
+//    disc since 2026-10-20, by the author's word (`StyleFor`). Every other
+//    number below is lifted from `vendor-src/StackChan/firmware/main/stackchan/
+//    avatar/skins/default/` (M5Stack, MIT, git 1b57655): `eyes.cpp` and
+//    `mouth.cpp`. The vendor draws it with LVGL containers; this file draws the
+//    same shapes with a rasterizer, because this firmware carries no LVGL.
 //
 //    ⚠️ What is copied: the two eye centres, the eye size for `setSize(0)`, the
 //    mouth size for `setWeight(0)`, and the six emotion pairs (weight, rotation)
@@ -75,7 +77,15 @@ Style StyleFor(Face face) {
     case Face::kAngry:
       return {70, 450};
     case Face::kCurious:
-      return {75, 0};
+      // ⛔ **This row is no longer the vendor's.** `Doubt` is (75, 0): a disc
+      //    with its top five rows cut flat by the lid. On 2026-10-20 the author
+      //    asked for a plain filled circle in the normal state — 「通常時の目の
+      //    形は、単純な⚫︎がいいな」. Weight 100 is `DefaultEyes::setWeight`'s
+      //    other end: the lid is lifted clear of the disc, so the eye is the
+      //    disc. ⚠️ **The other faces keep the vendor's numbers**, and this is
+      //    the one row where the drawing differs from the skin — by a word.
+      //    ⚠️ A blink is still weight 0, which covers this disc completely.
+      return {100, 0};
     case Face::kSleepy:
       return {35, -50};
     case Face::kNone:

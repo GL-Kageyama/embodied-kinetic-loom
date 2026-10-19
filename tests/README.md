@@ -4,7 +4,7 @@
 
 # tests/
 
-**forty files, seven hundred and fifty-one tests, all green — measured 2026-10-20.**
+**forty files, seven hundred and fifty-two tests, all green — measured 2026-10-20.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -408,6 +408,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | **the edges carry intermediate values** | `test_stackchan_face.py` | ⛔ **this is the anti-aliasing, asserted**, because a 1-bit circle is a staircase and the author saw it |
 | the sleepy eyes are the most closed, and the lid follows the vendor's integer weights | `test_stackchan_face.py` | `-map_range(weight, 0, 100, 0, 20)` in `int` arithmetic: weight 72 lifts the lid by 14, not 14.4 |
 | `happy` and `greeting` are one drawing, and the other four are distinct | `test_stackchan_face.py` | the host decided two words share a face; the screen does not quietly disagree |
+| **the normal eye is a plain disc** (0.19.53) | `test_stackchan_face.py` | ⛔ **the one row where the drawing is not the vendor's** — the author asked for 「通常時の目の形は、単純な⚫︎がいいな」, and 100 is `DefaultEyes::setWeight`'s other end: the lid touches the disc's top and covers none of it. **A blink still closes it whole**, and the shape is all that is measured |
 
 ⛔ **What it cannot see is where the defect was.** `display.cpp` — the SPI driver, the panel's init sequence, the two I2C rails, and the DMA — **is compiled by no check.** `idf.py build` is run by hand, and on 2026-10-18 a tear lived in it for four rounds of reporting while this directory stayed green: the eight-row chunk buffer was refilled before the DMA had finished reading it, so *every shape on the screen had a thinner copy of itself below it*, and the copy sat further below the lower the shape was. **The drawing was right the whole time; what was wrong was the wire underneath it.** ⇒ **A `-2` row shift was briefly written into `face_bitmap.cpp` on the strength of the symptom, and removed again** — the comment where it stood records why it must not come back. ⛔ **And these tests did not catch it, because they were moved with it**: the row boxes were re-pinned to the shifted drawing and the suite stayed green. **A test written from the same belief as the code cannot be the check on that belief** — what caught it was one photograph, on the glass.
 
