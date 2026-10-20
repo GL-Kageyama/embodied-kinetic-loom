@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: projects/stackchan-firmware/records/2026-10-21-the-board-that-would-not-answer.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.1.0 | canonical: projects/stackchan-firmware/records/2026-10-21-the-board-that-would-not-answer.md | translated: 2026-10-21 -->
 
 **Language:** [English](2026-10-21-the-board-that-would-not-answer.md) | [日本語](2026-10-21-the-board-that-would-not-answer-ja.md) | [中文](2026-10-21-the-board-that-would-not-answer-zh.md)
 
@@ -43,6 +43,19 @@ alive
 
 and a hand-written frame returned `(sent, accepted) = (True, True)`. **The daemon's own next frames carried `accepted: true`.**
 
+## The replug held for seventy seconds
+
+**This section was not in the page when it was first written.** The kernel's own log carries both ends of it:
+
+- `03:46:51.190` — `AppleUSBHostPort::enumerateDeviceComplete_block_invoke: enumerated 0x303a/1001/0101 (USB JTAG/serial debug unit / 1) at 12 Mbps`
+- the board answered `bench pos`, `alive`, and a hand-written frame came back `accepted: true`
+- `03:48:01.891` — **70.7 seconds later** — `AppleUSBHostPort::terminateDevice: destroying 0x303a/1001/0101 (USB JTAG/serial debug unit): hardware port disabled`
+- `/dev/cu.usbmodem101` was gone: `esptool.py read_flash 0xd000 0x2000` stopped at `could not open port … No such file or directory`, and by 03:55 the device was in neither `ioreg` nor `system_profiler`, with nothing on the bus re-enumerating it.
+
+⇒ **A replug bought seventy seconds.**
+
+⚠️ **Whether the replug reset the chip is not known, and it decides what those seventy seconds mean.** If the chip lost power when the cable came out, then this is **a failure that reproduces about a minute after a cold boot.** If its battery held it up, the chip never restarted, and one state ended the port twice. ⛔ **Nothing here distinguishes the two** — and at the time the firmware printed no line that could have: **a `reset: reason` line is what would have said so, and it is in the next build.**
+
 ## The numbers, as evidence
 
 | what | value | where it came from |
@@ -55,10 +68,15 @@ and a hand-written frame returned `(sent, accepted) = (True, True)`. **The daemo
 | poses streamed from `[0, 30]` | 40 — `applied` and `late` never confirmed | the daemon's log |
 | after the replug | `yaw raw 482`, `pitch raw 778`, `alive` | the board's own line |
 | the frame after that | `sent: true`, `accepted: true` | the board's own line |
+| the device enumerated | `03:46:51.190` | the kernel log |
+| the port terminated, first time | `03:24:03.560` | the kernel log |
+| the port terminated, second time | `03:48:01.891` | the kernel log |
+| **how long the replug held** | **70.7 s** | the two kernel-log times above |
 
 ## What this file does not say
 
 - ⛔ **It does not say why the board was silent.** The power switch, the cable's seating, a hung firmware and the ROM's own state are **four candidates, and not one was separated.**
 - ⛔ **It does not say whether anything moved while the board was silent.** Forty poses were written; **not one was confirmed**, and the board's verdict never came.
 - ⛔ **It does not say the glass was black.** ⚠️ **The firmware draws no face at boot**, so a board that is running and a board that is not look the same on the screen — **that is why this file exists, and not a remark about this morning.**
-- ⚠️ **It is not a diagnosis.** **A recovery is not a diagnosis** — the page for 2026-10-19 says exactly that about the rail, and this is the same shape a second time.
+- ⛔ **It does not say the two terminations are one fault.** One came 23 minutes into a silence, with no port held at that moment; the other came 70.7 seconds after the board was answering. **The shape is the same; the mechanism is not established.**
+- ⚠️ **It is not a diagnosis.** **A recovery is not a diagnosis** — the page for 2026-10-19 says exactly that about the rail, and this is the same shape a second time. ⚠️ **The replug is the same shape a third time**: it is a recovery whose duration is known and whose cause is not.

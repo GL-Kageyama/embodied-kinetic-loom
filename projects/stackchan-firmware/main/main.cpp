@@ -31,6 +31,7 @@
 
 #include "esp_ota_ops.h"
 #include "esp_rom_sys.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -41,6 +42,7 @@
 #include "leds.h"
 #include "servo.h"
 #include "sound.h"
+#include "wifi.h"
 #include "zeros.h"
 
 namespace {
@@ -202,6 +204,9 @@ void PrintHelp() {
   printf("  bench leds                read the expander back, then set all twelve full red\n");
   printf("  bench sound <word>        play one of hello|pip|chime|fall\n");
   printf("  bench volume <0..100>     set the amplifier's volume and keep it\n");
+  printf("  bench wifi                does nvs hold a network, is the station on one, has it an address\n");
+  printf("  bench wifi scan           what the radio can hear; blocks for seconds\n");
+  printf("  bench wifi join <ssid> [psk]   store a network in nvs and connect; the psk is not echoed\n");
   printf("  help\n");
 }
 
@@ -844,6 +849,50 @@ void HandleBench(const char* args) {
     BenchTimed(yaw_tenths, static_cast<int>(time_field), static_cast<int>(speed));
     return;
   }
+  if (std::strncmp(args, "wifi", 4) == 0) {
+    const char* rest = args + 4;
+    while (*rest == ' ') {
+      ++rest;
+    }
+    if (*rest == '\0') {
+      wifi_probe::report();
+      return;
+    }
+    if (std::strncmp(rest, "scan", 4) == 0) {
+      wifi_probe::scan();
+      return;
+    }
+    if (std::strncmp(rest, "join", 4) == 0) {
+      const char* cursor = rest + 4;
+      while (*cursor == ' ') {
+        ++cursor;
+      }
+      if (*cursor == '\0') {
+        printf("bench: wifi join needs an ssid\n");
+        return;
+      }
+      // ⚠️ The first space ends the ssid, so an ssid that contains one cannot
+      //    be written this way — said here rather than failing as a wrong psk.
+      char ssid[33] = {0};
+      int n = 0;
+      while (cursor[n] != '\0' && cursor[n] != ' ' && n < 32) {
+        ssid[n] = cursor[n];
+        ++n;
+      }
+      const char* after = cursor + n;
+      while (*after == ' ') {
+        ++after;
+      }
+      char psk[65] = {0};
+      if (*after != '\0') {
+        std::strncpy(psk, after, sizeof(psk) - 1);
+      }
+      wifi_probe::join(ssid, psk);
+      return;
+    }
+    printf("bench: wifi [scan | join <ssid> [psk]]\n");
+    return;
+  }
   // ⚠️ `set`, not `pose`: `pos` is three characters and its check runs first,
   //    so any subcommand starting with `pos` is read as `bench pos`.
   if (std::strncmp(args, "set", 3) == 0) {
@@ -1274,6 +1323,30 @@ void ServoWatchdog() {
   }
 }
 
+// ⚠️ The sixteen values `esp_reset_reason_t` can hold, named. ⛔ The number is
+//    printed beside the word, because the number is what a measurement holds.
+const char* ResetReasonName(esp_reset_reason_t reason) {
+  switch (reason) {
+    case ESP_RST_UNKNOWN: return "unknown";
+    case ESP_RST_POWERON: return "power-on";
+    case ESP_RST_EXT: return "external pin";
+    case ESP_RST_SW: return "software restart";
+    case ESP_RST_PANIC: return "panic";
+    case ESP_RST_INT_WDT: return "interrupt watchdog";
+    case ESP_RST_TASK_WDT: return "task watchdog";
+    case ESP_RST_WDT: return "other watchdog";
+    case ESP_RST_DEEPSLEEP: return "deep sleep wake";
+    case ESP_RST_BROWNOUT: return "brownout";
+    case ESP_RST_SDIO: return "sdio";
+    case ESP_RST_USB: return "usb peripheral";
+    case ESP_RST_JTAG: return "jtag";
+    case ESP_RST_EFUSE: return "efuse error";
+    case ESP_RST_PWR_GLITCH: return "power glitch";
+    case ESP_RST_CPU_LOCKUP: return "cpu lockup";
+  }
+  return "outside the enum";
+}
+
 }  // namespace
 
 extern "C" void app_main() {
@@ -1289,6 +1362,13 @@ extern "C" void app_main() {
   //    printed nothing; silence said only that something was wrong, never what.
   printf("\nstackchan-vessel — the device end of the wire\n");
   printf("built %s %s\n", __DATE__, __TIME__);
+  // ⚠️ Why this chip started. ⛔ It answers nothing when the chip never
+  //    rebooted — on 2026-10-21 the board stayed powered from its own battery
+  //    while its USB was taken away twice, and a boot line cannot describe a
+  //    boot that did not happen. What it does cover is the classes that do
+  //    reboot: brownout, panic, a watchdog, a software restart.
+  printf("reset: reason %d (%s)\n", static_cast<int>(esp_reset_reason()),
+         ResetReasonName(esp_reset_reason()));
 
   // ⚠️ The console is the VFS console the ESP-IDF startup already installed for
   //    USB Serial/JTAG — the same path the vendor's firmware uses. ⛔ An earlier
@@ -1302,6 +1382,14 @@ extern "C" void app_main() {
   //    hand boots the vendor's bootloader, which does.
   esp_ota_mark_app_valid_cancel_rollback();
   printf("waypoint: ota marked valid\n");
+
+  // ⛔ The radio comes up here, and it carries nothing. ⚠️ It is placed before
+  //    the servo rail's three-second sleep so that association happens behind
+  //    that wait rather than adding to the boot. ⛔ Not fatal: a board with no
+  //    radio is still a board with a console, and the console is where the
+  //    frames still go.
+  wifi_probe::begin();
+  printf("waypoint: radio\n");
 
   xTaskCreate(HeartbeatTask, "beat", 3072, nullptr, 1, nullptr);
 

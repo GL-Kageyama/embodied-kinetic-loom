@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.0.0 | canonical: projects/stackchan-firmware/records/2026-10-21-the-board-that-would-not-answer.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.1.0 | canonical: projects/stackchan-firmware/records/2026-10-21-the-board-that-would-not-answer.md | translated: 2026-10-21 -->
 
 **Language:** [English](2026-10-21-the-board-that-would-not-answer.md) | [日本語](2026-10-21-the-board-that-would-not-answer-ja.md) | [中文](2026-10-21-the-board-that-would-not-answer-zh.md)
 
@@ -43,6 +43,19 @@ alive
 
 而手写的帧返回了 `(sent, accepted) = (True, True)`。**守护进程自己接下来的帧带上了 `accepted: true`。**
 
+## 插拔只维持了七十秒
+
+**这一节在这份文件最初写下时并不存在。** 内核自己的日志带着它的两端:
+
+- `03:46:51.190` — `AppleUSBHostPort::enumerateDeviceComplete_block_invoke: enumerated 0x303a/1001/0101 (USB JTAG/serial debug unit / 1) at 12 Mbps`
+- 基板回答了 `bench pos` 和 `alive`，手写的帧返回了 `accepted: true`
+- `03:48:01.891` — **70.7 秒之后** — `AppleUSBHostPort::terminateDevice: destroying 0x303a/1001/0101 (USB JTAG/serial debug unit): hardware port disabled`
+- `/dev/cu.usbmodem101` 消失了: `esptool.py read_flash 0xd000 0x2000` 停在 `could not open port … No such file or directory`；到 03:55，这台设备既不在 `ioreg` 也不在 `system_profiler` 里，总线上也没有任何东西在重新枚举它。
+
+⇒ **插拔买到的只有七十秒。**
+
+⚠️ **插拔有没有复位芯片，并不知道，而那七十秒的意思正取决于这个。** 如果线拔出时芯片的电源断了，那么这就是**一个在冷启动后大约一分钟就重现的故障**。如果是电池撑住了它，芯片一次也没有重启，**同一个状态两次结束了端口**。⛔ **这里没有任何东西能区分这两者**——而当时的固件，一行能说出这件事的字也没有印: **`reset: reason` 那一行就是它，而它已经在下一个构建里了。**
+
 ## 作为证据的数字
 
 | 什么 | 值 | 从哪里来 |
@@ -55,10 +68,15 @@ alive
 | 从 `[0, 30]` 流出的 pose | 40——`applied` 与 `late` 都没有被确认 | 守护进程的日志 |
 | 插拔之后 | `yaw raw 482`、`pitch raw 778`、`alive` | 基板自己的那一行 |
 | 之后的帧 | `sent: true`、`accepted: true` | 基板自己的那一行 |
+| 设备被枚举 | `03:46:51.190` | 内核日志 |
+| 端口被终止，第一次 | `03:24:03.560` | 内核日志 |
+| 端口被终止，第二次 | `03:48:01.891` | 内核日志 |
+| **插拔维持了多久** | **70.7 秒** | 上面两个内核日志时刻 |
 
 ## 这份文件没有说的
 
 - ⛔ **没有说基板为什么沉默。** 电源开关、线的接触、卡住的固件、ROM 的状态——**四个候选，一个都没有分开。**
 - ⛔ **没有说沉默期间有没有东西动过。** 写下了 40 个 pose，**一个都没有被确认**，基板的判定没有回来。
 - ⛔ **没有说玻璃是黑的。** ⚠️ **固件在启动时不画脸**，所以在屏幕上，运行着的基板和不运行的基板看起来一样——**这就是这份文件存在的理由，不是对今天早晨的评论。**
-- ⚠️ **这不是诊断。** **恢复不是诊断**——2026-10-19 那份文件对电源轨说过完全相同的话，同样的形状第二次出现。
+- ⛔ **没有说两次终止是同一个故障。** 一次在沉默 23 分钟之后，那一刻并没有握着端口；另一次在基板正在回答的 70.7 秒之后。**形状相同，机构并未确立。**
+- ⚠️ **这不是诊断。** **恢复不是诊断**——2026-10-19 那份文件对电源轨说过完全相同的话，同样的形状第二次出现。⚠️ **插拔是同一个形状的第三次**: 它维持了多久是知道的，它为什么有效是不知道的。

@@ -308,3 +308,22 @@ bench: refused — a pose stream is running; wait for 500 ms of silence
 — and an idle `bench pos` answers in about 0.3 s. **The daemon's probe runs before its own stream, so it does not meet this gate**; what looked like a wedged console was the board refusing, and the refusal was printed.
 
 ✅ **And the read-back's first use was to measure a gesture** — row 7 of `docs/stackchan-progress.md`: through the installed daemon, `look_up` moved the head **0 counts** and `look_side` **71**. ⛔ **No test compiles `main.cpp`**; what checks this is `idf.py build` and the board's own printing.
+
+## The radio — 2026-10-21
+
+⛔ **`main/wifi.cpp` brings the station up and carries nothing.** No frame and no pose go over it; no existing behaviour changed. What it adds is three bench verbs and one line of the boot banner:
+
+```
+bench wifi                        nvs' credentials, association, address
+bench wifi scan                   SSID, channel, RSSI, auth mode — blocks for seconds
+bench wifi join <ssid> [psk]      store a network and connect; ⛔ the psk is not printed
+reset: reason <n> (<name>)        the boot banner's new line
+```
+
+⚠️ **The credentials it reports are the vendor's**: `esp_wifi_get_config` reads what the setup wizard wrote to NVS. This file neither erases that blob nor rewrites it unless `join` is typed. ⛔ **Nothing here prints a PSK**, in any length, in any form.
+
+⛔ **It exists because the console is one wire, and on 2026-10-21 the host took that wire away twice** — `terminateDevice … hardware port disabled` at `03:24:03.560`, and again at `03:48:01.891`, **70.7 seconds after a replug the board answered**. The record is `records/2026-10-21-the-board-that-would-not-answer.md`.
+
+⚠️ **The `reset: reason` line is there to settle one question and no other**: whether a cable replug power-cycles this chip. If it does, the 70.7 seconds are the length of a failure that reproduces after every cold boot; if it does not, one state ended the port twice. ⛔ **A boot line cannot describe a boot that did not happen**, so nothing printed here covers the case where the chip never restarted.
+
+⚠️ **The cost is 517,808 bytes** — 357,520 before the radio, 875,328 after. The whole Wi-Fi stack (`esp_wifi`, `lwip`, `wpa_supplicant`, `mbedtls`) links in the first time any code names it. The app partition is 5.1 MB and 83 % of it is still free.
