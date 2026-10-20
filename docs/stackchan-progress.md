@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.18.1 | canonical: docs/stackchan-progress.md | translated: 2026-10-20 -->
+<!-- i18n-version: 1.18.2 | canonical: docs/stackchan-progress.md | translated: 2026-10-20 -->
 
 **Language:** [English](stackchan-progress.md) | [日本語](stackchan-progress-ja.md) | [中文](stackchan-progress-zh.md)
 
@@ -26,7 +26,7 @@
 |---|---|---|---|---|
 | **1** | **Does it hear the agent?** | ✅ | **thirty-three hook events** registered in `~/.claude/settings.json`; the client rebuilds exactly `session` and `event`, prints nothing and exits 0; the daemon stamps the time and holds the room between processes. **21 + 49 tests** | — |
 | **2** | **Does it know what it is doing?** | ✅ | **six phases**; transitions against evidence and ignored; a background window is `distant`; the gaze is single and sticky over **two and three windows**; a **one-second** body floor; resting after **90 s**; the **twenty-five** unexpressed events still reset the idle clock | — |
-| **3** | **Does it have a face?** | ✅ | **five faces** from the Pet's own drawing; **twelve LEDs**, always on; **thirteen pixel tests** on the vendor's skin; a frame whose four fields carry words and no numbers | — |
+| **3** | **Does it have a face?** | ✅ | **five faces** from the Pet's own drawing; **twelve LEDs**, always on; **thirteen pixel tests** on the vendor's skin; ⚠️ **an eye was shown the two work lights on 2026-10-20 and named two colours — 「青、紫」**; a frame whose four fields carry words and no numbers | — |
 | **4** | **Does it move?** | ✅ | the pose line at about **50 poses a second**; **five postures** placed by the author's eye; **822 poses applied** in the engine-driven run; the firmware writes the stock's call (`kPoseTimeMs = 20`, `kPoseSpeed = 0`). ⚠️ **The landing is six to eight counts short on yaw and one to three on pitch — not a constant.** ✅ **And since 0.19.36 the floor is measured, one goal at a time** (`bench set`, torque on, the board printing `held at`): yaw asked **4 / 8 / 12 / 20 / 40** counts moved **0·0 / 0·2 / 6·5 / 13·13 / 34·33** (+ and −); pitch up **1 / 5 / 9 / 18 / 38** and down **5 / 6 / 12 / 20 / 40** — ⛔ **downward there is no floor: gravity supplies the motion** | — |
 | **5** | **Does it sound?** | ✅ | **four words**, a closed set, and the author heard all four; on 2026-10-19 the ear judged the set quiet and **`fall` smaller than the other three** — the boot volume moved from −18 dB to −10 dB, and `fall`'s amplitude alone from 0.22 to 0.34; the author heard it again and said 「OK」. ⛔ **The tones are still choices, not measurements** | — |
 | **6** | **Does it move with the event, not after it?** | ✅ | **one `at`** for the frame and the pose line; a streamed frame carries `gesture: null`; seen moving from a hook event, and judged 「滑らかだった」. **19 of 23, 17 of 23, 16 of 23 and 68 of 79** poses were applied late — **lateness is the schedule's, smoothness is the eye's** | — |
