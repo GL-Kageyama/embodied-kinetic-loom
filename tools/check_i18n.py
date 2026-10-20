@@ -143,6 +143,12 @@ DOCS = (
     # 97という音の数はその内側の証拠である**——**午後のチャイムはすべて
     # このセッション自身の仕事に帰っており、耳がどれを捉えたかは確定しない。**
     "projects/stackchan-firmware/records/2026-10-19-the-sounds.md",
+    # ✅ **`records/` の12本目は、答えなかった基板の頁である。** 2026-10-21 の朝、
+    # ホストも USB の機器も揃っていたのに **8つの枠が `sent: true` で `accepted` が0**、
+    # 探針は `position: null`、`esptool.py read_mac` は `No serial data received`。
+    # 著者が線を差し直すと基板は `alive` を返した。⛔ **この頁は診断ではない**
+    # ——**回復は診断ではなく、黙った基板と死んだ基板はここからは同じに見える。**
+    "projects/stackchan-firmware/records/2026-10-21-the-board-that-would-not-answer.md",
     # ⚠️ **`references/` の1本も並べる。** ✅ **2026-09-28、このディレクトリに最初の1行が入った**
     # ——**D-12 が決めた「覆えない差」の欄を持つ表である。**
     # ✅ **同じ日、この1本は D-02 の答えになった**——**語彙は固定の表ではなく、引ける写像である。**
