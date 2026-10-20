@@ -4,7 +4,7 @@
 
 # tests/
 
-**forty files, seven hundred and fifty-two tests, all green — measured 2026-10-20.**
+**forty-one files, seven hundred and seventy-seven tests, all green — measured 2026-10-21.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -362,6 +362,20 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | the enum still matches the words the schema names | `test_stackchan_frame_parser.py` | the contract is a copy in three places, and this is the second place it rings |
 
 ⛔ **It does not build the firmware.** `main.cpp`, `leds.cpp`, `servo.cpp`, `display.cpp` and `sound.cpp` are never compiled here; `idf.py build` was run by hand on 2026-10-18 and no check repeats it. **What this test is for is the gap it was written into**: a copy checked against a copy had passed while the parser refused every frame in the only place that mattered.
+
+## The console's own commands, kept off the socket (0.19.60)
+
+✅ **`tests/test_stackchan_dial_policy.py` compiles `projects/stackchan-firmware/main/dial_policy.cpp` with `clang++` or `g++` and runs it** — twenty-five claims about which lines the board's outward link may carry. **It skips when no C++ compiler is on the host**, and says so rather than passing.
+
+| the check | where | what it is for |
+|---|---|---|
+| `bench wifi`, `bench wifi scan`, `bench wifi join …`, `bench dial`, `bench dial <ip> <port>` are the console's | `test_stackchan_dial_policy.py` | ⛔ **a credential on a plaintext socket is a credential written on the wire**, and a command that changes how the board is reached can strand it with no console to type into |
+| `bench  wifi` — two spaces — is also the console's | `test_stackchan_dial_policy.py` | ⛔ **`HandleBench` skips leading spaces, so that spelling is a real command**; the rule was written without skipping them and let it through. **This row failed, and the source was fixed, not the row** |
+| `bench pos`, `bench move`, `bench set`, `bench sound`, `bench light` and a frame and a pose may cross | `test_stackchan_dial_policy.py` | the body's whole conversation is what the second wire is for |
+| `bench wifiish` is not `bench wifi` | `test_stackchan_dial_policy.py` | ⚠️ **the verb is matched whole**, so a future verb sharing a prefix is not swept in by a rule that only meant the first |
+| a line that is not `bench …` at all is not the console's | `test_stackchan_dial_policy.py` | the rule is about one namespace of command, not about refusing traffic |
+
+⛔ **It does not test the link.** It compiles a pure function and asks it about strings; whether a socket opens, whether the board dials at boot, and whether one mutex is enough for two writers are all measured by hand or by nothing — **`main.cpp` is compiled by no check.**
 
 ## The engine's trajectory, streamed to the machine (0.19.10)
 

@@ -25,6 +25,7 @@
 #include <sys/select.h>
 #include <unistd.h>
 
+#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -34,17 +35,34 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 
 #include "board.h"
 #include "command_frame.h"
 #include "display.h"
 #include "leds.h"
+#include "dial.h"
 #include "servo.h"
 #include "net.h"
 #include "sound.h"
 #include "wifi.h"
 #include "zeros.h"
+
+// ⚠️ A line the host is waiting for. It goes to the console exactly as it
+//    always has, and — since 0.19.60 — up the network link when one is up,
+//    because with the USB cable out the console reaches nothing.
+// ⛔ Only the lines the host parses are written this way. The rest stay on the
+//    console: a link that carried the whole log would be a log on a wire
+//    slower and dearer than the one it already has.
+void Say(const char* format, ...);
+
+// ⛔ The body's one door. Every line from every wire goes through here, one at
+//    a time. The servo bus is half-duplex, and two tasks inside `Dispatch` at
+//    once take each other's replies — 0.19.35's failure, one layer out. It also
+//    answers the watchdog's other question: while this runs, the bus is busy
+//    and not silent.
+void RunLine(const char* line, int length);
 
 namespace {
 
@@ -212,6 +230,8 @@ void PrintHelp() {
   printf("  bench net                 is the listening port up, and how many connections has it served\n");
   printf("  bench net send <ip> <port> <text>   one datagram out, and anything that comes back\n");
   printf("  bench net call <ip> <port> <text>   open a connection outward and read the answer\n");
+  printf("  bench dial                where the board dials, whether it is up, what has crossed\n");
+  printf("  bench dial <ip> <port>    dial that host and keep doing so; stored in nvs\n");
   printf("  help\n");
 }
 
@@ -248,15 +268,15 @@ void BenchPos() {
   int pitch = -1;
   const bool yaw_ok = scs::read_position(board::kYawId, &yaw);
   const bool pitch_ok = scs::read_position(board::kPitchId, &pitch);
-  printf("bench: yaw=%s pitch=%s\n", yaw_ok ? "ok" : "no answer",
+  Say("bench: yaw=%s pitch=%s\n", yaw_ok ? "ok" : "no answer",
          pitch_ok ? "ok" : "no answer");
   if (yaw_ok) {
-    printf("bench: yaw raw %d, angle %d.%d deg (zero %d)\n",
+    Say("bench: yaw raw %d, angle %d.%d deg (zero %d)\n",
            yaw, (yaw - g_yaw_zero) * 5 * 10 / 16 / 10,
            std::abs((yaw - g_yaw_zero) * 5 * 10 / 16) % 10, g_yaw_zero);
   }
   if (pitch_ok) {
-    printf("bench: pitch raw %d, angle %d.%d deg (zero %d)\n",
+    Say("bench: pitch raw %d, angle %d.%d deg (zero %d)\n",
            pitch, (pitch - g_pitch_zero) * 5 * 10 / 16 / 10,
            std::abs((pitch - g_pitch_zero) * 5 * 10 / 16) % 10, g_pitch_zero);
   }
@@ -903,6 +923,18 @@ void HandleBench(const char* args) {
     printf("bench: wifi [scan | join <ssid> [psk] | addr <ip> <mask> <gw>]\n");
     return;
   }
+  if (std::strncmp(args, "dial", 4) == 0 && (args[4] == '\0' || args[4] == ' ')) {
+    const char* rest = args + 4;
+    while (*rest == ' ') {
+      ++rest;
+    }
+    if (*rest == '\0') {
+      dial::report();
+      return;
+    }
+    dial::set(rest);
+    return;
+  }
   if (std::strncmp(args, "net", 3) == 0 && (args[3] == '\0' || args[3] == ' ')) {
     const char* rest = args + 3;
     while (*rest == ' ') {
@@ -987,7 +1019,7 @@ void PoseRefuse(const char* code) {
     return;
   }
   g_pose_codes |= bit;
-  printf("pose: refused (%s)\n", code);
+  Say("pose: refused (%s)\n", code);
 }
 
 enum class TenthsResult { kOk, kMalformed, kOutOfRange };
@@ -1104,7 +1136,7 @@ void HandlePose(const char* line, int length) {
     ++g_pose_clamped;
     if ((g_pose_codes & (1u << 7)) == 0) {
       g_pose_codes |= 1u << 7;
-      printf("pose: clamped to this machine's limits (yaw +/-%d.%d, pitch %d.%d..%d.%d deg)\n",
+      Say("pose: clamped to this machine's limits (yaw +/-%d.%d, pitch %d.%d..%d.%d deg)\n",
              board::kYawAngleLimitTenths / 10, board::kYawAngleLimitTenths % 10,
              board::kPitchAngleMinTenths / 10, board::kPitchAngleMinTenths % 10,
              board::kPitchAngleMaxTenths / 10, board::kPitchAngleMaxTenths % 10);
@@ -1136,7 +1168,7 @@ void HandlePose(const char* line, int length) {
     g_pose_refused = 0;
     g_pose_clamped = 0;
     g_last_pose_us = esp_timer_get_time();
-    printf("pose: stream started — goals on the present positions (yaw %d, pitch %d), torque on\n",
+    Say("pose: stream started — goals on the present positions (yaw %d, pitch %d), torque on\n",
            yaw_now, pitch_now);
   }
 
@@ -1167,8 +1199,8 @@ void PoseWatchdog() {
   g_streaming = false;
   scs::set_torque(board::kYawId, false);
   scs::set_torque(board::kPitchId, false);
-  printf("pose: stream lost after 500 ms — torque released\n");
-  printf("pose: %d applied, %d refused, %d clamped\n", g_pose_count, g_pose_refused,
+  Say("pose: stream lost after 500 ms — torque released\n");
+  Say("pose: %d applied, %d refused, %d clamped\n", g_pose_count, g_pose_refused,
          g_pose_clamped);
 }
 
@@ -1176,7 +1208,7 @@ void HandleFrame(const char* line, int length) {
   Command command;
   const ParseResult result = parse_command(line, length, &command);
   if (result != ParseResult::kOk) {
-    printf("frame: refused (%s)\n", ParseResultName(result));
+    Say("frame: refused (%s)\n", ParseResultName(result));
     return;
   }
 
@@ -1193,7 +1225,7 @@ void HandleFrame(const char* line, int length) {
   if (command.face != Face::kNone) {
     display::show(command.face);
   }
-  printf("frame: light=%s face=%s gesture=%s sound=%s\n", LightName(command.light),
+  Say("frame: light=%s face=%s gesture=%s sound=%s\n", LightName(command.light),
          FaceName(command.face), GestureName(command.gesture), SoundName(command.sound));
 
   // ⚠️ The word plays before the neck moves. A gesture blocks for the better part
@@ -1271,10 +1303,10 @@ void ConsoleTask(void*) {
         if (g_line_len > 0) {
           g_line[g_line_len] = '\0';
           // ⛔ The watchdog asks the same bus this call is about to use. It is
-          //    told, rather than left to infer it from a reply it did not get.
-          g_console_busy = true;
-          Dispatch(g_line, g_line_len);
-          g_console_busy = false;
+          //    told, rather than left to infer it from a reply it did not get —
+          //    and since 0.19.60 `RunLine` is what tells it, because a second
+          //    wire can now be asking at the same moment.
+          RunLine(g_line, g_line_len);
           g_line_len = 0;
         }
         continue;
@@ -1377,7 +1409,47 @@ const char* ResetReasonName(esp_reset_reason_t reason) {
   return "outside the enum";
 }
 
+
 }  // namespace
+
+// ⛔ Outside the anonymous namespace on purpose. These two are the seam:
+//    `dial.cpp` calls `RunLine`, and `Say` calls `dial::say`. A symbol inside
+//    the anonymous namespace has internal linkage and `dial.cpp` could not
+//    reach it — the linker would say so, but the reason is this comment.
+// ⚠️ Taken by whoever is about to use the body, and given back when they are
+//    done. Created in `app_main` before any task that could want it exists.
+SemaphoreHandle_t g_body = nullptr;
+
+void RunLine(const char* line, int length) {
+  if (length <= 0) {
+    return;
+  }
+  if (g_body != nullptr) {
+    xSemaphoreTake(g_body, portMAX_DELAY);
+  }
+  g_console_busy = true;
+  Dispatch(line, length);
+  g_console_busy = false;
+  if (g_body != nullptr) {
+    xSemaphoreGive(g_body);
+  }
+}
+
+void Say(const char* format, ...) {
+  char text[320];
+  va_list arguments;
+  va_start(arguments, format);
+  const int made = std::vsnprintf(text, sizeof(text), format, arguments);
+  va_end(arguments);
+  if (made <= 0) {
+    return;
+  }
+  // ⚠️ `vsnprintf` returns what it *would* have written. A line it cut is
+  //    printed as cut and sent as cut — ⛔ never as two lines.
+  printf("%s", text);
+  dial::say(text);
+}
+
 
 extern "C" void app_main() {
   // ⚠️ This bypasses the VFS, the driver and every lock above them: it is the
@@ -1428,6 +1500,23 @@ extern "C" void app_main() {
   //    console said it was associated with an address.
   net_probe::begin();
   printf("waypoint: net\n");
+
+  // ⛔ The body's one door, made before anything that could knock on it. Both
+  //    the console task and the link task call `RunLine`; this mutex is what
+  //    makes them one writer, because the servo bus is half-duplex.
+  g_body = xSemaphoreCreateMutex();
+  if (g_body == nullptr) {
+    printf("dial: no body mutex — one wire at a time, by luck alone\n");
+  }
+
+  // ⛔ The direction the measurement left open. On 2026-10-21 the Mac could
+  //    never speak first to this board, and every connection this board opened
+  //    outward was answered (`records/2026-10-21-two-directions.md`). So the
+  //    board dials, and the Mac only has to listen.
+  // ⚠️ Nothing is dialled until an address is stored: a board that walks out
+  //    of the room on its own is not this board.
+  dial::begin();
+  printf("waypoint: dial\n");
 
   xTaskCreate(HeartbeatTask, "beat", 3072, nullptr, 1, nullptr);
 

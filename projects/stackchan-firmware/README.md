@@ -333,3 +333,23 @@ reset: reason <n> (<name>)        the boot banner's new line
 ⛔ **And the path is asymmetric, which is the whole finding of that day.** From the Mac to this board, **nothing was ever delivered**: 33 `connect()` attempts, all `EHOSTUNREACH`, **0.1 ms each**; the same bound to `en0`; UDP on every port tried; a subnet broadcast; and 87 attempts in 9 s with a frame arriving mid-run — **0 open, and the board counted `0 datagram(s)`**. ⚠️ **The refusal is the host's**: it returns before a frame could have left and come back, and it came while `route get` showed a current entry (`expire 1182`) and `arp -an` held this board's own MAC — where a host that truly was not there showed `(incomplete)`. **Controls on the same bound sockets**: the gateway's port 80 opened in 0.005 s and its port 53 answered in 17 bytes. **A fresh address given to the board was refused too**, so it is not one stale entry; **a gratuitous ARP changed nothing**. In the other direction **every attempt worked**: a UDP datagram out was answered (`net: reply "pong"`), and **a TCP connection the board opened carried both ways** — the Mac read the line and answered, and the board printed `net: the host said "yes-loud-and-clear"`. ⇒ **the proven direction is outward.** ⛔ **Why the Mac refuses is not established**: no packet capture was taken (it needs root) and no second wireless client existed to tell *this board* from *any wireless client*. The record is `records/2026-10-21-two-directions.md`.
 
 ⚠️ **The cost is 517,808 bytes** — 357,520 before the radio, 875,328 after. The whole Wi-Fi stack (`esp_wifi`, `lwip`, `wpa_supplicant`, `mbedtls`) links in the first time any code names it. The app partition is 5.1 MB and 83 % of it is still free.
+
+## The dial — 2026-10-21
+
+✅ **`main/dial.cpp` makes the board open the connection.** The proven direction was outward and only outward — the Mac could never speak first — so the body's second wire is a socket the board dials, not one it listens on.
+
+```
+bench dial                       where the board would dial, and whether it is up
+bench dial <ip> <port>           store an address in NVS and dial it now
+dial: pointed at <ip>:<port>     the boot banner's new line
+dial: connected to <ip>:<port>   the dial landed
+```
+
+⚠️ **The address lives in NVS, namespace `ekl`, keys `host` and `port`**, so the board dials **before it prints `ready`** with nothing typed at it. ⛔ **Nothing discovers the Mac if it moves**, and a lease that changes is an address the board does not know.
+
+⛔ **`bench wifi …` and `bench dial …` are refused over the link** — `dial: refused — that command is the console's` — because **a credential on a plaintext socket is a credential written on the wire**, and a command that changes how the board is reached can strand it with no console to type into. The rule is `main/dial_policy.cpp`, which is pure and compiled on the host by `tests/test_stackchan_dial_policy.py`. ⚠️ **That test found the rule's own hole before it reached a unit**: `HandleBench` skips leading spaces, so `bench  wifi` — two spaces — is a command the board really runs, and a rule that matched `bench <verb>` exactly let it through.
+
+⚠️ **Every line that arrives over the socket goes through `RunLine`, the same door the console uses** — one mutex, `g_console_busy`, then `Dispatch` — because a second writer inside `Dispatch` takes the servo bus's replies away from the first (0.19.27 and 0.19.35 measured that on the console; this is the same fault one layer out). **That the mutex is enough is a reading of the source.**
+
+✅ **Measured on the unit**: `bench pos`, a frame and a pose all crossed the link, and the board's own answer lines came back on the same socket — the frame's acceptance line **0.159 s** after the write, and `pose 100 491*26` applied `1, 0 refused, 0 clamped`, moving yaw **478 → 484** (the eight-count shortfall 0.19.36 attributes to the servo). ⛔ **The cable was never out.** Not one of those measurements was taken with the console gone; the daemon does not use this link yet. The record is `records/2026-10-21-the-board-dials-out.md`.
+

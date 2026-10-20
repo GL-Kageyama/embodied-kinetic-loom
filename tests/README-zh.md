@@ -385,6 +385,20 @@
 
 ⛔ **它不构建固件。** `main.cpp`、`leds.cpp`、`servo.cpp`、`display.cpp` 与 `sound.cpp` 在这里从未被编译; `idf.py build` 是 2026-10-18 用手跑的，没有任何检查重复它。**这个测试存在的理由，是它被写进去的那道缝**: 一份对照另一份副本的检查在通过，而唯一要紧的地方，解析器拒绝了每一个帧。
 
+## 把控制台自己的命令，挡在套接字之外（0.19.60）
+
+✅ **`tests/test_stackchan_dial_policy.py` 用 `clang++` 或 `g++` 编译 `projects/stackchan-firmware/main/dial_policy.cpp` 并运行它**——关于基板的外向链路可以承载哪些行，共二十五项主张。**主机上没有 C++ 编译器时就跳过**，并说出来，而不是假装通过。
+
+| 检查 | 何处 | 为了什么 |
+|---|---|---|
+| `bench wifi`、`bench wifi scan`、`bench wifi join …`、`bench dial`、`bench dial <ip> <port>` 属于控制台 | `test_stackchan_dial_policy.py` | ⛔ **流到明文套接字上的凭证，就是写在电线上的凭证**；而改变「如何到达基板」的命令，可能在没有任何可输入的控制台的情况下把它丢在那里 |
+| `bench  wifi`——两个空格——也属于控制台 | `test_stackchan_dial_policy.py` | ⛔ **`HandleBench` 会跳过前导空格，所以那种拼写是真正的命令**；规则在编写时没有跳过它们，于是让它通过了。**这一行失败了，被修好的是源码，不是这一行** |
+| `bench pos`、`bench move`、`bench set`、`bench sound`、`bench light`，以及一帧和一条 pose 可以通过 | `test_stackchan_dial_policy.py` | 身体的全部对话，正是这第二根线的目的 |
+| `bench wifiish` 不是 `bench wifi` | `test_stackchan_dial_policy.py` | ⚠️ **动词按整词匹配**，于是将来共享前缀的动词，不会被一条只想指第一个的规则卷进来 |
+| 根本不是 `bench …` 的行，不属于控制台 | `test_stackchan_dial_policy.py` | 这条规则关于一个命令的命名空间，而不是关于拒绝流量 |
+
+⛔ **它不测试链路。** 它编译一个纯函数，就字符串向它提问；套接字是否打开、基板是否在启动时拨号、两个写入者是否一把互斥量就够——这些都是手工测过，或者什么也没有测——**`main.cpp` 不被任何检查编译。**
+
 ## 引擎的轨迹，流向了机器（0.19.10）
 
 ✅ **`projects/stackchan/neck/` 来了**——这是本仓库里第一台写出姿态行的主机。**`motion.py` 是纯的一半**：两个姿态与一个时长进去，`engine/trajectory/plan.py` 的样本被 `protocol_stackchan_pose.encode` 编码后出来——**一行的拼写不会有两个。** **`__main__.py` 是边缘**：用绝对期限追每个样本自己的时刻，每个刻度写一行，`os.open`/`os.write`/`os.close`（守护进程的路径）。**如今有四十项测试守住它：0.19.11 增加了十项（`test_profile.py` 里七项为弹簧族、这里三项），数量从 483 走到 493; 0.19.14 随身势表与流的规则在这里增加了十一项。**

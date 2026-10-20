@@ -5,7 +5,7 @@
 idf_component_register(
     SRCS "main.cpp" "servo.cpp" "leds.cpp" "zeros.cpp"
          "i2c_bus.cpp" "display.cpp" "face_bitmap.cpp" "sound.cpp"
-         "wifi.cpp" "net.cpp"
+         "wifi.cpp" "net.cpp" "dial.cpp" "dial_policy.cpp"
          "${CMAKE_CURRENT_LIST_DIR}/../command_frame.cpp"
     INCLUDE_DIRS "." ".."
 )

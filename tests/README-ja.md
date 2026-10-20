@@ -385,6 +385,20 @@
 
 ⛔ **これはファームウェアをビルドしない。** `main.cpp`、`leds.cpp`、`servo.cpp`、`display.cpp`、`sound.cpp` はここで一度もコンパイルされず、`idf.py build` は 2026-10-18 に手で走らせたきりで、どの検査も繰り返さない。**この検査が在る理由は、それが書かれた隙間である**: 写しを写しと照らす検査が緑のまま、唯一意味のある場所で、すべての枠が拒まれていた。
 
+## コンソール自身の命令を、ソケットから遠ざける（0.19.60）
+
+✅ **`tests/test_stackchan_dial_policy.py` は `projects/stackchan-firmware/main/dial_policy.cpp` を `clang++` か `g++` でコンパイルし、走らせる**——基板の外向きリンクが運んでよい行について、二十五の主張である。**ホストに C++ のコンパイラが無ければスキップし**、通ったふりはせず、そう言う。
+
+| 検査 | どこ | 何のために |
+|---|---|---|
+| `bench wifi`・`bench wifi scan`・`bench wifi join …`・`bench dial`・`bench dial <ip> <port>` はコンソールのもの | `test_stackchan_dial_policy.py` | ⛔ **平文のソケットに流れた資格情報は、線の上に書かれた資格情報であり**、基板への届き方を変える命令は、打ち込むコンソールの無いまま基板を置き去りにしうる |
+| `bench  wifi`——空白2つ——もコンソールのもの | `test_stackchan_dial_policy.py` | ⛔ **`HandleBench` は先頭の空白を読み飛ばすので、その綴りは本物の命令である**; 規則はそれを読み飛ばさずに書かれ、素通りさせた。**この行が落ち、直したのはソースであって行ではない** |
+| `bench pos`・`bench move`・`bench set`・`bench sound`・`bench light`、そして枠と pose は渡ってよい | `test_stackchan_dial_policy.py` | 体の会話の全体が、この2本目の線の目的である |
+| `bench wifiish` は `bench wifi` ではない | `test_stackchan_dial_policy.py` | ⚠️ **動詞はまるごと一致させる**ので、接頭辞を共有する将来の動詞が、それを意味するだけの規則に巻き込まれない |
+| `bench …` でない行は、そもそもコンソールのものではない | `test_stackchan_dial_policy.py` | この規則は1つの命令の名前空間についてであって、通信を拒むことではない |
+
+⛔ **リンクはテストしない。** 純粋な関数をコンパイルして文字列について尋ねるだけである; ソケットが開くか、起動時に dial するか、書き手2人にミューテックス1つで足りるかは、手で測ったか、何も測っていないかである——**`main.cpp` はどの検査にもコンパイルされない。**
+
 ## エンジンの軌道が、機体へ流れた（0.19.10）
 
 ✅ **`projects/stackchan/neck/` が来た**——このリポジトリで初めて、姿勢の行を書くホストである。**`motion.py` が純粋な半分**: 2つの姿勢と長さを入れ、`engine/trajectory/plan.py` の標本を `protocol_stackchan_pose.encode` で符号化して出す——**行の綴りが2つにならない。** **`__main__.py` が縁**: 各標本自身の時刻を絶対の期限で追い、1刻みに1行を `os.open`/`os.write`/`os.close` で書く（デーモンの経路）。**40のテストがいま押さえる: 0.19.11 が10を足し（`test_profile.py` にばねの族のため7つ、ここに3つ）、数は483から493へ動いた; 0.19.14 が身振りの表と流れの規則とともに11をここへ足した。**
