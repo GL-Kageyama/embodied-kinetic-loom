@@ -165,6 +165,7 @@ DOCS = (
     # 運ぶリンクであり、ケーブル無しで体が生き延びることではない。** ⚠️ **デーモンはまだ
     # このリンクを使っておらず**、向こう側に居たのはそのために書かれた探針である。
     "projects/stackchan-firmware/records/2026-10-21-the-board-dials-out.md",
+    "projects/stackchan-firmware/records/2026-10-21-the-body-without-its-cable.md",
     # ⚠️ **`references/` の1本も並べる。** ✅ **2026-09-28、このディレクトリに最初の1行が入った**
     # ——**D-12 が決めた「覆えない差」の欄を持つ表である。**
     # ✅ **同じ日、この1本は D-02 の答えになった**——**語彙は固定の表ではなく、引ける写像である。**

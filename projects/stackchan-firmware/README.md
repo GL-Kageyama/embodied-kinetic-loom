@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.13.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.14.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -130,7 +130,7 @@
 
 ⚠️ **This unit shipped with a vendor app in `ota_0` that could replace the app in `ota_1`.** Once, booting it by erasing `otadata` made it connect to a network and start an OTA into this repository's slot. ⇒ **The vendor image was read off the board (5,177,344 bytes, SHA-256 `97b176…cf64ab5b`, kept outside this repository at `~/stackchan/vendor-image/`), and then `ota_0` was erased** (`erase-region 0x20000 0x4f0000`, 4.9 s). ⛔ **The file is the only copy; no check covers it.**
 
-⚠️ **And the console's path is not an identity.** It read `/dev/cu.usbmodem1101` before the hang and `/dev/cu.usbmodem101` after one replug — **sixteen minutes apart, one board.** The installed plist names the second; the next replug may name a third, and a frame written to a missing path is logged as `sent: false`, not raised.
+⚠️ **And the console's path is not an identity.** It read `/dev/cu.usbmodem1101` before the hang and `/dev/cu.usbmodem101` after one replug — **sixteen minutes apart, one board.** The installed job named the second until 0.19.61 and now names no path at all — it waits for the board instead (see **The dial** below) — and a frame written to a missing path is logged as `sent: false`, not raised.
 
 ## The face — 2026-10-18
 
@@ -351,5 +351,15 @@ dial: connected to <ip>:<port>   the dial landed
 
 ⚠️ **Every line that arrives over the socket goes through `RunLine`, the same door the console uses** — one mutex, `g_console_busy`, then `Dispatch` — because a second writer inside `Dispatch` takes the servo bus's replies away from the first (0.19.27 and 0.19.35 measured that on the console; this is the same fault one layer out). **That the mutex is enough is a reading of the source.**
 
-✅ **Measured on the unit**: `bench pos`, a frame and a pose all crossed the link, and the board's own answer lines came back on the same socket — the frame's acceptance line **0.159 s** after the write, and `pose 100 491*26` applied `1, 0 refused, 0 clamped`, moving yaw **478 → 484** (the eight-count shortfall 0.19.36 attributes to the servo). ⛔ **The cable was never out.** Not one of those measurements was taken with the console gone; the daemon does not use this link yet. The record is `records/2026-10-21-the-board-dials-out.md`.
+✅ **Measured on the unit**: `bench pos`, a frame and a pose all crossed the link, and the board's own answer lines came back on the same socket — the frame's acceptance line **0.159 s** after the write, and `pose 100 491*26` applied `1, 0 refused, 0 clamped`, moving yaw **478 → 484** (the eight-count shortfall 0.19.36 attributes to the servo). ⛔ **The cable was never out.** Not one of those measurements was taken with the console gone. The record is `records/2026-10-21-the-board-dials-out.md`.
+
+### 0.19.61 — the daemon waits, and the cable is out
+
+✅ **The daemon now listens rather than opening a wire.** `projects/stackchan/daemon/__main__.py` binds one socket, takes **one** connection, and asks only whether it is still there (`MSG_PEEK` — ⛔ a `recv` here would swallow the verdict and the position, which belong to the neck and the frame). The installed job names `--listen 0.0.0.0:3333`, and the board's NVS holds `192.168.0.103:3333` — ⛔ **3333 cannot be changed over the link**, because `bench dial` is the console's, so the address is fixed until the cable goes back in.
+
+⛔ **The waits measured against a wire did not survive the journey.** Ten `bench pos` queries over the link answered in **+0.041…+0.861 s** against `PORT_WAIT = 0.5`, and the first two live runs wrote `read: ""`; the board's stream tally arrived **1.647 s** after the last pose, against `VERDICT_WAIT = 1.5`. ⇒ **`LINK_WAIT = 1.5` and `LINK_VERDICT_WAIT = 3.0`**, used only when the fd came from a `Link`. ⚠️ **The first is a measurement; the second is a margin placed on one.**
+
+✅ **Measured with no USB cable at all**, on 2026-10-21: a probe answered `position: [331, 500]`, `look_up` streamed 22 poses, yaw was read at **33.1°** before and **9.6°** after, and the board's own tally — **49 applied** — equalled the host's **22 applied + 27 held**. Frames came back `sent: true, accepted: true`, and the board re-dialled **0.3–4 s** after every listener swap.
+
+⛔ **What does not cross the link is the board's own monologue.** Only lines written through `Say()` travel — `bench:`, `pose:`, `frame:`. `servo: silent for 3 checks…`, `servo: present …` and the whole boot banner are `printf`, ⇒ **this host can no longer learn that the servo bus went silent**, which is the fault 0.19.34 was built to answer. ⚠️ **And 21 of 22 poses were applied late: the positions land, the schedule does not.** The record is `records/2026-10-21-the-body-without-its-cable.md`.
 

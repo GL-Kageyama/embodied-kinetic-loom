@@ -191,7 +191,95 @@ def errno_name(error: OSError) -> str:
     return errno.errorcode.get(error.errno, f"E{error.errno}")
 
 
-def send_frame_and_read(path: str, line: str) -> tuple[bool, bool | None, str | None]:
+class Link:
+    """**基板が dial してくる先。** 待ち受けて、その接続を1本だけ持ち続ける。
+
+    ⛔ **こちらからは繋ぎに行かない。** 2026-10-21 に測った: Mac から基板へは
+    33回すべて `EHOSTUNREACH`、1回 0.1 ミリ秒であり、**届いた向きは基板が開いた
+    1本だけ**であった。⇒ **デーモンは待ち受ける。**
+
+    ⚠️ **fd は、身振りや枠をまたいで同じである。** 端末のように開き直さない——
+    開き直せば、基板は繋ぎ直しを要る。**持ち続けることが、この層の仕事である。**
+    ⇒ **`os.close` を呼ぶのは `close()` だけであり、`Neck` は `_fd` を忘れるだけに
+    しなければならない**——そうでなければ、1つの身振りが接続を畳む。
+
+    ⛔ **基板の答えは、ここでは読まない。** 読むのは首（`Neck._probe` と
+    `_settle`）と枠（`send_frame_and_read`）であり、**この層が先に食べれば、
+    判定も姿勢も消える。** ⇒ **切れたかどうかは `MSG_PEEK` で見る。1バイトも食べない。**
+    """
+
+    def __init__(self, host: str, port: int) -> None:
+        self._listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._listener.bind((host, port))
+        self._listener.listen(1)
+        self._listener.setblocking(False)
+        # ⚠️ **`port` が 0 なら、束縛された実際の番号を読む**——試験はそれを使う。
+        self.address = f"{host}:{self._listener.getsockname()[1]}"
+        self._connection: socket.socket | None = None
+        self.peer: str | None = None
+
+    @property
+    def listener(self) -> socket.socket:
+        return self._listener
+
+    def accept(self) -> str | None:
+        """**1本だけ持つ。** ⚠️ **2本目が来たら、古い方を畳む**——体は1つである。"""
+        try:
+            connection, address = self._listener.accept()
+        except OSError:
+            return None
+        connection.setblocking(False)
+        if self._connection is not None:
+            try:
+                self._connection.close()
+            except OSError:
+                pass
+        self._connection = connection
+        self.peer = f"{address[0]}:{address[1]}"
+        return self.peer
+
+    def fd(self) -> int | None:
+        """**いま繋がっている接続の fd。** ⛔ **無ければ `None`**——閉じた番号を返さない。"""
+        if self._connection is None:
+            return None
+        return self._connection.fileno()
+
+    def alive(self) -> bool:
+        """**切れていないか。** ⚠️ **`MSG_PEEK` は1バイトも食べない。**
+
+        ⛔ **`recv()` で確かめない。** 基板の答えは首と枠が読むものであり、
+        ここで食べれば、**判定も姿勢も`read` も消える**。
+        """
+        if self._connection is None:
+            return False
+        try:
+            return self._connection.recv(1, socket.MSG_PEEK) != b""
+        except BlockingIOError:
+            # ⚠️ **読むものが無いだけで、切れてはいない。**
+            return True
+        except OSError:
+            return False
+
+    def drop(self) -> None:
+        if self._connection is not None:
+            try:
+                self._connection.close()
+            except OSError:
+                pass
+        self._connection = None
+        self.peer = None
+
+    def close(self) -> None:
+        self.drop()
+        try:
+            self._listener.close()
+        except OSError:
+            pass
+
+
+def send_frame_and_read(
+        source: str | Link, line: str) -> tuple[bool, bool | None, str | None]:
     """**枠を1行書き、基板自身の受理の言葉を `PORT_WAIT` まで読む。**
 
     ⚠️ **`(sent, accepted, why)` を返す。** `sent` は今まで通り tty が行を受けたことであり、
@@ -208,60 +296,25 @@ def send_frame_and_read(path: str, line: str) -> tuple[bool, bool | None, str | 
     ⚠️ **書く前に、溜まっていた出力を捨てる**——前に印字された受理の行を、
     今の枠の答えとして読まない。⚠️ **普通のファイルは試験台である**: tty では
     `lseek` が失敗するので、そのときだけ捨て、ファイルでは先頭から読む。
+
+    ⚠️ **`source` は道でも `Link` でもよい。** ソケットの fd は端末と同じに振る舞う
+    ——`lseek` は `ESPIPE` で失敗し、`os.read` / `os.write` / `select` はそのまま効く。
+    ⇒ **下の本体は1つである。** ⛔ **向きによって2つの実装を置かない**——片方だけが
+    測られる日が来る。⚠️ **違うのは2点だけ**: 接続が無ければ `"nobody"` で返し、
+    **fd を閉じない**（`Link` が持ち主である）。
     """
+    if isinstance(source, Link):
+        fd = source.fd()
+        if fd is None:
+            # ⛔ **開けないのではなく、まだ誰も dial していない。**
+            return False, None, "nobody"
+        return _frame_on_fd(fd, line, LINK_WAIT)
     try:
-        fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK | os.O_APPEND)
+        fd = os.open(source, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK | os.O_APPEND)
     except OSError as error:
         return False, None, errno_name(error)
     try:
-        try:
-            os.lseek(fd, 0, os.SEEK_SET)
-        except OSError:
-            while True:
-                try:
-                    if not os.read(fd, 4096):
-                        break
-                except (BlockingIOError, OSError):
-                    break
-        payload = line.encode("ascii")
-        try:
-            if os.write(fd, payload) != len(payload):
-                # ⚠️ **端末が受け取りきらなかった。** 数ではなく、そのまま名指しする。
-                return False, None, "short"
-        except OSError as error:
-            return False, None, errno_name(error)
-        try:
-            os.lseek(fd, 0, os.SEEK_SET)
-        except OSError:
-            pass
-        deadline = time.monotonic() + PORT_WAIT
-        text, raw = "", b""
-        while True:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0.0:
-                return True, readback.frame_accepted(text), None
-            try:
-                ready, _, _ = select.select([fd], [], [], remaining)
-            except (OSError, ValueError):
-                return True, readback.frame_accepted(text), None
-            if not ready:
-                return True, readback.frame_accepted(text), None
-            try:
-                chunk = os.read(fd, 256)
-            except BlockingIOError:
-                continue
-            except OSError:
-                return True, readback.frame_accepted(text), None
-            if not chunk:
-                return True, readback.frame_accepted(text), None
-            # ⚠️ **バイトを溜めてから UTF-8 で読む。** 基板の印字は ASCII ではない
-            #    （`pose: stream started — …`）。⚠️ **塊ごとに読むと、`—` の3バイトが
-            #    2つの塊に割れた瞬間に `���` になる**——2026-10-20 の記録がそうだった。
-            raw += chunk
-            text = raw.decode("utf-8", "replace")
-            accepted = readback.frame_accepted(text)
-            if accepted is not None:
-                return True, accepted, None
+        return _frame_on_fd(fd, line)
     finally:
         try:
             os.close(fd)
@@ -269,9 +322,80 @@ def send_frame_and_read(path: str, line: str) -> tuple[bool, bool | None, str | 
             pass
 
 
+def _frame_on_fd(fd: int, line: str,
+                wait: float | None = None) -> tuple[bool, bool | None, str | None]:
+    """**開いた fd の上で、枠を1行書いて答えるを読む。** ⛔ **ここでは閉じない。**
+
+    ⚠️ **`wait` は、答えを待つ上限である。** 渡さなければ `PORT_WAIT`（有線で測った値）。
+    **リンク越しなら `LINK_WAIT`**——**上限は、問いについてこない。**
+    """
+    if wait is None:
+        wait = PORT_WAIT
+    try:
+        os.lseek(fd, 0, os.SEEK_SET)
+    except OSError:
+        while True:
+            try:
+                if not os.read(fd, 4096):
+                    break
+            except (BlockingIOError, OSError):
+                break
+    payload = line.encode("ascii")
+    try:
+        if os.write(fd, payload) != len(payload):
+            # ⚠️ **端末が受け取りきらなかった。** 数ではなく、そのまま名指しする。
+            return False, None, "short"
+    except OSError as error:
+        return False, None, errno_name(error)
+    try:
+        os.lseek(fd, 0, os.SEEK_SET)
+    except OSError:
+        pass
+    deadline = time.monotonic() + wait
+    text, raw = "", b""
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0.0:
+            return True, readback.frame_accepted(text), None
+        try:
+            ready, _, _ = select.select([fd], [], [], remaining)
+        except (OSError, ValueError):
+            return True, readback.frame_accepted(text), None
+        if not ready:
+            return True, readback.frame_accepted(text), None
+        try:
+            chunk = os.read(fd, 256)
+        except BlockingIOError:
+            continue
+        except OSError:
+            return True, readback.frame_accepted(text), None
+        if not chunk:
+            return True, readback.frame_accepted(text), None
+        # ⚠️ **バイトを溜めてから UTF-8 で読む。** 基板の印字は ASCII ではない
+        #    （`pose: stream started — …`）。⚠️ **塊ごとに読むと、`—` の3バイトが
+        #    2つの塊に割れた瞬間に `���` になる**——2026-10-20 の記録がそうだった。
+        raw += chunk
+        text = raw.decode("utf-8", "replace")
+        accepted = readback.frame_accepted(text)
+        if accepted is not None:
+            return True, accepted, None
+
+
 #: **1行が、端末に受け取られるのを待つ上限（秒）。**
 #: ⛔ **待ちに上限が無いことが、2026-10-19 にデーモンを止めた。**
 PORT_WAIT = 0.5
+
+#: **リンク越しの問いに、答えを待つ上限（秒）。**⚠️ **`PORT_WAIT` ではない。**
+#: ⛔ **0.5 秒は、有線のコンソールで測った値である**——そして、**その上限は
+#: 問いについてこない。** 2026-10-21、ケーブルを抜いた機体で `bench pos` を
+#: 10回測った: **位置の行は +0.041 秒から +0.861 秒**に届いた（`yaw=ok` の行は
+#: +0.299〜+0.723 秒）。⇒ **0.5 秒の窓は、10回のうち遅い側を落とす**——
+#: その日、デーモンの探針は2回続けて `read: ""` を残した。
+#: ⚠️ **`VERDICT_WAIT` と同じ 1.5 秒である**が、**理由は別である**——
+#: こちらは「基板のメインループが答えるまで」であり、あちらは「流しの後の判定」である。
+#: ⚠️ **長い窓は、答えた時点で閉じる**（`parse` が読めたら返る）ので、
+#: 早い日は何も払わない。**払うのは、答えない日だけである。**
+LINK_WAIT = 1.5
 
 #: **窓のあいだに届いた文字を、ログ1行に収まる長さで残す。**
 #: ⛔ **改行は潰さない**——繋がった行は、改行が無いこと自体が証拠である。
@@ -285,6 +409,17 @@ SEEN_LIMIT = 160
 #: ⛔ **この待ちは、コンソールを人の手から長く借りる。** その代償を、
 #: この行が測ったものと引き換えに払う——**払わなければ、基板の数は誰にも読まれない。**
 VERDICT_WAIT = 1.5
+
+#: **リンク越しに、基板自身の判定を待つ上限（秒）。** ⛔ **1.5 秒ではない。**
+#: ⚠️ **2026-10-21 に測った**: 22姿勢を **0.526 秒**で書き、基板は
+#: `stream started` を**最初の姿勢から +0.41 秒**で印字し、集計
+#: `pose: 22 applied, 0 refused, 0 clamped` は**最後の姿勢から +1.647 秒**に届いた。
+#: ⇒ **有線で測った 1.5 秒の窓は、リンクの上の集計を落とす**——その日、デーモンは
+#: `verdict: null` を残し、**`read` には「始まった」と「途切れた」だけがあった。**
+#: ⚠️ **3.0 は測定値ではなく、測った値に余裕を置いた数である**（有線の 1.5 は
+#: 実測 0.991 に対して同じ形で置かれた）。⛔ **届いた時点で閉じるので、
+#: 早い日は何も払わない。**
+LINK_VERDICT_WAIT = 3.0
 
 #: **判定を読みに行く間隔（秒）。** ⚠️ **上限まで持ち続けないためである。**
 #: ⛔ **輪は期限でしか目を覚まさない**——上限だけを期限にすれば、0.49 秒で届いた日でも
@@ -330,13 +465,22 @@ class Neck:
     ⚠️ **その瞬間が、位置の要る唯一の瞬間である。**
     """
 
-    def __init__(self, port: str | None, *, period: float = gestures.DEFAULT_PERIOD,
+    def __init__(self, port: str | Link | None, *,
+                 period: float = gestures.DEFAULT_PERIOD,
                  hold: float = gestures.DEFAULT_HOLD) -> None:
         self.port = port
         self._period = period
         self._stream = Stream(period=period, hold=hold)
         self._parked = None
         self._fd: int | None = None
+        # ⚠️ **この fd を閉じてよいのは誰か。** 道を開いたなら、ここが持ち主である
+        #    （身振りの終わりに閉じる）。⛔ **`Link` の fd は `Link` のものである**
+        #    ——ここで閉じれば、**1つの身振りが、基板との接続そのものを畳む。**
+        self._fd_owned = True
+        # ⚠️ **問いに答えるまでの上限も、行き先で変わる。** ⛔ **有線で測った
+        #    0.5 秒は、リンクの上の基板には短い**（2026-10-21: +0.861 秒を測った）。
+        self._probe_wait = PORT_WAIT
+        self._verdict_wait = VERDICT_WAIT
         self._verdict_at: float | None = None
         self._verdict_next = 0.0
         self._verdict_name: str | None = None
@@ -360,14 +504,28 @@ class Neck:
         self._close()
         if self.port is None:
             return False
-        try:
-            # ⚠️ **`O_APPEND` は tty には効かないが、普通のファイルでは効く。**
-            #    これが無いと、試験のファイルの先頭を姿勢の列が上書きする。
-            self._fd = os.open(self.port, os.O_RDWR | os.O_NOCTTY
-                               | os.O_NONBLOCK | os.O_APPEND)
-        except OSError:
-            self._fd = None
-            return False
+        if isinstance(self.port, Link):
+            # ⚠️ **開かない。** 基板が開いた1本を、そのまま使う。
+            fd = self.port.fd()
+            if fd is None:
+                # ⛔ **まだ誰も dial していない、あるいは切れた。** 枠が身振りを運ぶ。
+                return False
+            self._fd = fd
+            self._fd_owned = False
+            self._probe_wait = LINK_WAIT
+            self._verdict_wait = LINK_VERDICT_WAIT
+        else:
+            try:
+                # ⚠️ **`O_APPEND` は tty には効かないが、普通のファイルでは効く。**
+                #    これが無いと、試験のファイルの先頭を姿勢の列が上書きする。
+                self._fd = os.open(self.port, os.O_RDWR | os.O_NOCTTY
+                                   | os.O_NONBLOCK | os.O_APPEND)
+            except OSError:
+                self._fd = None
+                return False
+            self._fd_owned = True
+            self._probe_wait = PORT_WAIT
+            self._verdict_wait = VERDICT_WAIT
         # ⛔ **開いた直後の1バイトは、空行である。** 2026-10-20 03:00 に測った:
         #    基板が切れた夜、差し直した直後の最初の `bench pos` は、切れる前の流しが
         #    残した終端の欠けた1行に繋がれ、基板は `pose: refused (malformed)` と答え、
@@ -381,11 +539,14 @@ class Neck:
 
     def _close(self) -> None:
         if self._fd is not None:
-            try:
-                os.close(self._fd)
-            except OSError:
-                pass
+            # ⛔ **持っていない fd を閉じない。** `Link` の接続は、身振りより長生きする。
+            if self._fd_owned:
+                try:
+                    os.close(self._fd)
+                except OSError:
+                    pass
             self._fd = None
+        self._fd_owned = True
         # ⚠️ **閉じたら、待っていた判定も捨てる**——次の身振りの始点に混ぜない。
         self._verdict_at = None
         self._verdict_next = 0.0
@@ -517,7 +678,7 @@ class Neck:
             os.lseek(fd, 0, os.SEEK_SET)
         except OSError:
             pass
-        deadline = time.monotonic() + PORT_WAIT
+        deadline = time.monotonic() + self._probe_wait
         text, raw = "", b""
         reasked = False
         while True:
@@ -676,7 +837,7 @@ class Neck:
             # ✅ **最後の行を書いた後、基板は自分の数を印字する。**
             #    ⛔ **ここで閉じれば、その行は誰にも読まれない**——2026-10-19 まで、
             #    そうだった。⇒ **判定の期限を置き、届いた時点で閉じる。**
-            self._verdict_at = summary.at + VERDICT_WAIT
+            self._verdict_at = summary.at + self._verdict_wait
             self._verdict_next = summary.at
             self._verdict_name = summary.name
             self._verdict_text = ""
@@ -691,8 +852,13 @@ def reply(connection: socket.socket, payload: dict) -> None:
         pass
 
 
-def deliver(frame: Frame, at: float, session: str | None, port: str | None) -> None:
-    """**枠を、ログの1行にし——端末があれば、そこへも書く。**
+def deliver(frame: Frame, at: float, session: str | None,
+            source: str | Link | None) -> None:
+    """**枠を、ログの1行にし——行き先があれば、そこへも書く。**
+
+    ⚠️ **行き先は道でも `Link` でもよい。** 基板が dial してくる運用では、
+    **道は存在しない**——`/dev/cu.usbmodem101` は二度と現れない。
+
 
     ⚠️ **ログの行は、送った後でも先でも同じ1行である。** 違うのは `sent` だけ。
     ⛔ **端末が無いことは失敗ではない**——`--port` を渡さなければ、今まで通り書かない。
@@ -712,10 +878,10 @@ def deliver(frame: Frame, at: float, session: str | None, port: str | None) -> N
     ⚠️ **枠は尋ね直さない**——同じ枠を2度書けば、顔も光も2度動く。
     """
     line = frame_line(frame)
-    if port is None:
+    if source is None:
         sent, accepted, why = False, None, None
     else:
-        sent, accepted, why = send_frame_and_read(port, "\n" + line)
+        sent, accepted, why = send_frame_and_read(source, "\n" + line)
     emit(frame_row(line, at, session, sent, accepted, why))
 
 
@@ -784,11 +950,15 @@ def handle(connection: socket.socket, room: Room, outbound: Outbound, neck: Neck
 
 
 def serve(room: Room, outbound: Outbound, listener: socket.socket, wake: int,
-          neck: Neck) -> None:
-    """**ソケットか、次の期限か、合図まで待つ。** ⛔ **固定の刻みは無い。**
+          neck: Neck, link: Link | None = None) -> None:
+    """**ソケットか、次の期限か、基板の dial か、合図まで待つ。** ⛔ **固定の刻みは無い。**
 
     ⚠️ **期限は2つある**——部屋の期限と、首の次の姿勢の期限である。
     **早い方で目を覚まし、遅い方の作業を残さない。**
+
+    ⚠️ **`link` は待つ対象であって、読む対象ではない。** ⛔ **基板の答えは首と枠が
+    読む**——ここで `recv` すれば、**判定も姿勢も消える。** 切れたかどうかは
+    `Link.alive()` が見る（`MSG_PEEK`、1バイトも食べない）。
     """
     while True:
         now = time.monotonic()
@@ -799,10 +969,24 @@ def serve(room: Room, outbound: Outbound, listener: socket.socket, wake: int,
         if deadlines:
             timeout = max(0.0, min(deadlines) - time.monotonic())
 
-        readable, _, _ = select.select([listener, wake], [], [], timeout)
+        watch = [listener, wake]
+        if link is not None:
+            watch.append(link.listener)
+        readable, _, _ = select.select(watch, [], [], timeout)
         if wake in readable:
             os.read(wake, 64)
             return
+
+        if link is not None and link.listener in readable:
+            peer = link.accept()
+            if peer is not None:
+                # ⚠️ **誰が dial してきたかを残す。** ⛔ **初めての接続でなければ、
+                #    前の1本は畳まれている**——体は1つである。
+                emit({"link": "the board dialled in", "peer": peer})
+        elif link is not None and link.peer is not None and not link.alive():
+            # ⛔ **切れたことは、黙って消さない。** 次の身振りは、これを知っている。
+            emit({"link": "the board let go", "peer": link.peer})
+            link.drop()
 
         now = time.monotonic()
         neck.pump(now)

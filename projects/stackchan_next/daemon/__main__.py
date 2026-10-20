@@ -40,6 +40,7 @@ from projects.stackchan.behaviors import Decision
 from projects.stackchan.daemon.__main__ import (
     EXIT_ALREADY_RUNNING,
     RECV,
+    Link,
     Neck,
     bind,
     deliver,
@@ -57,6 +58,18 @@ from .room import CLIENT_TIMEOUT, MAX_LINE, NextRoom, parse_request, socket_path
 def default_socket() -> str:
     """**綴りは `room.socket_path` に1つだけ在る。** ⚠️ ここは uid を渡すだけである。"""
     return socket_path(os.getuid())
+
+
+def parse_listen(text: str) -> tuple[str, int]:
+    """**`HOST:PORT` を2つに割る。** ⛔ **番号は数として読む。**
+
+    ⚠️ **ここが受け取るのは、基板が dial してくる住所である。**
+    `192.168.0.103:3333`——**基板の NVS に入っている値が、そのまま来る。**
+    """
+    host, _, port = text.rpartition(":")
+    if not host or not port:
+        raise ValueError(f"not HOST:PORT: {text}")
+    return host, int(port)
 
 
 def decide(room: NextRoom, session: str, event: str, work: str | None, at: float,
@@ -134,12 +147,16 @@ def handle(connection: socket.socket, room: NextRoom, outbound: Outbound, neck: 
 
 
 def serve(room: NextRoom, outbound: Outbound, listener: socket.socket, wake: int,
-          neck: Neck) -> None:
-    """**ソケットか、次の期限か、合図まで待つ。** ⛔ **固定の刻みは無い。**
+          neck: Neck, link: Link | None = None) -> None:
+    """**ソケットか、次の期限か、基板の dial か、合図まで待つ。** ⛔ **固定の刻みは無い。**
 
     ⚠️ **期限は2つある**——部屋の期限（点滅の期限を含む）と、首の次の姿勢の
     期限である。**早い方で目を覚まし、遅い方の作業を残さない。**
     ⛔ **`room.deadline` は `Presence` のものであり、部屋と点滅の早い方である。**
+
+    ⚠️ **`link` は待つ対象であって、読む対象ではない。** ⛔ **基板の答えは首と枠が
+    読む**——ここで `recv` すれば、**判定も姿勢も消える。** 切れたかどうかは
+    `Link.alive()` が見る（`MSG_PEEK`、1バイトも食べない）。
     """
     while True:
         now = time.monotonic()
@@ -150,10 +167,24 @@ def serve(room: NextRoom, outbound: Outbound, listener: socket.socket, wake: int
         if deadlines:
             timeout = max(0.0, min(deadlines) - time.monotonic())
 
-        readable, _, _ = select.select([listener, wake], [], [], timeout)
+        watch = [listener, wake]
+        if link is not None:
+            watch.append(link.listener)
+        readable, _, _ = select.select(watch, [], [], timeout)
         if wake in readable:
             os.read(wake, 64)
             return
+
+        if link is not None and link.listener in readable:
+            peer = link.accept()
+            if peer is not None:
+                # ⚠️ **誰が dial してきたかを残す。** ⛔ **初めての接続でなければ、
+                #    前の1本は畳まれている**——体は1つである。
+                emit({"link": "the board dialled in", "peer": peer})
+        elif link is not None and link.peer is not None and not link.alive():
+            # ⛔ **切れたことは、黙って消さない。** 次の身振りは、これを知っている。
+            emit({"link": "the board let go", "peer": link.peer})
+            link.drop()
 
         now = time.monotonic()
         neck.pump(now)
@@ -185,6 +216,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", default=None, metavar="PATH",
                         help="the board's console to write frames to; without it, "
                              "frames are only logged (default: none)")
+    parser.add_argument("--listen", default=None, metavar="HOST:PORT",
+                        help="wait for the board to dial in on HOST:PORT, and use "
+                             "that connection instead of --port (default: none)")
     parser.add_argument("--motion", choices=("on", "off"), default="on",
                         help="whether the neck channel chooses gestures (default: on)")
     parser.add_argument("--sound", choices=("on", "off"), default="off",
@@ -198,6 +232,22 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+
+    # ⛔ **道とリンクの両方を名指さない。** どちらへ書くのかが2通りあれば、
+    #    **片方は必ず読まれない**——そして、どちらが読まれなかったかを言う欄が無い。
+    # ⚠️ **これはソケットを束縛する前に決める。** 束縛した後で断れば、
+    #    **ソケットを片付ける道が4つに増える**——そのうち3つは必ず間違う。
+    if args.port is not None and args.listen is not None:
+        sys.stderr.write("--port and --listen name two ways to the same body; "
+                         "choose one\n")
+        return 1
+    watch: tuple[str, int] | None = None
+    if args.listen is not None:
+        try:
+            watch = parse_listen(args.listen)
+        except ValueError as exc:
+            sys.stderr.write(f"--listen: {exc}\n")
+            return 1
 
     # ⛔ **信号の受け口を、ソケットより先に作る。** 向こうと同じ順序であり、
     #    同じ理由である（2026-10-19 の検査が1度だけ落ちた隙間）。
@@ -225,15 +275,35 @@ def main(argv: list[str] | None = None) -> int:
         os.close(wake_w)
         return EXIT_ALREADY_RUNNING
 
+    link = None
+    if watch is not None:
+        try:
+            link = Link(*watch)
+        except OSError as exc:
+            # ⛔ **束縛できなければ、始めない。** 待ち受けられないデーモンは、
+            #    基板から見て「居ない」のであり、**それは静かに見える。**
+            sys.stderr.write(f"cannot listen on {args.listen}: {exc}\n")
+            listener.close()
+            try:
+                os.unlink(args.socket)
+            except FileNotFoundError:
+                pass
+            os.close(wake_r)
+            os.close(wake_w)
+            return 1
+
     room = NextRoom(presence=args.presence, motion=args.motion == "on",
                     sound=args.sound == "on")
     outbound = Outbound()
-    neck = Neck(args.port)
+    neck = Neck(link if link is not None else args.port)
     emit({"daemon": "listening", "socket": args.socket, "port": args.port,
+          "listen": (None if link is None else link.address),
           "presence": args.presence})
     try:
-        serve(room, outbound, listener, wake_r, neck)
+        serve(room, outbound, listener, wake_r, neck, link)
     finally:
+        if link is not None:
+            link.close()
         listener.close()
         try:
             os.unlink(args.socket)

@@ -77,7 +77,18 @@ def test_the_hour_is_not_written_into_the_job():
         assert token not in ("21", "05", "5", "quiet")
 
 
-def test_the_port_is_named_once():
-    """⚠️ **機体2のコンソールは、ここで1度だけ名指される。**"""
-    assert arguments().count("--port") == 1
-    assert arguments()[arguments().index("--port") + 1] == "/dev/cu.usbmodem101"
+def test_the_job_waits_for_the_board_rather_than_opening_a_wire():
+    """⛔ **2026-10-21 から、ジョブは道を名指さない。**
+
+    ⚠️ **給電だけの運用では、`/dev/cu.usbmodem101` は二度と現れない。**
+    名指せば、**無い道を身振りごとに開きに行き、`sent: false` を残し続ける**——
+    そしてその `sent: false` は、**基板が黙っていることと見分けがつかない。**
+
+    ⇒ **ジョブは待ち受ける。** 基板の NVS が `192.168.0.103:3333` を握っており、
+    ⛔ **`bench dial` はリンクの上では基板自身の規則に拒まれる**ので、
+    **住所を打ち直す手段が無い**——**3333 は動かせない。**
+    """
+    args = arguments()
+    assert "--port" not in args
+    assert args.count("--listen") == 1
+    assert args[args.index("--listen") + 1] == "0.0.0.0:3333"

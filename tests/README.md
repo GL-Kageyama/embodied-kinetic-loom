@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.30.1 | canonical: tests/README.md | translated: 2026-10-20 -->
+<!-- i18n-version: 1.31.0 | canonical: tests/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**forty-one files, seven hundred and seventy-seven tests, all green — measured 2026-10-21.**
+**forty-two files, seven hundred and ninety-seven tests, all green — measured 2026-10-21.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -376,6 +376,25 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | a line that is not `bench …` at all is not the console's | `test_stackchan_dial_policy.py` | the rule is about one namespace of command, not about refusing traffic |
 
 ⛔ **It does not test the link.** It compiles a pure function and asks it about strings; whether a socket opens, whether the board dials at boot, and whether one mutex is enough for two writers are all measured by hand or by nothing — **`main.cpp` is compiled by no check.**
+
+## The link the board opens (0.19.61)
+
+✅ **`tests/test_stackchan_link.py` is twenty claims about `Link`, the socket the board dials into** — `projects/stackchan/daemon/__main__.py` binds a listener, takes **one** connection, and asks only whether it is still there. ⚠️ **The fake board in this file is a socket on loopback that reads and writes lines**; it is not the firmware's `ConsoleTask`, and ⛔ **`accepted: True` here is not a real board's word.**
+
+| the check | what it is for |
+|---|---|
+| nobody has dialled, and a frame then says `nobody` | ⛔ **"cannot be opened" and "nobody is here" are two different things, and the row says which** |
+| the first board is named, and a second one replaces it | **the body is one**; the first connection sees EOF |
+| `alive()` eats nothing | ⛔ **`MSG_PEEK`, not `recv`** — a `recv` here swallows the verdict and the position, which are the neck's and the frame's to read |
+| two gestures over **one** socket, and the fd is still valid after both | ⛔ **the rule most likely to break: a gesture must not close the link's fd.** `_fd_owned` is the only thing standing between one gesture and a torn-down connection |
+| a link with nobody on it leaves the gesture to the board | ⚠️ **the same shape as a port that cannot be opened** — and never a flight from an unknown position |
+| a frame over the link comes back `(True, True, None)`; a silent board is `(True, None, None)` | ⛔ **`sent` and `accepted` are different claims, and `null` is not a refusal** |
+| `0.7 s` board: the position is still read | ⛔ **the limit does not travel with the question.** `bench pos` over the link answered in **+0.041…+0.861 s** on 2026-10-21 against `PORT_WAIT = 0.5`, and the first two live runs wrote `read: ""` |
+| a wire keeps `PORT_WAIT` and `VERDICT_WAIT`; only a `Link` gets `LINK_WAIT` and `LINK_VERDICT_WAIT` | ⛔ **the measured side is not moved to make the other side pass** |
+| `parse_listen` reads `HOST:PORT` as two values, and refuses eight shapes | ✅ |
+| `--port` and `--listen` together are refused **before anything is bound** | ⛔ **one of the two would never be read**, and a refusal after binding adds cleanup paths, of which the untaken one is the one that rots |
+
+⛔ **What this file does not measure: a real board, real Wi-Fi, or launchd.** ⚠️ **And it does not measure whether the board survives its cable** — the head was driven over the link with the cable out on 2026-10-21, and the record of that is `projects/stackchan-firmware/records/2026-10-21-the-body-without-its-cable.md`, not a test.
 
 ## The engine's trajectory, streamed to the machine (0.19.10)
 

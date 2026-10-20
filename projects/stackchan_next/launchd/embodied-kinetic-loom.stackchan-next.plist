@@ -17,10 +17,16 @@
         <string>/opt/homebrew/bin/python3</string>
         <string>-m</string>
         <string>projects.stackchan_next.daemon</string>
-        <!-- ⚠️ Machine 2's console, named here and nowhere else. If the path changes
-             when the board is plugged in, it is this line that changes. -->
-        <string>--port</string>
-        <string>/dev/cu.usbmodem101</string>
+        <!-- ⛔ The console is gone as of 2026-10-21: the board is powered from a
+             wall outlet, and `/dev/cu.usbmodem101` no longer appears at all.
+             ⚠️ So this job does not open a wire. It waits for the board to dial in.
+             The direction is not a preference: from this Mac to that board, 33 of
+             33 connections were refused in 0.1 ms each and not one was delivered,
+             while every connection the board opened carried both ways.
+             ⚠️ 3333 is the port the board's NVS already holds. It cannot be changed
+             over the link — `bench dial` is refused there, by the board's own rule. -->
+        <string>--listen</string>
+        <string>0.0.0.0:3333</string>
         <!-- ⚠️ The speaker is on, for the reason the first job's copy states: a
              switch is a decision, and the quiet hours are a rule the daemon reads
              off its own wall clock. -->
