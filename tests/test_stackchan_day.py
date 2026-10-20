@@ -140,6 +140,65 @@ def test_heard_and_position_are_two_different_counts():
     assert s.positions == 1
 
 
+def test_the_watchdogs_count_is_counted_and_a_row_without_it_is_not_a_zero():
+    """✅ **0.19.62 から、基板の監視犬の2つの数を数える。**
+
+    ⛔ **欄の無い行を 0 と数えない**——それは *知らされていない* ことであり、
+    **「黙っていない」でも「レールを落としていない」でもない**
+    （`verdict: None` と `0 refused` の区別と同じである）。
+
+    ⚠️ **`servo_silent` は予告の欄である。** `strikes` が 1 か 2 なら、バスは
+    **黙りかけている**——3 でレールが落ちるので、**`rail` より早く届く。**
+    """
+    s = summarize([
+        line({"position": [328, 506], "heard": True,
+              "servo": {"strikes": 0, "rail": 0}}),
+        line({"position": [328, 506], "heard": True,
+              "servo": {"strikes": 2, "rail": 0}}),
+        line({"position": None, "heard": True}),   # 欄が無い——知らされていない
+    ])
+    assert s.readbacks == 3
+    assert s.servo_reports == 2       # ⛔ 3 ではない
+    assert s.servo_silent == 1        # `strikes` > 0 の行だけ
+    assert s.rail_cycles == 0         # 増えていない
+
+
+def test_a_rail_count_that_goes_backwards_is_a_reboot():
+    """⚠️ **`rail` は、基板の起動からの回数である。** ⇒ **増えた分が、起きた回数である。**
+
+    ⛔ **戻るのは、基板が再起動したときだけである**——そのとき**その前の回数は
+    観測できない**。数えず、基準を引き直す。
+    ⇒ **`rail_cycles` が小さいことは、黙りが少なかったことではない。**
+    """
+    s = summarize([
+        line({"position": None, "heard": True, "servo": {"strikes": 0, "rail": 1}}),
+        line({"position": None, "heard": True, "servo": {"strikes": 0, "rail": 3}}),
+        line({"position": None, "heard": True, "servo": {"strikes": 0, "rail": 1}}),
+        line({"position": None, "heard": True, "servo": {"strikes": 0, "rail": 2}}),
+    ])
+    assert s.rail_cycles == 2 + 1     # 1→3 と、再起動後の 1→2
+    assert s.rail_resets == 1
+
+
+def test_one_count_depends_on_the_order_and_it_is_named():
+    """⛔ **数え上げではない欄が、1つだけある。** 隠さずに、ここに書く。
+
+    ⚠️ **逆向きに渡せば `rail_cycles` は別の数になる**——それ以外の欄は変わらない。
+    ⇒ **`summarize` は行を順に渡されることを前提にする**（この欄のために）。
+    """
+    lines = [
+        line({"position": None, "heard": True, "servo": {"strikes": 0, "rail": 1}}),
+        line({"position": None, "heard": True, "servo": {"strikes": 0, "rail": 4}}),
+    ]
+    forward = summarize(lines)
+    backward = summarize(list(reversed(lines)))
+    assert forward.rail_cycles == 3
+    assert backward.rail_cycles == 0 and backward.rail_resets == 1
+    # ⚠️ **ほかの欄は、順序を問わない。**
+    assert (forward.readbacks, forward.heard, forward.positions) == (
+        backward.readbacks, backward.heard, backward.positions)
+
+
 def test_the_boards_own_verdict_is_counted_and_kept_apart_from_the_hosts():
     """⛔ **「送った数」と「基板が適用した数」は、別の欄である。**
 
@@ -226,7 +285,12 @@ def test_rendering_marks_an_absent_work_column():
 
 
 def test_the_count_does_not_depend_on_the_order():
-    """⚠️ **数え上げである。** 行の順序は数を変えない。"""
+    """⚠️ **数え上げである。** 行の順序は数を変えない。
+
+    ⛔ **例外は1つである**: `rail_cycles` は「基板の起動からの回数」の**増えた分**なので、
+    順序を持たない——**それは `test_one_count_depends_on_the_order_and_it_is_named` が
+    名指しで持っている。** この試験には監視犬の行が1つも無い。
+    """
     lines = [
         frame(face="happy"),
         line({"ok": True, "phase": "present"}),
@@ -254,6 +318,7 @@ def test_rendering_names_every_count():
         "poses applied 3", "late 1", "held 2", "readbacks 1", "heard 1",
         "positions 0", "sounds chime 1", "phases working 1",
         "verdicts 0", "board refused 0",
+        "servo reports 0", "seen silent 0", "rail cycles 0", "rail resets 0",
     ):
         assert needle in flat
 

@@ -42,6 +42,12 @@ def test_the_query_and_the_answer_are_the_boards_own_words():
     assert "bench pos" in source
     assert "bench: yaw raw %d, angle %d.%d deg (zero %d)" in source
     assert "bench: pitch raw %d, angle %d.%d deg (zero %d)" in source
+    # ⚠️ **0.19.62 の行である。** ⛔ **この写しが赤くなる日が、綴りが離れた日である。**
+    assert "bench: servo strikes=%d rail=%d" in source
+    # ⛔ **順序も綴りの一部である。** ホストは姿勢が読めた時点で窓を閉じるので、
+    #    **この行が姿勢の行より後ろにあれば、誰にも読まれない。**
+    assert (source.index("bench: servo strikes=%d rail=%d")
+            < source.index("bench: yaw raw %d"))
     assert readback.QUERY == b"bench pos\n"
 
 
@@ -158,6 +164,27 @@ def test_a_window_with_two_frames_keeps_the_last():
 # ---------------------------------------------------------------------------
 
 
+def test_the_servo_count_is_the_boards_own_two_numbers():
+    """✅ **0.19.62 から、監視犬の2つの数が問いの答えに載る。**
+
+    ⛔ **この行が無ければ、ホストはバスが黙ったことを知れない**——監視犬の印字は
+    `printf` であり、**0.19.61 にリンクが唯一の道になってから、ここへ届かない。**
+    """
+    text = "bench: servo strikes=1 rail=2\n" + ANSWERS
+    assert readback.servo(text) == {"strikes": 1, "rail": 2}
+
+
+def test_a_board_that_says_nothing_about_the_servos_is_not_a_zero():
+    """⛔ **印字が無いことは、`strikes 0 rail 0` ではない。**
+
+    ⚠️ **`None` は「基板がその行を言わなかった」**であり、
+    **「黙っていない」でも「レールを一度も落としていない」でもない**——
+    `verdict: None` と `0 refused` を混ぜないのと同じ区別である。
+    """
+    assert readback.servo(ANSWERS) is None
+    assert readback.servo("") is None
+
+
 def _console(tmp_path: pathlib.Path, text: str = "") -> pathlib.Path:
     path = tmp_path / "console"
     path.write_text(text, encoding="ascii")
@@ -190,6 +217,24 @@ def test_the_daemon_asks_the_console_and_streams_from_the_answer(tmp_path, capsy
     assert rows[1]["to"] == [80, 500]
 
 
+def test_the_row_carries_the_watchdogs_count(tmp_path, capsys):
+    """✅ **0.19.62 から、探針の行が監視犬の2つの数を運ぶ。**
+
+    ⚠️ **基板は、姿勢より先にそれを書く**（`BenchPos`）——ホストは姿勢を読んだ時点で
+    窓を閉じるからである。⛔ **ここで順序を入れ替えれば、この欄は `None` になる**:
+    その日、**バスが黙ったことは、また見えなくなる。**
+    """
+    path = _console(tmp_path, "bench: servo strikes=2 rail=1\n" + ANSWERS)
+    neck = edge.Neck(str(path))
+
+    assert neck.take(_first(neck), 1.0) is True
+    neck._close()
+
+    rows = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert rows[0]["servo"] == {"strikes": 2, "rail": 1}
+    assert rows[0]["position"] == [25, 25]
+
+
 def test_an_unanswered_query_is_written_and_not_believed(tmp_path, capsys):
     """⛔ **答えの無い端末を、位置として信じない。** 尋ねたことは残る。
 
@@ -204,8 +249,11 @@ def test_an_unanswered_query_is_written_and_not_believed(tmp_path, capsys):
 
     rows = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
     # ⚠️ **先頭の空行は 0.19.44 からである**——開いた直後の1バイト（切れ端を落とす）。
+    # ⚠️ **0.19.62 から `servo` の欄がある。** ⛔ **`None` は「黙っていない」ではなく、
+    #    「基板がその行を印字しなかった」である**——この試験台の答えは、印字しない板である。
     assert rows == [
-        {"position": None, "heard": False, "read": "\nbench pos\n", "at": 0.0}
+        {"position": None, "heard": False, "servo": None,
+         "read": "\nbench pos\n", "at": 0.0}
     ]
 
 
@@ -224,6 +272,7 @@ def test_the_console_can_answer_without_a_position(tmp_path, capsys):
         {
             "position": None,
             "heard": True,
+            "servo": None,
             "read": "bench: yaw=no answer pitch=no answer\n\nbench pos\n",
             "at": 0.0,
         }

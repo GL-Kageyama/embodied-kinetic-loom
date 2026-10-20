@@ -206,7 +206,7 @@ void PrintHelp() {
   printf("commands\n");
   printf("  {\"face\":...,\"light\":...,\"gesture\":...,\"sound\":...}  one frame from the wire\n");
   printf("  pose <yaw_tenths> <pitch_tenths>*<CC>   one pose per tick; 500 ms of silence releases torque\n");
-  printf("  bench pos                 present positions\n");
+  printf("  bench pos                 present positions, and the servo watchdog's own count\n");
   printf("  bench scan                which servo ids answer, 1..12\n");
   printf("  bench read <id>           raw position of one id\n");
   printf("  bench raw <id>            the same read, every byte and the status named\n");
@@ -264,6 +264,15 @@ bool ParseDegrees(const char** text, int* tenths) {
 }
 
 void BenchPos() {
+  // ⚠️ **尋ねられた行には、監視犬の2つの数も載せる。** ⛔ **0.19.61 から、独白は
+  //    リンクを渡らない**——`ServoWatchdog` の印字は `printf` であり、ケーブルの
+  //    外では誰も読まない。⇒ **このホストは、バスが黙ったことを知れなくなっていた**。
+  //    それは 0.19.34 が答えとして建てられた故障である。
+  //    ⇒ **規則は「問いに答える行は渡り、体が自ら語る行は渡らない」である。**
+  //    この行は前者である。**数はこの瞬間のものであり、基板が自分で数えたものである。**
+  // ⛔ **先に書く。** ホストは姿勢の行を読んだ時点で窓を閉じるので、後ろに置けば
+  //    この行は誰にも読まれない（`daemon/__main__.py` の `_probe`）。
+  Say("bench: servo strikes=%d rail=%d\n", g_servo_strikes, g_rail_cycles);
   int yaw = -1;
   int pitch = -1;
   const bool yaw_ok = scs::read_position(board::kYawId, &yaw);

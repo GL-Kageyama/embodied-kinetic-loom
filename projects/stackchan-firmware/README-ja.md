@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.14.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 2.15.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -362,3 +362,42 @@ dial: connected to <ip>:<port>   dial が着いた
 ✅ **2026-10-21、USB ケーブルが一本も無い状態で測った**: 探針は `position: [331, 500]` と答え、`look_up` は22姿勢を流し、yaw は前が **33.1°**、後が **9.6°** と読まれ、基板自身の集計——**49 applied**——はホストの **22 applied + 27 held** と等しかった。枠は `sent: true, accepted: true` で戻り、基板は待ち受けが入れ替わるたびに **0.3〜4 秒**で dial し直した。
 
 ⛔ **リンクを渡らないのは、基板自身の独白である。** 渡るのは `Say()` を通る行だけ——`bench:`、`pose:`、`frame:`。`servo: silent for 3 checks…`、`servo: present …`、起動バナーは `printf` である ⇒ **このホストは、サーボのバスが黙ったことを、もう知ることができない**——それは 0.19.34 が答えとして建てられた故障である。⚠️ **そして22のうち21が遅れて適用された: 位置は着く、予定表は着かない。** 記録は `records/2026-10-21-the-body-without-its-cable.md` にある。
+
+### 0.19.62 — 監視犬の数がリンクを渡る
+
+✅ **問いに答える行が渡る。** `BenchPos()` はいま、こう始まる:
+
+```
+Say("bench: servo strikes=%d rail=%d\n", g_servo_strikes, g_rail_cycles);
+```
+
+⇒ **監視犬の2つの数が、`bench pos` の答えに載る。** これは 0.19.61 を生き延びた規則である——*問いに答える行は渡り、体が自ら語る行は渡らない*——そして**残る5行がそのままなのは、その規則のためだけである**: `servo: no answer (1 of 3 …)`、`servo: silent for 3 checks …`、`servo: rail cycled …`、`servo: present …` はどれも `printf` のままであり、⛔ **それは取り残しではなく、選択である。**
+
+⚠️ **新しい行は姿勢の行より前に座り、その順序が振る舞いそのものである。** `_probe` は Pose が読めた瞬間に窓を閉じるので、`bench: yaw raw …` の後に書かれた行は決して読まれない。⛔ **試験は `main.cpp` から2つの literal を読み、その添字を比べてそれを主張する**——**註釈では支えられなかった。**
+
+**ホストの側。** `projects/stackchan/neck/readback.py` に `servo(text)` が入り（最後の一致が勝ち、基板が何も言わなければ `None`）、探針の行がそれを運ぶ:
+
+```
+{"position": [96, 496], "heard": true, "servo": {"strikes": 0, "rail": 2}, "read": "…", "at": …}
+```
+
+⛔ **`"servo": null` は `{"strikes": 0, "rail": 0}` ではない**——**尋ねられていないか、答えていないか**であり、`verdict: null` と `0 refused` が流しの行で既に担っているのと同じ区別である。
+
+**一日の計器がそれを数える。** `projects/stackchan/day/summary.py` に `servo_reports`、`servo_silent`（`strikes > 0`——**レールが落ちる前に届く予告**）、`rail_cycles`、`rail_resets` が入った。⚠️ **`rail_cycles` は、あのファイルで唯一、数え上げでない数である**: `rail` は基板の*自らの起動から*の回数なので、回数とは**増えた分**であり、減るのは基板が再起動したということで、その前の回数は観測できない。⇒ **`rail_cycles` が小さいことは、静かな一日ではない。** ⛔ **その例外は源に名指しされ、行を逆順に渡して「どの欄が動くか」を見せる試験に支えられている。**
+
+✅ **2026-10-21、実機で測った。** コンソールで打った `bench power off` が、いまは誰も読めない6行の `printf` を生み、ホストは同じ午後を10の探針として読んだ: `{0,0}` ×4、`{0,1}` ×2、**`{2,1}`**、`{0,2}` ×3。**7行目が肝である:**
+
+```
+{"position": null, "heard": true, "servo": {"strikes": 2, "rail": 1},
+ "read": "bench: servo strikes=2 rail=1\nbench: yaw=no answer pitch=no answer\n", "at": 11671.812024583}
+```
+
+**コンソールは答え、サーボは答えず、基板はどちらなのかを言った。** ⚠️ **`strikes` は予告であり、`rail` は出来事である**——その行は両方を同時に示す: **沈黙はまだ続き、回復は既に1度使われている。** 10行のうち2行は **USB ケーブルが一本も無い状態**で取った（`/dev/cu.usb*` は存在しなかった）。一日の計器は同じログの上で `servo reports 10`、`seen silent 1`、`rail cycles 2`、`rail resets 0` と数えた。
+
+⚠️ **最初の `bench power off` は届かなかった**——書き込みは返り、行は届いていなかった（ポートをすぐ閉じたためである）。2秒開いたままにすると、基板は従った。⛔ **返った書き込みは、届いた行ではない**: `sent: true` の教訓が、1層下にある。
+
+⚠️ **これが直さないもの、途中で見つけたもの: 再起動したデーモンは体を孤児にする。** `launchctl kickstart -k` のあと、基板の古い接続は1分以上 `FIN_WAIT_1` に座って ACK が無かった——**0.19.59 の向きは変わっていないので、FIN は届かない**——そして `DialTask` に読み取りの期限は無い。`ping` は2送信・0受信を返し、`arp -an` は基板の MAC を保持していた。⛔ **戻したのは `esptool` の hard reset だけで、それにはケーブルが要る。** 同じ日の待ち受けの入れ替え4回は 0.3〜4 秒で自分から戻ったので、**これは1回の観察であり、頻度ではない。**
+
+⛔ **そのどれについても首は動いていない**——`look_up` は2回とも `skipped: "no motion"` を返した——し、画面も光も首も、目は見ていない。記録は `records/2026-10-21-the-line-that-crosses.md` にある。
+
+画像は **928,256 バイト**、数は **797 から 803** へ動き、ファイルの数は 42 のままである。

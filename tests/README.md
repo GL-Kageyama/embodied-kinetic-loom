@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.31.0 | canonical: tests/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.32.0 | canonical: tests/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**forty-two files, seven hundred and ninety-seven tests, all green — measured 2026-10-21.**
+**forty-two files, eight hundred and three tests, all green — measured 2026-10-21.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -462,9 +462,9 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The question the host asks the board (0.19.23)
 
-**`projects/stackchan/neck/readback.py` parses the answer to `bench pos`, and `test_stackchan_readback.py` holds it with ten claims.**
+**`projects/stackchan/neck/readback.py` parses the answer to `bench pos`, and `test_stackchan_readback.py` holds it with twenty-two claims** — the twelve below are the ones that carry a reason.
 
-⚠️ **The query and the answer are the board's own words, and the check reads `main.cpp` for both** — the printf formats included — **because a copy that does not go red when the source moves is not a copy.** What the other nine hold:
+⚠️ **The query and the answer are the board's own words, and the check reads `main.cpp` for both** — the printf formats included — **because a copy that does not go red when the source moves is not a copy.** The ones that carry a reason:
 
 | the check | what it is for |
 |---|---|
@@ -477,6 +477,9 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | the console can answer without a position | the 2026-10-19 shape: `yaw=no answer`, `bench scan` 0 ids |
 | the probe is bounded by `PORT_WAIT` | a FIFO that answers nothing; the test measures elapsed time, not intentions |
 | every gesture asks once and uses what it hears | ⛔ **no cached answer and no background schedule** — the console is also the human's |
+| the watchdog's two numbers are read off the answer (0.19.62) | ⛔ **without this line the host cannot learn the bus went silent** — the watchdog prints with `printf`, and since 0.19.61 the link is the only route |
+| a board that says nothing about the servos is not a zero | ⛔ **`None` is the board not having printed the line**, which is neither *not silent* nor *the rail never fell* — the `verdict: null` distinction again |
+| the row carries the watchdog's count | ⚠️ **the board writes it before the position lines**, because the host closes the window once a pose parses; ⛔ swap the order and the field is `None` again |
 
 ⛔ **None of these tests opens a device.** The port is a file, or a FIFO. ⇒ **How fast the board answers is not measured here** — the measured answer on the unit took about 0.22 s — and ⚠️ **whether a position ever comes back is a hardware question this suite cannot ask.** On 2026-10-19 it did not: the console answered, the servo bus did not.
 
@@ -505,7 +508,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The log, read back (0.19.28)
 
-**`projects/stackchan/day/` reads the daemon's own log; `test_stackchan_day.py` holds it with twenty-five claims** — twenty-three functions, one of them parametrized three ways. ⚠️ **The line said seventeen until 0.19.52**, and the file already held twenty — **the same drift the document rules warn about, found while moving the count.**
+**`projects/stackchan/day/` reads the daemon's own log; `test_stackchan_day.py` holds it with twenty-eight claims** — twenty-six functions, one of them parametrized three ways. ⚠️ **The line said seventeen until 0.19.52**, and the file already held twenty — **the same drift the document rules warn about, found while moving the count.**
 
 ⚠️ **The log existed before its reader did.** By 05:36 on 2026-10-19 it held **3,852 lines** and **not one of them was unreadable** — ⛔ **and nothing in the repository read it.** A record nobody reads is a file with a timetable in it.
 

@@ -640,13 +640,22 @@ class Neck:
         })
         self._close()
 
-    def _probe(self, fd: int) -> tuple[bool, Pose | None, str]:
+    def _probe(self, fd: int) -> tuple[bool, Pose | None, str, dict | None]:
         """**`bench pos` を書き、答えを `PORT_WAIT` まで読む。** ⛔ **上限を越えない。**
 
-        ⚠️ **3つを返す**: **基板が何か答えたか**、**姿勢が読めたか**、そして
-        **その窓のあいだに実際に届いた文字**である。
-        ⛔ **この3つを混ぜない**——`bench: yaw=no answer pitch=no answer` は
+        ⚠️ **4つを返す**: **基板が何か答えたか**、**姿勢が読めたか**、
+        **その窓のあいだに実際に届いた文字**、そして**監視犬の2つの数**である。
+        ⛔ **この4つを混ぜない**——`bench: yaw=no answer pitch=no answer` は
         **コンソールが答えた**（サーボが答えなかった）のであり、沈黙ではない。
+
+        ⚠️ **4つ目は 0.19.62 に足した。** 監視犬（`ServoWatchdog`）の印字は `printf`
+        であり、**0.19.61 にリンクが唯一の道になってから、このホストには届かない**——
+        ⇒ **バスが黙ったことを知る手段が無くなっていた**（0.19.34 が答えた故障である）。
+        **基板はその2つの数を、問いへの答えに載せる**（`BenchPos`）。
+        ⚠️ **届いた文字（3つ目）からではなく、窓の全文から読む**——3つ目は末尾
+        `SEEN_LIMIT` 文字であり、**先に来るこの行は切り落とされうる**。
+        ⛔ **姿勢が読めた時点で窓は閉じる**ので、この行は**姿勢の行より前**に来なければ
+        ならない（基板の側でその順に書いてある）。
 
         ⚠️ **3つ目は 2026-10-19 に足した。** その日、レールの電源サイクル以降の13回の問いのうち
         7回が `heard: false` で終わり、**ログは「何も届かなかった」としか言えなかった**
@@ -672,7 +681,7 @@ class Neck:
                 except OSError:
                     break
         if not self._write_to(fd, readback.QUERY):
-            return False, None, ""
+            return False, None, "", None
         try:
             # ⚠️ **試験台（普通のファイル）では、先頭から読む。** tty は `ESPIPE` を返す。
             os.lseek(fd, 0, os.SEEK_SET)
@@ -681,31 +690,38 @@ class Neck:
         deadline = time.monotonic() + self._probe_wait
         text, raw = "", b""
         reasked = False
+
+        def answer(found: Pose | None) -> tuple[bool, Pose | None, str, dict | None]:
+            # ⚠️ **1つの問いには1つの形である。** 窓を閉じる道が6つあり、
+            #    そのうち5つが同じ4つ組を書く——**5か所に写せば、5か所が食い違う。**
+            return (readback.answered(text), found, _seen(text),
+                    readback.servo(text))
+
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0.0:
-                return readback.answered(text), readback.parse(text), _seen(text)
+                return answer(readback.parse(text))
             try:
                 ready, _, _ = select.select([fd], [], [], remaining)
             except (OSError, ValueError):
-                return readback.answered(text), readback.parse(text), _seen(text)
+                return answer(readback.parse(text))
             if not ready:
-                return readback.answered(text), readback.parse(text), _seen(text)
+                return answer(readback.parse(text))
             try:
                 chunk = os.read(fd, 256)
             except BlockingIOError:
                 continue
             except OSError:
-                return readback.answered(text), readback.parse(text), _seen(text)
+                return answer(readback.parse(text))
             if not chunk:
-                return readback.answered(text), readback.parse(text), _seen(text)
+                return answer(readback.parse(text))
             # ⚠️ **バイトを溜めてから UTF-8 で読む。** 塊ごとに読むと、`—` の3バイトが
             #    2つの塊に割れた瞬間に `���` になり、その行が記録に残る（2026-10-20）。
             raw += chunk
             text = raw.decode("utf-8", "replace")
             pose = readback.parse(text)
             if pose is not None:
-                return True, pose, _seen(text)
+                return answer(pose)
             # ⚠️ **問いが行として届かなかったなら、1回だけ尋ね直す。**
             #    2026-10-19 に測った: 基板の `ConsoleTask` は `HandleFrame` の中で
             #    `PlayGesture` と `sound::play` を**その場で**呼ぶので、身振りや音の
@@ -749,7 +765,7 @@ class Neck:
             self._parked = gestures.ends(decision.gesture)
             return False
 
-        heard, measured, seen = self._probe(self._fd)
+        heard, measured, seen, servo = self._probe(self._fd)
         # ⚠️ **1つの問いに、1つの形である。** ⛔ **2026-10-19 まで、成功した探針は
         #    `{"position": [...], "at": …}` という2つ目の形で書かれていた**——
         #    `heard` を持たないので、`projects/stackchan/day/summary.py` は
@@ -761,6 +777,12 @@ class Neck:
             "position": (None if measured is None else
                          [measured.yaw_tenths, measured.pitch_tenths]),
             "heard": heard,
+            # ⚠️ **基板が自分で数えた、監視犬の2つの数である**（0.19.62）。
+            # ⛔ **`None` は 0 ではない**: 基板がこの行を印字しなかったことであり、
+            #    「黙っていない」ではない。**この欄が無ければ、ホストはバスが黙った
+            #    ことを知る手段を持たない**——監視犬の印字は `printf` であり、
+            #    リンクを渡らないからである。
+            "servo": servo,
             "read": _seen(seen),
             "at": at,
         })

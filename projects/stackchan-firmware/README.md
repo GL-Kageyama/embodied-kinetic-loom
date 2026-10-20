@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.14.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 2.15.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -363,3 +363,42 @@ dial: connected to <ip>:<port>   the dial landed
 
 ⛔ **What does not cross the link is the board's own monologue.** Only lines written through `Say()` travel — `bench:`, `pose:`, `frame:`. `servo: silent for 3 checks…`, `servo: present …` and the whole boot banner are `printf`, ⇒ **this host can no longer learn that the servo bus went silent**, which is the fault 0.19.34 was built to answer. ⚠️ **And 21 of 22 poses were applied late: the positions land, the schedule does not.** The record is `records/2026-10-21-the-body-without-its-cable.md`.
 
+
+### 0.19.62 — the watchdog's count crosses the link
+
+✅ **The line that answers a question crosses.** `BenchPos()` now opens with
+
+```
+Say("bench: servo strikes=%d rail=%d\n", g_servo_strikes, g_rail_cycles);
+```
+
+so the watchdog's two numbers ride on the answer to `bench pos`. This is the rule that survived 0.19.61 — *lines that answer a question cross; lines the body volunteers do not* — and it is the only reason the other five watchdog lines stay where they are: `servo: no answer (1 of 3 …)`, `servo: silent for 3 checks …`, `servo: rail cycled …` and `servo: present …` are all still `printf`, and **that is a choice, not a leftover**.
+
+⚠️ **The new line sits before the position lines, and the order is the behaviour.** `_probe` closes its window the moment a Pose parses, so a line written after `bench: yaw raw …` would never be read. ⛔ **The test asserts that by reading both literals out of `main.cpp` and comparing their indices** — a comment would not have held it.
+
+**The host side.** `projects/stackchan/neck/readback.py` gained `servo(text)` (the last match wins, `None` when the board said nothing), and the probe row carries it:
+
+```
+{"position": [96, 496], "heard": true, "servo": {"strikes": 0, "rail": 2}, "read": "…", "at": …}
+```
+
+⛔ **`"servo": null` is not `{"strikes": 0, "rail": 0}`** — it is the board not having been asked, or not having answered, which is the same distinction `verdict: null` and `0 refused` already carry on the stream's row.
+
+**The day instrument counts it.** `projects/stackchan/day/summary.py` gained `servo_reports`, `servo_silent` (`strikes > 0` — the warning that arrives before the rail falls), `rail_cycles` and `rail_resets`. ⚠️ **`rail_cycles` is the one count in that file that is not a tally**: `rail` is the board's count *since its own boot*, so the cycles are the **increases**, and a decrease means the board restarted and the cycles before it are not observable. ⇒ **a small `rail_cycles` is not a quiet day.** ⛔ **That exception is named in the source and held by a test that reverses the lines and shows exactly which field moves.**
+
+✅ **Measured on the unit, 2026-10-21.** `bench power off` typed at the console produced the six `printf` lines nobody can now read, and the host read the same afternoon as ten probes: `{0,0}` ×4, `{0,1}` ×2, **`{2,1}`**, `{0,2}` ×3. The seventh is the one that matters:
+
+```
+{"position": null, "heard": true, "servo": {"strikes": 2, "rail": 1},
+ "read": "bench: servo strikes=2 rail=1\nbench: yaw=no answer pitch=no answer\n", "at": 11671.812024583}
+```
+
+**The console answered, the servos did not, and the board said which.** ⚠️ **`strikes` is the early warning and `rail` is the event**, and that row shows both at once — the silence still running, one recovery already spent. Two of the ten were taken **with no USB cable**: `/dev/cu.usb*` did not exist. The day instrument counted `servo reports 10`, `seen silent 1`, `rail cycles 2`, `rail resets 0` over the same log.
+
+⚠️ **The first `bench power off` did not land** — the write returned and the line had not arrived, because the port was closed at once. Held open for two seconds, the board obeyed. ⛔ **A write that returns is not a line that arrived**: the `sent: true` lesson, one layer down.
+
+⚠️ **What this does not fix, found on the way: a restarted daemon orphans the body.** After `launchctl kickstart -k`, the board's old connection sat in `FIN_WAIT_1` for over a minute with no ACK — the 0.19.59 direction is unchanged, so the FIN never reached it — and `DialTask` has no read timeout. `ping` returned 2 sent, 0 received, with the board's MAC in `arp -an`. ⛔ **Only `esptool`'s hard reset brought it back, and that needs the cable.** Four listener swaps the same day recovered by themselves in 0.3–4 s, so this is one observation and not a rate.
+
+⛔ **No head moved for any of it** — both `look_up` calls came back `skipped: "no motion"` — and no eye saw the screen, the lights or the neck. The record is `records/2026-10-21-the-line-that-crosses.md`.
+
+The image is **928,256 bytes**, and the count moved from **797 to 803** while the file count stayed at 42.

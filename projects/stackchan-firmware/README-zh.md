@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.14.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 2.15.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -362,3 +362,42 @@ dial: connected to <ip>:<port>   拨号已经抵达
 ✅ **2026-10-21 在一根 USB 线缆都没有的状态下测得**: 探针回答 `position: [331, 500]`、`look_up` 流出 22 个姿势、yaw 前为 **33.1°**、后为 **9.6°**，基板自己的汇总——**49 applied**——与主机的 **22 applied + 27 held** 相等。帧以 `sent: true, accepted: true` 返回，而基板在每次监听被换掉之后 **0.3〜4 秒**就自己重新拨号。
 
 ⛔ **不过链路的是基板自己的独白。** 通过的只有走 `Say()` 的行——`bench:`、`pose:`、`frame:`。`servo: silent for 3 checks…`、`servo: present …` 和整个启动横幅都是 `printf` ⇒ **这台主机再也无法知道舵机总线沉默了**——而那正是 0.19.34 被建成答案的那个故障。⚠️ **而 22 个姿势里有 21 个延迟应用: 位置到达了，日程表没有到达。** 记录在 `records/2026-10-21-the-body-without-its-cable.md`。
+
+### 0.19.62 — 看门狗的数穿过链路
+
+✅ **回答问题的行会通过。** `BenchPos()` 现在这样开始:
+
+```
+Say("bench: servo strikes=%d rail=%d\n", g_servo_strikes, g_rail_cycles);
+```
+
+⇒ **看门狗的那两个数搭在 `bench pos` 的回答上。** 这就是活过 0.19.61 的规则——*回答问题的行通过，身体自己说话的行不通过*——而**其余五行留在原处，只因这条规则**: `servo: no answer (1 of 3 …)`、`servo: silent for 3 checks …`、`servo: rail cycled …`、`servo: present …` 全都仍然是 `printf`，⛔ **而那是选择，不是遗留。**
+
+⚠️ **新行坐在位置行之前，而这个顺序就是行为本身。** `_probe` 在能读出 Pose 的那一刻就关上窗口，所以写在 `bench: yaw raw …` 之后的行永远不会被读到。⛔ **测试从 `main.cpp` 里读出两个字面量、比较它们的下标来断言这一点**——**一段注释撑不住它。**
+
+**主机这一侧。** `projects/stackchan/neck/readback.py` 增加了 `servo(text)`（最后一个匹配胜出，主板什么也没说时为 `None`），而探针行把它带上:
+
+```
+{"position": [96, 496], "heard": true, "servo": {"strikes": 0, "rail": 2}, "read": "…", "at": …}
+```
+
+⛔ **`"servo": null` 不是 `{"strikes": 0, "rail": 0}`**——**那是没被问到，或没有回答**，与 `verdict: null` 和 `0 refused` 在流的行上早已承担的是同一个区别。
+
+**一天的仪器把它数出来。** `projects/stackchan/day/summary.py` 增加了 `servo_reports`、`servo_silent`（`strikes > 0`——**在导轨落下之前到达的预警**）、`rail_cycles` 与 `rail_resets`。⚠️ **`rail_cycles` 是那个文件里唯一一个不是计数的数**: `rail` 是主板*自它自己启动*以来的次数，所以次数是**增加的部分**，而减少意味着主板重启，那之前的次数不可观测。⇒ **`rail_cycles` 小，并不等于安静的一天。** ⛔ **这个例外写在源码里，并由一个把行倒过来、显示出究竟是哪一栏在动的测试撑着。**
+
+✅ **2026-10-21 在实机上测过。** 在控制台敲下的 `bench power off` 产生了六行现在已经没人能读的 `printf`，而主机把同一个下午读成十次探针: `{0,0}` ×4、`{0,1}` ×2、**`{2,1}`**、`{0,2}` ×3。**第七行才是关键的那一行:**
+
+```
+{"position": null, "heard": true, "servo": {"strikes": 2, "rail": 1},
+ "read": "bench: servo strikes=2 rail=1\nbench: yaw=no answer pitch=no answer\n", "at": 11671.812024583}
+```
+
+**控制台回答了，伺服没有回答，而主板说了是哪一个。** ⚠️ **`strikes` 是预警，`rail` 是事件**——这一行同时给出两者: **沉默仍在继续，而恢复已经用掉一次。** 十行里有两条是**在一根 USB 线缆都没有的状态**下取的（`/dev/cu.usb*` 并不存在）。一天的仪器在同一份日志上数出 `servo reports 10`、`seen silent 1`、`rail cycles 2`、`rail resets 0`。
+
+⚠️ **第一次 `bench power off` 没有落下去**——写入返回了，行没有到达，因为端口立刻被关掉。保持打开两秒，主板照做了。⛔ **返回的写入不是到达的行**: `sent: true` 的教训，往下深了一层。
+
+⚠️ **这没有修好的、路上发现的: 重启后的守护进程会让身体成为孤儿。** 在 `launchctl kickstart -k` 之后，主板的旧连接在 `FIN_WAIT_1` 里坐了一分多钟没有 ACK——**0.19.59 的方向没有变，所以 FIN 到不了**——而 `DialTask` 没有读取的期限。`ping` 返回 2 发送、0 接收，`arp -an` 一直握着主板的 MAC。⛔ **把它带回来的只有 `esptool` 的硬复位，而那需要线缆。** 同一天的四次监听器替换都在 0.3–4 秒内自己回来了，所以**这是一次观察，不是一个频率。**
+
+⛔ **这一切之中头部一次也没有动**——两次 `look_up` 都返回 `skipped: "no motion"`——而屏幕、灯光、颈部，都没有眼睛看见。记录在 `records/2026-10-21-the-line-that-crosses.md`。
+
+镜像是 **928,256 字节**，而计数从 **797 走到 803**，文件数仍是 42。

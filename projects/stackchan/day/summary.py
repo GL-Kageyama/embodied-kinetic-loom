@@ -27,6 +27,13 @@
 
 ⚠️ **読めない行は捨てない。** 数える——**ログ自身が壊れていることも、測定である。**
 
+⚠️ **1つだけ、数え上げでない欄がある**（0.19.62 の `rail_cycles`）。基板の `rail` は
+**その起動からの回数**であり、**増えた分が「起きた回数」**である——⛔ 順序を持たない
+数え上げでは出ない数だからである。⇒ **`summarize` は行を順に渡されることを前提にする**
+（それまでは、どの欄も前提にしていなかった）。⚠️ **窓の中で基板が再起動すれば、
+その前の回数は観測できない**——`rail_resets` がその回数であり、
+**`rail_cycles` が小さいことは、黙りが少なかったことではない。**
+
 ⚠️ **作業の語は、語を運んだ行だけを数える。** 0.19.52 から第2層は
 `PreToolUse` / `PostToolUse` の判定行に `work` を載せるが、**載らない事象のほうが
 多い**。⇒ **「載っていない」を `other` に数えない**——`other` は *表に無い道具* で
@@ -82,6 +89,14 @@ class Summary:
     readbacks: int = 0          # `heard` の行
     heard: int = 0              # コンソールが答えた
     positions: int = 0          # サーボが位置を返した
+    # ✅ **2026-10-21（0.19.62）から、基板の監視犬の数も数える。**
+    # ⛔ **0.19.61 にリンクが唯一の道になってから、監視犬の印字（`printf`）は
+    #    このホストへ届かない**——**バスが黙ったことを知る欄が無くなっていた**。
+    #    基板はいま、その2つの数を `bench pos` の答えに載せる。
+    servo_reports: int = 0      # 監視犬の数を運んだ探針の行（⛔ 無い行は数えない）
+    servo_silent: int = 0       # そのうち、バスが黙りかけていた行（`strikes` > 0）
+    rail_cycles: int = 0        # レールを落とした回数（**増えた分**の合計）
+    rail_resets: int = 0        # 基板の数が戻った回数（＝再起動。その前は数えられない）
     phases: dict[str, int] = field(default_factory=dict)
     # ✅ **2026-10-20（0.19.52）から、作業の語も数える。**
     # ⚠️ **鍵が無い行は数えない**——`None` に数えれば、*知らされていない* と
@@ -96,6 +111,9 @@ class Summary:
 def summarize(lines: Iterable[str]) -> Summary:
     """**行を数える。** ⚠️ **行は順序を持たない**——数え上げであるからである。"""
     s = Summary()
+    # ⚠️ **この2つだけは、行の順に依存する。** `rail` は基板の起動からの回数なので、
+    #    **増えた分**を数える——基準を持つのはここだけである。
+    rail_baseline: int | None = None
     for raw in lines:
         text = raw.strip()
         if not text:
@@ -154,6 +172,27 @@ def summarize(lines: Iterable[str]) -> Summary:
                 s.heard += 1
             if obj.get("position") is not None:
                 s.positions += 1
+            # ⚠️ **監視犬の数を運ばない行を、0 と数えない。** 欄が無いのは
+            #    *知らされていない* ことであり、**「黙っていない」ではない**
+            #    （`verdict: None` と `0 refused` の区別と同じである）。
+            found = obj.get("servo")
+            if isinstance(found, dict):
+                s.servo_reports += 1
+                strikes = found.get("strikes")
+                if isinstance(strikes, int) and strikes > 0:
+                    # ⚠️ **これは予告である。** 3回でレールが落ちるので、1か2は
+                    #    **バスが黙りかけている**ことであり、**落ちるより早く届く。**
+                    s.servo_silent += 1
+                rail = found.get("rail")
+                if isinstance(rail, int):
+                    if rail_baseline is not None:
+                        if rail > rail_baseline:
+                            s.rail_cycles += rail - rail_baseline
+                        elif rail < rail_baseline:
+                            # ⚠️ **基板が再起動した。** 数が戻るのはそのときだけで、
+                            #    **その前の回数は観測できない**——数えず、引き直す。
+                            s.rail_resets += 1
+                    rail_baseline = rail
             continue
 
         if "neck" in obj:
@@ -232,6 +271,10 @@ def render(s: Summary) -> str:
         row("readbacks", s.readbacks),
         row("  heard", s.heard),
         row("  positions", s.positions),
+        row("servo reports", s.servo_reports),
+        row("  seen silent", s.servo_silent),
+        row("  rail cycles", s.rail_cycles),
+        row("  rail resets", s.rail_resets),
     ]
     for name, counter in (
         ("phases", s.phases),

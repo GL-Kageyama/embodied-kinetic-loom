@@ -3,7 +3,9 @@
 
 ⚠️ **主な問いは「今どこに居るか」である**（`bench pos` の答え）。✅ **0.19.38 からは
 流しの終わりの判定も、0.19.41 からは枠の受理も、同じ場所で読む**——どれも
-**基板が自分で印字した行**であり、ホストの数ではない。
+**基板が自分で印字した行**であり、ホストの数ではない。✅ **0.19.62 からは、
+サーボの監視犬の2つの数も同じ答えに載る**——⛔ **独白はリンクを渡らないので、
+この行が無ければ、ケーブルの外ではバスが黙ったことが誰にも分からない。**
 
 ⚠️ **尋ねる行は、この機体の bench が既に持っている**（`main.cpp` の `bench pos`）。
 ⛔ **新しい命令を発明しない。** 尋ねる綴りも、答える綴りも、基板の側に在る——
@@ -21,7 +23,9 @@ import re
 
 from engine.backend.protocol_stackchan_pose import Pose
 
-__all__ = ["QUERY", "tenths", "answered", "parse", "verdict", "frame_accepted"]
+__all__ = [
+    "QUERY", "tenths", "answered", "parse", "verdict", "frame_accepted", "servo",
+]
 
 #: **基板へ尋ねる1行。** ⚠️ **改行で終わる**——`fgets` は行で返る。
 QUERY = b"bench pos\n"
@@ -117,6 +121,41 @@ def frame_accepted(text: str) -> bool | None:
         if found is None or match.start() > found[0]:
             found = (match.start(), False)
     return None if found is None else found[1]
+
+
+#: ⚠️ **基板が、問いへの答えに載せる自分の数である**（`main.cpp` の `BenchPos`）。
+#: 形は `bench: servo strikes=%d rail=%d` であり、**監視犬（`ServoWatchdog`）の
+#: 2つの数**である——**いま何回続けて答えなかったか**と、**この起動で何回レールを
+#: 落としたか**。
+#: ⛔ **0.19.61 から、この行が無ければホストはバスが黙ったことを知れない。**
+#: 監視犬の印字は `printf` であり、**リンクを渡らない**（渡るのは `Say()` だけである）。
+#: ⇒ **この行は規則の側にある**: *問いに答える行は渡り、体が自ら語る行は渡らない。*
+_SERVO = re.compile(r"bench: servo strikes=(\d+) rail=(\d+)")
+
+
+def servo(text: str) -> dict | None:
+    """**基板が自分の数で言った、サーボの監視犬の状態。** ⚠️ **印字が無ければ `None`。**
+
+    ⚠️ **2つの数は、2つの問いに答える**:
+
+    - `strikes` — **いま何回続けて答えなかったか。** 0 は *今この瞬間は答えている*、
+      1 か 2 は **バスが黙りかけている**（3 でレールが落ちる）。⇒ **これは予告であり、
+      レールの電源サイクルより早く届く。**
+    - `rail` — **この起動で落とした回数。** レールは**この機体が黙りから戻る唯一の道**
+      であり（0.19.34）、増えたことは**黙りが起きたこと**を意味する。
+
+    ⛔ **`None` は 0 ではない。** 基板がこの行を印字しなかったこと（古い像、行が繋がった、
+    窓の中で届かなかった）であり、**「黙っていない」ではない**——2つを同じ欄にしない
+    （`verdict: None` と `0 refused` の区別と同じである）。
+
+    ⚠️ **最後の1つを返す**——窓の中に2つあれば、新しい方が効いている。
+    """
+    found = None
+    for match in _SERVO.finditer(text):
+        found = match
+    if found is None:
+        return None
+    return {"strikes": int(found.group(1)), "rail": int(found.group(2))}
 
 
 def parse(text: str) -> Pose | None:
