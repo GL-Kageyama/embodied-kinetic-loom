@@ -14,10 +14,39 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 # The console is the port that was measured to speak: USB Serial/JTAG.
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 
-# No PSRAM, no display, no Wi-Fi, no camera: this image moves two servos and
-# twelve LEDs. ⚠️ Leaving a subsystem out is a decision, not an omission.
+# No PSRAM, no camera, no Bluetooth: this image moves two servos, twelve LEDs,
+# a face on a screen and a speaker. ⚠️ Leaving a subsystem out is a decision,
+# not an omission. ⛔ The line used to say "no Wi-Fi" — and on 2026-10-21 the
+#    radio was started (`main/wifi.cpp`), so that sentence had become false
+#    while it sat here unread. **Wi-Fi is now in the image**; what it carries is
+#    stated where the code is, and it carries no frame and no pose.
 CONFIG_SPIRAM=n
 CONFIG_BT_ENABLED=n
 
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=4096
 CONFIG_FREERTOS_HZ=1000
+
+# ⛔ The event loop task's stack, and IDF's default of 2304 is too small for
+#    this image. Measured 2026-10-21: the board boot-looped — every boot died
+#    about a second after the address arrived, with `LoadProhibited` on a `l32i`
+#    from a queue pointer whose fields held PS-register values. A coredump
+#    named the crashing task `sys_evt`, interrupted inside
+#    `esp_netif_lwip_ipc_call_get_netif` (the IPC round trip behind
+#    `esp_netif_get_ip_info`), with a stack that had run past its end into the
+#    heap. At 4096 the same handler reports **1600 bytes never used**, so the
+#    need was about 2496 — over the 2304 default by roughly 200.
+#    ⚠️ This belongs in `sdkconfig.defaults` and not in `sdkconfig`, because
+#    `sdkconfig` is generated and gitignored: a fix living only there is a fix
+#    that vanishes on a clean checkout.
+CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096
+
+# ⚠️ A coredump kept in flash, and the partition for it was already in the
+#    vendor's table at 0xe00000 (0x10000). On 2026-10-21 this is what named the
+#    overflow above: without it the crash printed a backtrace through a
+#    corrupted stack and said nothing useful. On: the next crash explains
+#    itself. Off: the next crash is a boot loop with addresses in it.
+#    ⛔ Read it back with `read_flash 0xe00000 0x10000`, carve the ELF at
+#    offset 0x18, and run `esp_coredump info_corefile` with IDF exported.
+CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
+CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
+CONFIG_ESP_COREDUMP_CHECKSUM_CRC32=y

@@ -41,6 +41,7 @@
 #include "display.h"
 #include "leds.h"
 #include "servo.h"
+#include "net.h"
 #include "sound.h"
 #include "wifi.h"
 #include "zeros.h"
@@ -207,6 +208,10 @@ void PrintHelp() {
   printf("  bench wifi                does nvs hold a network, is the station on one, has it an address\n");
   printf("  bench wifi scan           what the radio can hear; blocks for seconds\n");
   printf("  bench wifi join <ssid> [psk]   store a network in nvs and connect; the psk is not echoed\n");
+  printf("  bench wifi addr <ip> <mask> <gw>  a fixed address for this boot only\n");
+  printf("  bench net                 is the listening port up, and how many connections has it served\n");
+  printf("  bench net send <ip> <port> <text>   one datagram out, and anything that comes back\n");
+  printf("  bench net call <ip> <port> <text>   open a connection outward and read the answer\n");
   printf("  help\n");
 }
 
@@ -890,7 +895,32 @@ void HandleBench(const char* args) {
       wifi_probe::join(ssid, psk);
       return;
     }
-    printf("bench: wifi [scan | join <ssid> [psk]]\n");
+    if (std::strncmp(rest, "addr", 4) == 0 &&
+        (rest[4] == ' ' || rest[4] == '\0')) {
+      wifi_probe::set_address(rest + 4);
+      return;
+    }
+    printf("bench: wifi [scan | join <ssid> [psk] | addr <ip> <mask> <gw>]\n");
+    return;
+  }
+  if (std::strncmp(args, "net", 3) == 0 && (args[3] == '\0' || args[3] == ' ')) {
+    const char* rest = args + 3;
+    while (*rest == ' ') {
+      ++rest;
+    }
+    if (std::strncmp(rest, "send", 4) == 0 && (rest[4] == ' ' || rest[4] == '\0')) {
+      net_probe::send(rest + 4);
+      return;
+    }
+    if (std::strncmp(rest, "arp", 3) == 0) {
+      net_probe::announce();
+      return;
+    }
+    if (std::strncmp(rest, "call", 4) == 0 && (rest[4] == ' ' || rest[4] == '\0')) {
+      net_probe::call(rest + 4);
+      return;
+    }
+    net_probe::report();
     return;
   }
   // ⚠️ `set`, not `pose`: `pos` is three characters and its check runs first,
@@ -1390,6 +1420,14 @@ extern "C" void app_main() {
   //    frames still go.
   wifi_probe::begin();
   printf("waypoint: radio\n");
+
+  // ⛔ A listening port, and it carries nothing: each line it receives is
+  //    answered with its own length and not run. It exists on 2026-10-21 to
+  //    answer one question — whether a unicast packet from the Mac reaches
+  //    this board — because ping and ARP both said no while the board's own
+  //    console said it was associated with an address.
+  net_probe::begin();
+  printf("waypoint: net\n");
 
   xTaskCreate(HeartbeatTask, "beat", 3072, nullptr, 1, nullptr);
 

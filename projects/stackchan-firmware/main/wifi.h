@@ -35,4 +35,21 @@ void join(const char* ssid, const char* psk);
 //: associated, and the address if it has one.
 void report();
 
+//: Stops the DHCP client and puts a fixed address on the station, for this boot
+//: only. `spec` is "<ip> <mask> <gateway>". Nothing is written to NVS.
+//
+// ⚠️ This exists to answer one question, and it is the last one left. On
+//    2026-10-21 the Mac could not send a single packet to this board: every
+//    bound `connect` and `sendto` was refused in 0.1 ms with "No route to
+//    host", while `route get` showed a live entry with `expire 1161` and
+//    `arp -an` showed this board's own MAC. A refusal that fast is the host
+//    synthesising it, not a frame going unanswered — and the gateway, the one
+//    host on this link with a *static* /32 route, answered fine on the same
+//    bound sockets.
+//    ⇒ A different address gets a different entry. If the Mac reaches that
+//      one, the fault was one wedged entry and the network is innocent. If it
+//      does not, no wireless client is reachable from this Mac, and the answer
+//      is the router's or the direction of the connection — not this board's.
+void set_address(const char* spec);
+
 }  // namespace wifi_probe

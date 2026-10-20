@@ -6,6 +6,8 @@
 #include "esp_event.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "nvs_flash.h"
 
 namespace {
@@ -62,16 +64,24 @@ void OnWifi(void*, esp_event_base_t base, int32_t id, void* data) {
   }
 }
 
-void OnGotIp(void*, esp_event_base_t, int32_t, void*) {
-  esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-  esp_netif_ip_info_t info;
-  std::memset(&info, 0, sizeof(info));
-  if (netif == nullptr || esp_netif_get_ip_info(netif, &info) != ESP_OK) {
-    printf("wifi: got an address, but it did not read back\n");
+void OnGotIp(void*, esp_event_base_t, int32_t, void* data) {
+  // ⛔ The address is read out of the event, not asked for. The first version
+  //    called `esp_netif_get_ip_info` here, and that is an IPC round trip into
+  //    the tcpip task — deep enough to overflow this handler's stack, which is
+  //    `CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE` = 2304 by default. Measured
+  //    2026-10-21: every boot panicked about a second after this line was
+  //    printed, and the coredump named `vApplicationStackOverflowHook` with
+  //    `esp_netif_lwip_ipc_call_get_netif` interrupted — the event loop task's
+  //    own stack, not the heap it had already smeared.
+  // ⚠️ The event carries the interface and its addresses. Nothing has to be
+  //    fetched, and a handler that fetches pays for a second task's frame.
+  const auto* got = static_cast<const ip_event_got_ip_t*>(data);
+  if (got == nullptr) {
+    printf("wifi: got an address, but the event carried none\n");
     return;
   }
   char address[16] = {0};
-  esp_ip4addr_ntoa(&info.ip, address, sizeof(address));
+  esp_ip4addr_ntoa(&got->ip_info.ip, address, sizeof(address));
   printf("wifi: connected ip=%s\n", address);
 }
 
@@ -130,6 +140,13 @@ void wifi_probe::begin() {
     return;
   }
   g_started = true;
+
+  // ⚠️ Modem sleep is left at the driver's default (`WIFI_PS_MIN_MODEM`).
+  //    Turning it off was tried on 2026-10-21 and changed nothing: 12 pings
+  //    with it, 12 pings without it, **0 answered either way** (`pm start,
+  //    type: 0` was read from the board's own line). A dozing radio is not
+  //    why this board does not answer the Mac, and the change was taken back
+  //    out rather than left in for a reason that was never measured.
 
   if (!stored) {
     // ⛔ Nothing to connect to. The radio is up and can scan, and the boot
@@ -216,6 +233,57 @@ void wifi_probe::join(const char* ssid, const char* psk) {
   esp_wifi_connect();
 }
 
+void wifi_probe::set_address(const char* spec) {
+  if (!g_started) {
+    printf("wifi: the radio is not up\n");
+    return;
+  }
+  esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+  if (netif == nullptr) {
+    printf("wifi: the interface is not there\n");
+    return;
+  }
+
+  char ip[16] = {0};
+  char mask[16] = {0};
+  char gateway[16] = {0};
+  if (spec == nullptr ||
+      std::sscanf(spec, "%15s %15s %15s", ip, mask, gateway) != 3) {
+    printf("wifi: addr needs <ip> <mask> <gateway>\n");
+    return;
+  }
+
+  // ⚠️ Parsed by the stack's own reader. A hand-rolled dotted quad would accept
+  //    `999.1.1.1` and set an address that is not what was typed.
+  esp_ip4_addr_t address;
+  esp_ip4_addr_t netmask;
+  esp_ip4_addr_t router;
+  if (esp_netif_str_to_ip4(ip, &address) != ESP_OK ||
+      esp_netif_str_to_ip4(mask, &netmask) != ESP_OK ||
+      esp_netif_str_to_ip4(gateway, &router) != ESP_OK) {
+    printf("wifi: one of those was not an address\n");
+    return;
+  }
+
+  // ⛔ The DHCP client is stopped first. Without that it re-applies the lease
+  //    under this address within a second and the measurement measures nothing.
+  esp_netif_dhcpc_stop(netif);
+
+  esp_netif_ip_info_t info;
+  std::memset(&info, 0, sizeof(info));
+  info.ip = address;
+  info.netmask = netmask;
+  info.gw = router;
+  const esp_err_t set = esp_netif_set_ip_info(netif, &info);
+  if (set != ESP_OK) {
+    printf("wifi: the address was refused (%d)\n", static_cast<int>(set));
+    return;
+  }
+  // ⚠️ Nothing goes to NVS: a reboot returns this board to what the network
+  //    hands it, which is what makes this a probe and not a configuration.
+  printf("wifi: address %s/%s gw %s, for this boot only\n", ip, mask, gateway);
+}
+
 void wifi_probe::report() {
   if (!g_started) {
     printf("wifi: the radio is not up\n");
@@ -253,5 +321,16 @@ void wifi_probe::report() {
          associated ? "associated" : "not associated", has_ip ? address : "no ip");
   if (associated) {
     printf("wifi:   ch %u rssi %d\n", static_cast<unsigned>(ap.primary), ap.rssi);
+  }
+
+  // ⚠️ The margin, in bytes, of the task that runs every handler here. The
+  //    overflow of 2026-10-21 happened with 2304 and was found by a coredump,
+  //    not by this line — so this line is the one that would have said it first.
+  // ⛔ A task that has not run since the last boot reports its whole stack, and
+  //    that number means "not measured yet", not "plenty left".
+  TaskHandle_t event_task = xTaskGetHandle("sys_evt");
+  if (event_task != nullptr) {
+    printf("wifi:   sys_evt stack, %u bytes never used\n",
+           static_cast<unsigned>(uxTaskGetStackHighWaterMark(event_task)));
   }
 }
