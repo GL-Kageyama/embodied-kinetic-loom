@@ -342,7 +342,7 @@ reset: reason <n> (<name>)        the boot banner's new line
 
 ⛔ **The reason stays the first line on the console.** The handler prints it and does not repeat it; the retry prints its **first three attempts and then every tenth**, so a night off the network is tens of lines and not thousands. `bench wifi` adds the attempts since boot beside the association — ⛔ **zero there is *nothing has dropped*, not *the radio is healthy*.**
 
-The rule lives in `main/wifi_retry.h` / `.cpp`, which take no IDF header and are compiled on the host by `tests/test_stackchan_wifi_retry.py` — **thirty-three checks: twenty-six on the rule, seven reading this file's wiring**. ⛔ **Nothing here has observed a reconnection**: that needs the network turned off and a wait, and by hand. ⛔ **And the image has not been written to the board yet** — the unit still runs the previous build until it is flashed.
+The rule lives in `main/wifi_retry.h` / `.cpp`, which take no IDF header and are compiled on the host by `tests/test_stackchan_wifi_retry.py` — **thirty-three checks: twenty-six on the rule, seven reading this file's wiring**. ⛔ **Nothing here has observed a reconnection**: that needs the network turned off and a wait, and by hand. ✅ **And it is on the board** — written to **`0x20000`**, the slot `otadata` names (`seq 1`, `state 0x2`), **931,664 bytes**, `Hash of data verified.`, and the descriptor read back as **`fa1fa57-dirty`, built `Oct 21 2026 17:38:30`** (⚠️ **built after the fix and before the commit**, which is why it says `dirty`). ⛔ **Nothing has watched it rejoin a network yet.**
 
 ## The dial — 2026-10-21
 
