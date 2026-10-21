@@ -397,7 +397,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | the address handler sets the flag before it prints | `test_stackchan_wifi_retry.py` (source) | ⚠️ a console that blocks must not hold a retry open |
 | the comment *one attempt, and no retry loop* is gone | `test_stackchan_wifi_retry.py` (source) | ⛔ **the comment named the defect as a rule** — that sentence was the 2026-10-21 fault written down |
 
-⛔ **It does not build `wifi.cpp`, and nothing here watches a reconnection.** The wiring rows read the source; the rule rows compile a file with no IDF in it. **Whether this body rejoins a network after a drop is measured by turning the network off and waiting, and that has not been done** — on the day it was written, the defect was a reading of the source and the fix was unobserved.
+⛔ **It does not build `wifi.cpp`, and nothing here watches a reconnection.** The wiring rows read the source; the rule rows compile a file with no IDF in it. **Whether this body rejoins a network after a drop is still nothing a check can say** — on 2026-10-21 it was observed **by hand**: the author carried the unit about 50 m away and brought it back, and the console recorded `reason 200 (beacon timeout)`, five attempts at **2,000 / 4,000 / 8,000 / 16,000 / 30,000 ms**, and **`wifi: associated after 5 attempt(s)`**. ⛔ **Only three of those five printed** — the rule silences the fourth and the fifth, so a reader counting `asking again` lines undercounts. The record is `projects/stackchan-firmware/records/2026-10-21-the-body-that-asked-again.md`; **no test here holds any of it.**
 
 ## The link the board opens (0.19.61)
 
