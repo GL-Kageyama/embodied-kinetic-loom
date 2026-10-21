@@ -97,6 +97,21 @@ def test_the_meta_dial_is_written_out_rather_than_left_to_its_default():
     assert args[args.index("--meta") + 1] == "quiet"
 
 
+def test_the_mouth_is_opened_by_this_line_and_by_nothing_else():
+    """⚠️ **口は既定で閉じている**（`--voice off`）。⇒ **この1行が、声の有無である。**
+
+    ⛔ **書かなくても「開いている」と読める状態を作らない**——この行を探すのは、
+    **部屋がうるさかった日**と、**声が出なかった日**の両方である。
+
+    ⚠️ **`--voice on` は `--listen` を要る**——デーモンは束縛する前に断る。
+    板の居ない口は、自動販売機である（§22.10）。
+    """
+    args = arguments()
+    assert "--voice" in args
+    assert args[args.index("--voice") + 1] == "on"
+    assert "--listen" in args
+
+
 def test_the_job_waits_for_the_board_rather_than_opening_a_wire():
     """⛔ **2026-10-21 から、ジョブは道を名指さない。**
 

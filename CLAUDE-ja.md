@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.57.0 | canonical: CLAUDE.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.58.0 | canonical: CLAUDE.md | translated: 2026-10-21 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -72,7 +72,7 @@
 
 ## テスト
 
-**52ファイル・1,054テスト、すべて緑——実測 2026-10-21。** **5つの検査とその居場所は `tests/README.md` にある。** ⚠️ **検査のうち3つはテストではなく、そこには無い**——`claude plugin validate --strict .`・`tools/check_i18n.py`・`tools/check_vocabulary.py`。**後の2つは `--self-test` を持つ。**
+**52ファイル・1,055テスト、すべて緑——実測 2026-10-21。** **5つの検査とその居場所は `tests/README.md` にある。** ⚠️ **検査のうち3つはテストではなく、そこには無い**——`claude plugin validate --strict .`・`tools/check_i18n.py`・`tools/check_vocabulary.py`。**後の2つは `--self-test` を持つ。**
 
 ✅ **0.19.63 から3つ目の層がソースとして在り、何も開かない**——`projects/stackchan_meta/` はターンを数え（`trace.py`）、3つの規則を当て（`rules.py`）、セッションごとに候補を1件だけ持ち（`budget.py`）、1つの前置きの下の1行に描く（`render.py`）。⛔ **ソケットも、デーモンからの呼び出しも、フックも、`__main__.py` も無い**——**これのせいで体が変わることは無い。** **96のテストがこれを守る**——`tests/test_stackchan_meta_*.py`——その中に、**道具1回は `PreToolUse` の1行であり、対ではない**こと（⛔ **`PostToolUse` も数えれば、呼び出しも連続も2倍になる**: 実測 1,645 / 1,546）、**25回の境目は呼び出しであり、事象25行ではない**こと、**`long-stretch` は語ではない**こと——連続25回は `turn-review` の証拠であり、**`META_WIDE_TOOLS == META_STREAK` をテストが持つ**（その等号が吸収を構造にしている）——、そして**候補は自由文の欄を持たない**こと。⚠️ **語彙は3語で閉じている**——`verification-gap` / `fan-out` / `probe-only` は測って落とした。✅ **再生器を捨てる前に、実装は3本のログでその数を再現した**——候補 **28 / 12 / 52**、配送 **7 / 4 / 12**、落ちた理由はすべて一致（設計 §18）。⛔ **まだ1件も配送していない**: ソケットは 0.19.64 に来るのであり、**計器はそれと同じ日に、それより先に入れる**——そうしなければ、その日からメタの行が `unreadable` に数えられる。⛔ **そしてその日からも、文は読まないクライアントへ渡されるだけである**——配送は Phase 4 である。
 

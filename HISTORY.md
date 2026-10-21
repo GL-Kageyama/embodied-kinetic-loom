@@ -5,6 +5,35 @@
 
 ---
 
+## 0.19.72 — 2026-10-21 **口が開いた——設置済みのジョブが `--voice on` を持つ**
+
+### 何が起きたか
+
+1. ✅ **著者の言葉で、口を開けた**（「開ける（推奨）」）。設計 §15.2 の手順をそのまま行った。
+2. ✅ **plist に `--voice on` を書き出した**（既定に任せない——2つのダイヤルと同じ理由である）。⛔ **書かなければ、口は閉じたままである。**
+3. ✅ **試験を1つ足した**（`test_the_mouth_is_opened_by_this_line_and_by_nothing_else`）——plist が `--voice on` を名指し、`--listen` を持つことを押さえる。**1,054 → 1,055。**
+4. ✅ **戻し道を先に確保した**——設置済み plist を `~/AI創作工房/stackchan-logs/backups/embodied-kinetic-loom.stackchan-next.plist.2026-10-21-pre-voice` へ控えた。⚠️ **控えた時点で、設置済みとリポジトリの plist が同じであることを `plutil -p` の diff で確かめた。**
+5. ✅ **入れ直した**——`bootout` → `cp` → `bootstrap`。
+
+### 測ったこと
+
+| 測ったもの | 値 | どこから |
+|---|---|---|
+| `launchctl print` の引数 | `--listen 0.0.0.0:3333 --sound on --presence normal --meta quiet **--voice on**` | `launchctl print gui/501/…` |
+| 3本目のソケット | `/tmp/ekl-stackchan-mouth-501.sock` が在る | `ls` |
+| 起動行 | `{"daemon": "listening", …, "meta": "quiet", "voice": "on"}` | `/tmp/ekl-stackchan-next.log` |
+| 口を叩いた結果 | **`no-board`、終了 1** | `python3 -m projects.stackchan_next.mouth "…"` |
+| その日の計器 | `voice no board 1`／`unreadable 109`（**`link` の行109件であり、声の行ではない**） | `python3 -m projects.stackchan.day` |
+| 本体が受け取る前置き | **開いた日は `To say it aloud, run: …` が付き、閉じた日は付かない** | `render(c, mouth=mouth_command())` |
+
+### ⛔ 分けていないこと
+
+- ⛔ **まだ、鳴っていない。** 入れ直した時点で板は繋がっておらず（`lsof` に `ESTABLISHED` が無い）、口は `no-board` と答えた。**最初の1文は、板が次に dial してきたときに鳴る。** ⇒ **設置されたログの `spoke` は、まだ0件である。**
+- ⛔ **「本体が忘れる日」は、まだ数えられない。** 前置きの節は届くが、**節を読んだことは行にならない。**
+- ⚠️ **`--voice off` に戻すのは1行である**（控えの plist を戻して `bootout`／`bootstrap`）。**声がうるさければ、そう言ってよい**——§15.2 の D。
+
+---
+
 ## 0.19.71 — 2026-10-21 **計器の声の6欄を、試験が押さえる**
 
 ### 何が起きたか

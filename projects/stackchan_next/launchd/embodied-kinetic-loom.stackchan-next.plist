@@ -43,6 +43,15 @@
              sentence to the next prompt; `eager` also interrupts a `Stop`. -->
         <string>--meta</string>
         <string>quiet</string>
+        <!-- ⚠️ The mouth is opened by this line and by nothing else. Without it the
+             daemon binds no third socket, and the prelude carries no `To say it
+             aloud` clause — the body is never told that a voice exists.
+             ⛔ It is written out rather than left to its default (`off`) for the
+             same reason as the two dials above: on a day when the room was too
+             noisy, this is the line a reader looks for. `off` silences the mouth
+             without silencing the meta layer. -->
+        <string>--voice</string>
+        <string>on</string>
     </array>
 
     <key>WorkingDirectory</key>
