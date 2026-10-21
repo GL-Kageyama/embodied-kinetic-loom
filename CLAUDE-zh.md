@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.56.0 | canonical: CLAUDE.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.57.0 | canonical: CLAUDE.md | translated: 2026-10-21 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -72,7 +72,7 @@
 
 ## 测试
 
-**52 个文件、1,051 项测试，全部通过——实测 2026-10-21。** **五项检查及其住处见 `tests/README.md`。** ⚠️ **有三项检查不是测试，也不在那里**——`claude plugin validate --strict .`、`tools/check_i18n.py`、`tools/check_vocabulary.py`。**后两者自带 `--self-test`。**
+**52 个文件、1,054 项测试，全部通过——实测 2026-10-21。** **五项检查及其住处见 `tests/README.md`。** ⚠️ **有三项检查不是测试，也不在那里**——`claude plugin validate --strict .`、`tools/check_i18n.py`、`tools/check_vocabulary.py`。**后两者自带 `--self-test`。**
 
 ✅ **自 0.19.63 起，第三层作为源码存在，并且什么也不打开**——`projects/stackchan_meta/` 数一轮对话（`trace.py`）、套用三条规则（`rules.py`）、每个会话只持有一个候选（`budget.py`）、把它画成一个前置语之下的一行（`render.py`）。⛔ **没有套接字、没有守护进程的调用、没有钩子、也没有 `__main__.py`**——**身体不会因为它而改变。** **九十六项测试守住它**——`tests/test_stackchan_meta_*.py`——其中有**一次工具调用是一行 `PreToolUse`，而不是一对**（⛔ **把 `PostToolUse` 也数进去，调用与连续都会翻倍**: 实测 1,645 / 1,546）、**二十五次的边界是调用，而不是二十五行事象**、**`long-stretch` 不是一个词**——连续二十五次是 `turn-review` 的证据，而**测试持有 `META_WIDE_TOOLS == META_STREAK`**（那个等号使吸收成为结构）、以及**候选没有自由文本的栏**。⚠️ **语汇闭在三词**——`verification-gap` / `fan-out` / `probe-only` 是测过之后放下的。✅ **在丢弃重放器之前，实现在三本日志上复现了它的数**——候选 **28 / 12 / 52**、投递 **7 / 4 / 12**，每一条落下的理由都相同（设计 §18）。⛔ **还一件都没有投递**: 套接字在 0.19.64 到来，而**计器与它同一天落地、且在它之前**——否则从那一天起，元的行就会被数成 `unreadable`。⛔ **而从那一天起，句子也只是被交给一个不读它的客户端**——投递是 Phase 4。
 

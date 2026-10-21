@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.39.0 | canonical: tests/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.40.0 | canonical: tests/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**fifty-two files, one thousand and fifty-one tests, all green — measured 2026-10-21.**
+**fifty-two files, one thousand and fifty-four tests, all green — measured 2026-10-21.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -531,7 +531,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The log, read back (0.19.28)
 
-**`projects/stackchan/day/` reads the daemon's own log; `test_stackchan_day.py` holds it with thirty-seven claims** — thirty-two functions, two of them parametrized (three ways and four ways). ⚠️ **The line said seventeen until 0.19.52**, and the file already held twenty — **the same drift the document rules warn about, found while moving the count.**
+**`projects/stackchan/day/` reads the daemon's own log; `test_stackchan_day.py` holds it with forty claims** — thirty-five functions, two of them parametrized (three ways and four ways). ⚠️ **The line said seventeen until 0.19.52**, and the file already held twenty — **the same drift the document rules warn about, found while moving the count.**
 
 ⚠️ **The log existed before its reader did.** By 05:36 on 2026-10-19 it held **3,852 lines** and **not one of them was unreadable** — ⛔ **and nothing in the repository read it.** A record nobody reads is a file with a timetable in it.
 
@@ -572,6 +572,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | `--meta off` binds no socket, and the startup row names the dial | `test_stackchan_next_daemon.py` | ⚠️ **a silenced day and a silent day are both zero candidates; only the startup row tells them apart** |
 | the five meta rows are counted, and an unknown kind is still `unreadable` | `test_stackchan_day.py` | ⛔ **an instrument that does not know a row calls a correct row broken** |
 | the four `why` words are one column, and `off` is counted only when the dial said so | `test_stackchan_day.py` | ⚠️ **the name column is sixteen characters**, and a row without `meta` is older than this counter |
+| the six voice rows are counted, and an unknown kind is still `unreadable` | `test_stackchan_day.py` | ⛔ **the same hole as the meta rows, one layer out** — a counter not added on the day the rows arrive turns every `voice` row into `unreadable` |
 
 ## The hand-over (0.19.65)
 

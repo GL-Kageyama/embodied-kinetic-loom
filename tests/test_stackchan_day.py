@@ -407,3 +407,55 @@ def test_the_five_names_fit_the_sixteen_character_column():
     assert [row[:16].rstrip() for row in rows] == [
         "meta candidates", "meta delivered", "meta dropped", "meta errors",
         "meta off starts"]
+
+
+# ---------------------------------------------------------------------------
+# 口の6つの欄（0.19.70、設計 §22.10）——⛔ 同じ理由で、同じ日に足した。
+# ---------------------------------------------------------------------------
+
+
+def test_the_voice_rows_are_counted_and_not_called_unreadable():
+    """⛔ **計数を足さずに新しい行を出せば、その日から全部が `unreadable` になる。**
+
+    0.19.64 にメタの5行で踏んだのと同じ穴である（設計 §19.10）。⇒ **口の行にも、
+    同じ日に6つの欄を置いた。**
+    """
+    lines = [
+        line({"voice": "spoke", "blocks": 23, "bytes": 92882}),
+        line({"voice": "cut", "blocks": 4, "bytes": 16000}),
+        line({"voice": "cannot render", "error": "OSError"}),
+        line({"voice": "busy"}),
+        line({"voice": "refused", "error": "too-long"}),
+        line({"voice": "no-board"}),
+        line({"voice": "night"}),
+        line({"voice": "error", "error": "ConnectionResetError"}),
+    ]
+    s = summarize(lines)
+
+    assert s.unreadable == 0, "正しい行が壊れた行に数えられている"
+    assert s.voice_spoke == 1
+    # ⚠️ **`cut` と `cannot render` は1つの数である**——「言いかけて止まった」。
+    assert s.voice_cut == 2
+    # ⚠️ **`busy` と `refused` も1つである**——「断った」。
+    assert s.voice_refused == 2
+    assert s.voice_no_board == 1
+    assert s.voice_night == 1
+    assert s.voice_errors == 1
+
+
+def test_an_unknown_voice_value_is_still_unreadable():
+    """⚠️ **知らない形は、数えずに捨てない。** メタの枝と同じ切り方である。"""
+    s = summarize([line({"voice": "whispered", "at": 1.0})])
+    assert s.unreadable == 1
+    assert s.voice_spoke == 0
+
+
+def test_the_six_voice_names_fit_the_sixteen_character_column():
+    """⚠️ **名前の欄は16文字である。** `voice no board` が最も長く、14文字である。"""
+    s = summarize([])
+    rows = [row for row in render(s).splitlines() if row.startswith("voice ")]
+    assert [row[:16].rstrip() for row in rows] == [
+        "voice spoke", "voice cut", "voice refused", "voice no board",
+        "voice night", "voice errors"]
+    for row in rows:
+        assert len(row[:row.index(str(0))].rstrip()) <= 16, row
