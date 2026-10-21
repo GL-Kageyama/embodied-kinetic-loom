@@ -24,10 +24,12 @@ import subprocess
 import sys
 import time
 
+import pytest
+
 from engine.backend import protocol_stackchan as wire
 from projects.stackchan.daemon.room import socket_path as old_socket_path
-from projects.stackchan_next.client import INPUT_LIMIT
-from projects.stackchan_next.daemon.room import socket_path
+from projects.stackchan_next.client import INPUT_LIMIT, reads_reply
+from projects.stackchan_next.daemon.room import meta_socket_path, socket_path
 from projects.stackchan_next.presence import WORK_DWELL
 from test_stackchan_next_daemon import (
     NEW_MODULE,
@@ -40,10 +42,18 @@ HOOK_MODULE = "projects.stackchan_next.hook"
 EDGE = pathlib.Path(REPO_ROOT) / "projects" / "stackchan_next" / "hook" / "__main__.py"
 
 
-def run_client(path, text: str) -> subprocess.CompletedProcess:
-    """⚠️ **本物のプロセスを1つ起こす。** 標準入力は文字列である。"""
+def run_client(path, text: str, meta=None) -> subprocess.CompletedProcess:
+    """⚠️ **本物のプロセスを1つ起こす。** 標準入力は文字列である。
+
+    ⛔ **メタの行き先は、必ず試験の側で名指す**——既定の
+    `/tmp/ekl-stackchan-meta-<uid>.sock` を放っておくと、**設置済みのデーモンへ
+    本物の事象を送る試験**になる。既定は体のソケットの隣である。
+    """
+    if meta is None:
+        meta = pathlib.Path(path).parent / "meta.sock"
     return subprocess.run(
-        [sys.executable, "-m", HOOK_MODULE, "--socket", str(path)],
+        [sys.executable, "-m", HOOK_MODULE, "--socket", str(path),
+         "--meta-socket", str(meta)],
         cwd=REPO_ROOT,
         input=text,
         capture_output=True,
@@ -87,8 +97,8 @@ def test_the_edge_borrows_the_reading_and_owns_only_the_door():
     source = EDGE.read_text(encoding="utf-8")
 
     assert "from projects.stackchan.hook.__main__ import read_payload" in source
-    assert "from ..client import line_from" in source
-    assert "from ..daemon.room import socket_path" in source
+    assert "from ..client import REPLY_EVENT, line_from, reads_reply" in source
+    assert "from ..daemon.room import meta_socket_path, socket_path" in source
     assert "def read_payload(" not in source
     assert "def main(" in source
 
@@ -249,3 +259,104 @@ def test_the_client_does_not_wait_for_a_reply(sock):
 
     assert result.returncode == 0
     assert elapsed < 1.0
+
+
+# ---------------------------------------------------------------------------
+# 配送（Phase 4）—— ⛔ **返事を読むのはプロンプトのときだけである**
+# ---------------------------------------------------------------------------
+
+PROMPT = {"session_id": "left", "hook_event_name": "UserPromptSubmit"}
+
+
+def drive_to_candidate(daemon: Daemon, session: str = "left") -> None:
+    """**25回の呼び出しと `Stop` で、候補を1つ作る。** ⚠️ **声はまだ出ていない。**
+
+    ⚠️ **体のソケットではなく、メタのソケットへ直接送る**——ここで測りたいのは
+    *フックが返事を読むか*であり、*体が事象を運ぶか*ではない。
+    """
+    for _ in range(25):
+        daemon.send_meta({"session": session, "event": "PreToolUse",
+                          "work": "run"})
+    daemon.send_meta({"session": session, "event": "Stop"})
+
+
+def test_the_meta_socket_is_spelled_once():
+    """⚠️ **2か所に書けば、片方だけが直る日が来る。**"""
+    from projects.stackchan_next.daemon import __main__ as daemon_edge
+    from projects.stackchan_next.hook import __main__ as hook_main
+
+    assert meta_socket_path(501) == "/tmp/ekl-stackchan-meta-501.sock"
+    assert hook_main.default_meta_socket() == meta_socket_path(os.getuid())
+    assert daemon_edge.default_meta_socket() == meta_socket_path(os.getuid())
+    assert hook_main.default_meta_socket() != hook_main.default_socket()
+
+
+@pytest.mark.parametrize("event", ["UserPromptSubmit", "Stop", "PreToolUse"])
+def test_only_a_prompt_reads_the_reply(event):
+    """⛔ **32の事象が返事を読めば、ターンがデーモンの速さを待つ。**"""
+    line = json.dumps({"session": "s", "event": event}) + "\n"
+    assert reads_reply(line) is (event == "UserPromptSubmit")
+
+
+def test_a_prompt_carries_the_sentence_as_additional_context(sock):
+    """✅ **次のプロンプトが、前のターンの1文を運ぶ**（設計 §12.1）。"""
+    with Daemon(sock) as daemon:
+        opened = run_client(sock, json.dumps(PROMPT))
+        drive_to_candidate(daemon)
+        said = run_client(sock, json.dumps(PROMPT))
+
+    # ⚠️ **行はデーモンが止まってから読む**（`out` は `communicate` の返りである）。
+    delivered = [r for r in daemon.meta_rows() if r["meta"] == "delivered"]
+
+    # ⚠️ **最初のプロンプトは何も言わない**——待っている候補が無いからである。
+    assert opened.returncode == 0 and opened.stdout == ""
+    assert said.returncode == 0
+    payload = json.loads(said.stdout)
+    assert payload["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
+    assert payload["hookSpecificOutput"]["additionalContext"].startswith(
+        "[stack-chan meta]")
+    # ⚠️ **印字したことと、部屋が渡したことは同じ1件である。**
+    assert len(delivered) == 1
+
+
+def test_a_stop_does_not_read_the_reply(sock):
+    """⛔ **`Stop` の `additionalContext` は、ユーザーの答えを置き換える。**
+
+    ⇒ **既定では読まない。** その候補は、次のプロンプトまで残る。
+    """
+    with Daemon(sock) as daemon:
+        run_client(sock, json.dumps(PROMPT))
+        drive_to_candidate(daemon)
+        stopped = run_client(sock, json.dumps(
+            {"session_id": "left", "hook_event_name": "Stop"}
+        ))
+        said = run_client(sock, json.dumps(PROMPT))
+
+    assert stopped.returncode == 0 and stopped.stdout == ""
+    # ⚠️ **読みもしない返事は捨てられていない**——次のプロンプトが運んでいる。
+    assert json.loads(said.stdout)["hookSpecificOutput"]["additionalContext"]
+
+
+def test_a_dead_body_does_not_take_the_meta_down(sock):
+    """⛔ **監修は、体の故障に道連れにされない**（設計 §12.1）。"""
+    nowhere = sock.parent / "no-body.sock"
+    assert not nowhere.exists()
+
+    with Daemon(sock) as daemon:
+        run_client(sock, json.dumps(PROMPT))
+        drive_to_candidate(daemon)
+        said = run_client(nowhere, json.dumps(PROMPT), meta=daemon.meta)
+
+    assert said.returncode == 0
+    assert json.loads(said.stdout)["hookSpecificOutput"]["additionalContext"]
+
+
+def test_a_missing_meta_socket_is_silent(sock):
+    """⚠️ **メタのデーモンが居ないことは、フックの失敗ではない。**"""
+    absent = sock.parent / "absent-meta.sock"
+    assert not sock.exists() and not absent.exists()
+
+    result = run_client(sock, json.dumps(PROMPT), meta=absent)
+
+    assert result.returncode == 0
+    assert result.stdout == "" and result.stderr == ""

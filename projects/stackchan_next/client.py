@@ -31,6 +31,25 @@ SOURCE_FIELDS: tuple[str, str, str] = ("session_id", "hook_event_name", "tool_na
 #: ⚠️ **入力を読む上限。** プロンプトは捨てるが、**読む前にも大きさで切る。**
 INPUT_LIMIT = 1 << 20
 
+#: ⚠️ **返事を読む唯一の事象である**（設計 §12.1）。**ユーザーが次に喋った瞬間が、
+#: いちばん静かな渡し場である。** ⛔ **`Stop` は既定では読まない**——その
+#: `additionalContext` は会話を続けさせ、**ユーザーが読むはずだった答えを置き換える**
+#: （2026-10-21 に実測、設計 §19.6）。
+REPLY_EVENT = "UserPromptSubmit"
+
+
+def reads_reply(line: str) -> bool:
+    """**この1行に対して、返事を読むか。** ⚠️ **組み直した行を受ける**（`line_from`）。
+
+    ⛔ **事象の名前を2か所で読むことになるが、規則はここに1つだけ置く**——
+    縁が `json.loads` の結果をもう一度見れば、片方が黙って緩んだ日に鳴らない。
+    """
+    try:
+        payload = json.loads(line)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(payload, dict) and payload.get("event") == REPLY_EVENT
+
 
 def line_from(payload: object) -> str | None:
     """**フックの入力を、送る1行に組み直す。** ⛔ **送れなければ `None` である。**
@@ -69,4 +88,4 @@ def line_from(payload: object) -> str | None:
     return json.dumps(line, ensure_ascii=False) + "\n"
 
 
-__all__ = ["SOURCE_FIELDS", "INPUT_LIMIT", "line_from"]
+__all__ = ["SOURCE_FIELDS", "INPUT_LIMIT", "REPLY_EVENT", "line_from", "reads_reply"]
