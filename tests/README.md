@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.35.0 | canonical: tests/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.36.0 | canonical: tests/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**forty-eight files, nine hundred and twenty-three tests, all green — measured 2026-10-21.**
+**forty-eight files, nine hundred and twenty-four tests, all green — measured 2026-10-21.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -533,7 +533,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ⚠️ **And the instrument can count a restart without saying why.** The daemon started **eleven** times by 05:37 on 2026-10-19 and wrote **not one line** to stderr. **A restart is not evidence that it crashed — nor that it did not.**
 
-## The third layer — the room, its door, and the day's five new columns (0.19.63–0.19.64)
+## The third layer — the room, its door, and the day's five new columns (0.19.63–0.19.65)
 
 **Twenty-eight more hold it** — eleven on the room, six on the daemon's second door, nine on the instrument, one on the job and one in the layer's clock-free scan. ⚠️ **What is listed below are the ones with a reason; the rest are the same checks applied to the other rules and the other rows.**
 
@@ -550,7 +550,27 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | the five meta rows are counted, and an unknown kind is still `unreadable` | `test_stackchan_day.py` | ⛔ **an instrument that does not know a row calls a correct row broken** |
 | the four `why` words are one column, and `off` is counted only when the dial said so | `test_stackchan_day.py` | ⚠️ **the name column is sixteen characters**, and a row without `meta` is older than this counter |
 
-⛔ **Nothing here delivers.** The reply is written to a client that does not exist yet — **the hook is Phase 4**, and until then the sentence is made, logged as `delivered` and dropped on the floor. ⚠️ **A `delivered` row means the room handed it to the socket, not that anyone read it.**
+## The hand-over (0.19.65)
+
+**Nine more hold the delivery** — the hook file is nineteen tests, ten of them about this. ⚠️ **What is listed below are the ones with a reason.**
+
+| the check | where | what it is for |
+|---|---|---|
+| the meta socket's spelling exists once, in `room.meta_socket_path`, and the hook and the daemon both read it | `test_stackchan_next_hook.py` | ⚠️ **two spellings mean the day one of them is fixed and the other is not** |
+| only `UserPromptSubmit` reads the reply | `test_stackchan_next_hook.py` | ⛔ **thirty-two events reading it would make every turn wait on the daemon's speed** |
+| **a `Stop` still reaches the meta socket** | `test_stackchan_next_hook.py` | ⛔ **the rules count turns; a prompt-only feed closes no turn and none of the three words can ever ring** — **found on the live machine, not here** (below) |
+| the sentence arrives as `hookSpecificOutput.additionalContext` under the prompt's own event name | `test_stackchan_next_hook.py` | ✅ **one line of output, and only when there is a sentence** |
+| a `Stop` does not read the reply, and the candidate survives to the next prompt | `test_stackchan_next_hook.py` | ⛔ **`Stop`'s `additionalContext` continues the conversation and replaces the answer the user was going to read** |
+| a dead body socket does not stop the meta send | `test_stackchan_next_hook.py` | ⛔ **supervision is not taken down with the body's fault** |
+| a missing meta socket is silent, and a malformed or overlong input sends nothing | `test_stackchan_next_hook.py` | **a hook must not fail the turn it reports on** |
+
+⚠️ **The socket test was written after the machine found the defect it holds.** The first draft of the hook
+sent only a prompt to the meta socket and returned before the others — ⛔ **the suite was green, and the
+installed daemon's meta rows were zero** (2026-10-21, measured on the running job). ⇒ **A test can hold
+*does not read* and leave *does send* unmeasured.** ⛔ **What is still not tested is the installation** —
+the job's arguments and the two sockets are read by hand.
+
+⚠️ **A `delivered` row means the room handed the sentence to the socket, not that anyone read it.**
 
 ## The rule that holds this directory — applied to us
 

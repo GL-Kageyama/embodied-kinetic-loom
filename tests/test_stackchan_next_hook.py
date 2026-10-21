@@ -337,6 +337,32 @@ def test_a_stop_does_not_read_the_reply(sock):
     assert json.loads(said.stdout)["hookSpecificOutput"]["additionalContext"]
 
 
+def test_a_stop_reaches_the_meta_socket(sock):
+    """⛔ **規則はターンを数える。プロンプトだけ送れば、ターンは1つも閉じない。**
+
+    ⚠️ **2026-10-21 の実機で見つけた。** 試験は緑のまま、設置済みのデーモンの
+    メタの行は0件だった——フックが `UserPromptSubmit` 以外を、**メタへ送る前に**
+    返していた。⇒ **ここで押さえるのは「読まない」ではなく「送る」である。**
+    返事を読まないことは、`test_a_stop_does_not_read_the_reply` が持つ。
+    """
+    meta_path = sock.parent / "meta.sock"
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    listener.bind(str(meta_path))
+    listener.listen(1)
+    try:
+        result = run_client(sock, json.dumps(
+            {"session_id": "left", "hook_event_name": "Stop"}), meta=meta_path)
+        # ⚠️ **接続は backlog に残る**——フックは送って閉じるだけである。
+        connection, _ = listener.accept()
+        with connection:
+            received = connection.recv(4096)
+    finally:
+        listener.close()
+
+    assert result.returncode == 0 and result.stdout == ""
+    assert json.loads(received) == {"session": "left", "event": "Stop"}
+
+
 def test_a_dead_body_does_not_take_the_meta_down(sock):
     """⛔ **監修は、体の故障に道連れにされない**（設計 §12.1）。"""
     nowhere = sock.parent / "no-body.sock"

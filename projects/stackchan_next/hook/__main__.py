@@ -118,10 +118,10 @@ def main(argv: list[str] | None = None) -> int:
     # 1. 体へ。⛔ **失敗しても、メタへは送る**——監修は体の故障に道連れにされない。
     send_line(args.socket, line, read=False)
 
-    # 2. メタへ。⚠️ **返事を読むのはプロンプトのときだけである。**
-    if not reads_reply(line):
-        return 0
-    said = context_of(send_line(args.meta_socket, line, read=True))
+    # 2. メタへ。⛔ **33の事象すべてを送る**——**規則はターンを数えるのであり、
+    #    プロンプトだけでは、ターンは1つも閉じない**（`Stop` が来ず、道具も数えられず、
+    #    3語のどれも鳴らない）。⚠️ **返事を読むのはプロンプトのときだけである。**
+    said = context_of(send_line(args.meta_socket, line, read=reads_reply(line)))
     if said is None:
         return 0
 
