@@ -34,6 +34,13 @@ PRELUDE = (
     "language, and only if it still matters; otherwise say nothing."
 )
 
+#: ⚠️ **口が在るときだけ、後ろに1節が付く**（2026-10-21、§22.10）。⛔ **語ごとではない**
+#: ——だから文体は割れない（§11.3 の規則はそのままである）。**節は丸ごと在るか、
+#: 丸ごと無いか**であり、**半分だけの前置きは作らない。**
+#: ⛔ **命令は縁が値を入れる**（`MetaRoom` の `mouth`）——**ここに絶対の道を書かない**。
+#: 道は走っている場所のものであり、規則の層はこの機械の住所を知らない。
+MOUTH = " To say it aloud, run: {mouth} '<your sentence>'"
+
 
 def line(candidate: Candidate) -> str:
     """**候補を英語の1行にする。** ⚠️ **前置きは付けない。**
@@ -56,9 +63,17 @@ def line(candidate: Candidate) -> str:
     return text
 
 
-def render(candidate: Candidate) -> str:
-    """**本体へ渡す文字列。** 1行と、1つの前置きである。"""
-    return PRELUDE.format(line=line(candidate))
+def render(candidate: Candidate, mouth: str | None = None) -> str:
+    """**本体へ渡す文字列。** 1行と、1つの前置きである。
+
+    ⚠️ **`mouth` は、口が開いているときだけ渡る。** 渡れば、前置きの後ろに
+    **1節**が付く——**文を声にする道の命令である**（§22.10）。⛔ **渡らなければ
+    付かない**：**開いていない口の命令は、失敗する道具の1行にしかならない。**
+    """
+    text = PRELUDE.format(line=line(candidate))
+    if mouth is not None:
+        text += MOUTH.format(mouth=mouth)
+    return text
 
 
-__all__ = ["LINES", "LONG_SUFFIX", "PRELUDE", "line", "render"]
+__all__ = ["LINES", "LONG_SUFFIX", "PRELUDE", "MOUTH", "line", "render"]

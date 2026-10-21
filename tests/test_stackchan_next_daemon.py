@@ -184,17 +184,25 @@ class Daemon:
 
     def __init__(self, path: pathlib.Path, port: pathlib.Path | None = None,
                  module: str = NEW_MODULE, extra: tuple[str, ...] = (),
-                 meta: bool = True) -> None:
+                 meta: bool = True, voice: bool = False,
+                 listen: str | None = None) -> None:
         self.path = path
         # ⚠️ **メタのソケットも、試験の短いパスに置く。** ⛔ **既定の
         #    `/tmp/ekl-stackchan-meta-<uid>.sock` を使わない**——設置済みの
         #    デーモンがそこを握っていれば、この試験は**本物の受口を奪い合う。**
         self.meta = path.parent / "meta.sock"
+        # ⚠️ **口も同じ理由で短いパスに置く**（§22.10）。⛔ 既定の
+        #    `/tmp/ekl-stackchan-mouth-<uid>.sock` を使わない。
+        self.mouth = path.parent / "mouth.sock"
         command = [sys.executable, "-m", module, "--socket", str(path)]
         if port is not None:
             command += ["--port", str(port)]
+        if listen is not None:
+            command += ["--listen", listen]
         if module == NEW_MODULE and meta:
             command += ["--meta-socket", str(self.meta)]
+        if module == NEW_MODULE and voice:
+            command += ["--voice", "on", "--mouth-socket", str(self.mouth)]
         command += list(extra)
         self.proc = subprocess.Popen(
             command,
@@ -261,6 +269,26 @@ class Daemon:
                     break
                 chunks += chunk
         return json.loads(chunks.partition(b"\n")[0])
+
+    def send_mouth(self, payload: dict | str) -> dict:
+        """**口のソケットへ1行。** ⚠️ **3本目の戸口である**（§22.10）。"""
+        line = payload if isinstance(payload, str) else json.dumps(payload)
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+            client.settimeout(READY_SECONDS)
+            client.connect(str(self.mouth))
+            client.sendall(line.encode("utf-8") + b"\n")
+            chunks = b""
+            while b"\n" not in chunks:
+                chunk = client.recv(4096)
+                if not chunk:
+                    break
+                chunks += chunk
+        return json.loads(chunks.partition(b"\n")[0])
+
+    def voice_rows(self) -> list[dict]:
+        """**口の行だけ。** ⚠️ 起動行も `voice` を持つので、`daemon` を持つ行を除く。"""
+        return [row for row in self._lines()
+                if "voice" in row and row.get("daemon") != "listening"]
 
     def meta_rows(self) -> list[dict]:
         """**監修の行だけ。** ⚠️ 起動行も `meta` を持つので、値で分ける。"""
@@ -779,3 +807,121 @@ def test_the_board_hears_the_sentence_when_it_dials_in(sock):
         if board is not None:
             board.close()
         _shut(proc)
+
+
+# ---------------------------------------------------------------------------
+# 3本目のソケット＝口（0.19.70、§22.10）。⚠️ **文を書くのは本体である。**
+# ---------------------------------------------------------------------------
+
+
+def test_voice_on_without_listen_is_refused_before_anything_is_bound(tmp_path):
+    """⛔ **基板の居ない口は、自動販売機である。**
+
+    声は基板が dial してきた回線へしか流れない（2026-10-21 の実測：Mac から
+    基板へは33回すべて届かなかった）。⇒ **`--listen` の無い `--voice on` は、
+    鳴らない約束である**——束縛する前に断る。
+    """
+    path = tmp_path / "body.sock"
+    code = edge.main(["--socket", str(path), "--voice", "on"])
+    assert code == 1
+    assert not path.exists(), "断ったのに、ソケットが作られている"
+
+
+def test_voice_off_opens_no_mouth_and_the_startup_row_says_so(sock):
+    """⚠️ **既定は `off` である。** 設置が黙って喋り出さないためである。
+
+    ⚠️ **起動行に値を書く。** 黙った日と黙らされた日を、計器が同じ0と言わないように。
+    """
+    with Daemon(sock) as daemon:
+        assert sock.exists()
+        assert not daemon.mouth.exists()
+        assert daemon.send({"session": "m", "event": "Stop"})["ok"] is True
+
+    listening = [row for row in daemon._lines() if row.get("daemon") == "listening"]
+    assert listening and listening[0]["voice"] == "off"
+
+
+def test_the_mouth_is_a_third_door_of_its_own(sock):
+    """⛔ **自由な欄を、閉じた2本のどちらかへ足さない**（§8.2）。
+
+    足せば、「`prompt` は同乗できない」が**スキーマの水準で偽になる。**
+    ⇒ **口は3本目である**——体ともメタとも別のパスを持つ。
+    """
+    with Daemon(sock, voice=True, listen=f"127.0.0.1:{_free_port()}") as daemon:
+        assert sock.exists() and daemon.meta.exists() and daemon.mouth.exists()
+        assert len({str(sock), str(daemon.meta), str(daemon.mouth)}) == 3
+
+        # ⚠️ **板が dial してこなければ、鳴らす先が無い。** それは事実であり、
+        #    規則ではない——夜でも同じ答えである（ゆえに夜より先に見る）。
+        assert daemon.send_mouth({"text": "これは試験である。"}) == {
+            "voice": "no-board"}
+        # ⛔ **口が詰まっても、体の戸口は開いている。**
+        assert daemon.send({"session": "m", "event": "Stop"})["ok"] is True
+
+    listening = [row for row in daemon._lines() if row.get("daemon") == "listening"]
+    assert listening and listening[0]["voice"] == "on"
+    assert [row["voice"] for row in daemon.voice_rows()] == ["no-board"]
+
+
+def test_the_mouth_refuses_a_line_it_cannot_read(sock):
+    """⚠️ **断りも体と同じ符号である。** 新しい符号を発明しない。
+
+    ⛔ **黙って落とさない**——落とせば、「鳴らなかった」が数えられない。
+    """
+    with Daemon(sock, voice=True, listen=f"127.0.0.1:{_free_port()}") as daemon:
+        assert daemon.send_mouth("これはJSONではない") == {
+            "voice": "refused", "error": "not-json"}
+        assert daemon.send_mouth({"text": "はい", "event": "Stop"}) == {
+            "voice": "refused", "error": "unknown-key"}
+        assert daemon.send_mouth({"text": "   "}) == {
+            "voice": "refused", "error": "bad-value"}
+        assert daemon.send_mouth({"text": "あ" * 81}) == {
+            "voice": "refused", "error": "too-long"}
+
+    # ⛔ **文そのものは、1行も残らない**（§8.2 と同じ作法）。
+    rows = daemon.voice_rows()
+    assert [row["error"] for row in rows] == [
+        "not-json", "unknown-key", "bad-value", "too-long"], rows
+    assert all("text" not in row for row in rows)
+
+
+def test_the_mouth_socket_is_removed_with_the_body_socket(sock):
+    """⛔ **戸口が3つなら、片付けも3つである。**"""
+    with Daemon(sock, voice=True, listen=f"127.0.0.1:{_free_port()}") as daemon:
+        assert daemon.mouth.exists()
+
+    assert daemon.code == 0
+    assert not sock.exists() and not daemon.meta.exists() and not daemon.mouth.exists()
+
+
+def test_a_delivered_sentence_carries_the_mouth_only_when_it_is_open(sock):
+    """⚠️ **命令は縁が値を入れる**（`MetaRoom` の `mouth`）。⛔ 絶対の道を核心に書かない。
+
+    ⛔ **口が開いていなければ、1節も付かない**——死んだ命令を刷れば、
+    本体はそれを走らせ、`no-daemon` を読む。**黙っているより悪い。**
+    """
+    def speak_once(daemon: Daemon) -> str:
+        opening = {"session": "m", "event": "UserPromptSubmit"}
+        daemon.send(opening)
+        daemon.send_meta(opening)
+        for _ in range(25):
+            event = {"session": "m", "event": "PreToolUse"}
+            daemon.send(event)
+            daemon.send_meta(event)
+        closing = {"session": "m", "event": "Stop"}
+        daemon.send(closing)
+        daemon.send_meta(closing)
+        answer = daemon.send_meta({"session": "m", "event": "UserPromptSubmit"})
+        return answer["context"]
+
+    with Daemon(sock, voice=True, listen=f"127.0.0.1:{_free_port()}") as daemon:
+        open_context = speak_once(daemon)
+
+    with Daemon(sock) as daemon:
+        closed_context = speak_once(daemon)
+
+    assert open_context is not None and closed_context is not None
+    assert "projects.stackchan_next.mouth" in open_context
+    assert "projects.stackchan_next.mouth" not in closed_context
+    # ⚠️ **1文そのものは、どちらも同じである。** 節は語ごとではなく、丸ごと付く。
+    assert open_context.startswith(closed_context), (open_context, closed_context)

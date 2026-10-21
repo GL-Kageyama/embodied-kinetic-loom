@@ -74,6 +74,63 @@ def meta_socket_path(uid: int) -> str:
     return f"/tmp/ekl-stackchan-meta-{uid}.sock"
 
 
+def mouth_socket_path(uid: int) -> str:
+    """**口のソケットの場所。** ⚠️ **3本目であり、体ともメタとも別である。**
+
+    ⛔ **相乗りしない。** 体の `handle()` は枠を書いて基板の受理を待ち（中央 890ms）、
+    メタのソケットは**閉じた3語**しか読まない（§8.1）。⇒ **文という自由な欄を、
+    閉じた2本のどちらかへ足さない**——足せば、「`prompt` は同乗できない」という
+    この層のプライバシーが、**スキーマの水準で偽になる**（§8.2）。**口は3本目である。**
+
+    ⚠️ **綴りはここに1つだけ在る。** デーモンも口（`stackchan_next.mouth`）も、
+    この関数を通る。
+    """
+    return f"/tmp/ekl-stackchan-mouth-{uid}.sock"
+
+
+#: ⛔ **口の要求の鍵は1つだけである。** 文のほかに何も載せない——
+#: **窓も事象も載せない**：口は体の1文であり、事象ではない（§22.10）。
+VOICE_KEYS: frozenset[str] = frozenset({"text"})
+
+#: ⚠️ **1文の長さの上限である（文字数）。** ⛔ **測った数ではなく、選んだ数である。**
+#: 設計 §22.7 の案は 15 字であり、80 は「短い1文が3つ入る」長さである。
+#: ⛔ **切り詰めない**——**切った文は、別の文である。** 長すぎる文は断る。
+VOICE_MAX_CHARS = 80
+
+
+def parse_voice(line: str) -> str:
+    """**口の1行を、文に割る。** ⛔ **読めない行は、理由の符号を付けて断る。**
+
+    ⚠️ **断りの符号は、体と同じ閉じた集合である**（`REFUSAL_CODES`）。
+    新しい符号を発明しない——**知らない語は「値が悪い」である。**
+    """
+    try:
+        payload = json.loads(line)
+    except json.JSONDecodeError:
+        raise BadRequest("not-json") from None
+
+    if not isinstance(payload, dict):
+        raise BadRequest("not-an-object")
+
+    if set(payload) - VOICE_KEYS:
+        raise BadRequest("unknown-key")
+    if set(payload) != VOICE_KEYS:
+        raise BadRequest("missing-key")
+
+    text = payload["text"]
+    # ⚠️ **1行である。** ⛔ **改行を含む文を鳴らさない**——`say` は行を跨いで
+    #    読み、**間の規則（`PAUSE_MS`）は句読点にしか無い**ので、改行は
+    #    **規則の外の間**になる。
+    if not isinstance(text, str) or "\n" in text or "\r" in text:
+        raise BadRequest("bad-value")
+    text = text.strip()
+    if not text:
+        raise BadRequest("bad-value")
+    if len(text) > VOICE_MAX_CHARS:
+        raise BadRequest("too-long")
+    return text
+
+
 def parse_request(line: str) -> tuple[str, str, str | None]:
     """**1行を、窓・事象・作業に割る。** ⛔ **読めない行は、理由の符号を付けて断る。**
 
@@ -168,6 +225,10 @@ __all__ = [
     "MAX_LINE",
     "socket_path",
     "meta_socket_path",
+    "mouth_socket_path",
+    "VOICE_KEYS",
+    "VOICE_MAX_CHARS",
     "parse_request",
+    "parse_voice",
     "NextRoom",
 ]

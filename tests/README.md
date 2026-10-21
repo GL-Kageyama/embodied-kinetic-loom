@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.38.0 | canonical: tests/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.39.0 | canonical: tests/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**fifty-one files, one thousand and eleven tests, all green — measured 2026-10-21.**
+**fifty-two files, one thousand and fifty-one tests, all green — measured 2026-10-21.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -594,6 +594,33 @@ installed daemon's meta rows were zero** (2026-10-21, measured on the running jo
 the job's arguments and the two sockets are read by hand.
 
 ⚠️ **A `delivered` row means the room handed the sentence to the socket, not that anyone read it.**
+
+## The mouth — who writes the sentence (0.19.70)
+
+**The question 0.19.69 left open was not a socket. It was a writer.** §11.2 says the words belong to the
+body, so the rules layer cannot compose Japanese — and design §22.10 weighs three roads before choosing:
+the rules layer composing from a table (**cheap, but two phrasings for one event and §11.2 amended**),
+no voice (**which empties the §17.4 (c) ruling**), or **the body writing**. ⇒ **the body writes.**
+
+| the check | where it lives | ⚠️ what it also records |
+|---|---|---|
+| the mouth is a third spelling, and the four doors are four paths | `test_stackchan_mouth.py` | ⛔ **a `text` field on either closed socket makes §8.2 false at the schema level** |
+| the request has one key, one line, and a length that refuses rather than cuts | `test_stackchan_mouth.py` | ⛔ **a truncated sentence is a different sentence** |
+| every refusal code is one the body already knows | `test_stackchan_mouth.py` | ⛔ **no vocabulary of the mouth's own** — asserting against `REFUSAL_CODES` is the check |
+| no board is seen before the hour | `test_stackchan_mouth.py` | ⛔ **order is a rule**: a missing line must not cost a three-second synthesis |
+| the night is a face and not a voice | `test_stackchan_mouth.py` | §17.4 (c): **daytime only** — 21, 23, 0 and 5 all answer `night` |
+| a busy speaker refuses rather than queueing behind | `test_stackchan_mouth.py` | ⛔ **an old candidate said at a new moment is a lie whose numbers are right** |
+| the tool prints one word, and exits 0 only for `queued` and `night` | `test_stackchan_mouth.py` | ⛔ **the opposite of the hook**: this tool exists to report that nothing was said |
+| a missing daemon prints `no-daemon` and exits 1 | `test_stackchan_mouth.py` | ⛔ **silence here is the defect, not the design** |
+| words typed apart become one sentence | `test_stackchan_mouth.py` | ⚠️ an unquoted sentence must not quietly become its first word |
+| `--voice on` binds nothing without `--listen` | `test_stackchan_next_daemon.py` | ⛔ **a mouth with no board is a vending machine** |
+| the mouth is a third door, and the body answers while it is refused | `test_stackchan_next_daemon.py` | ⛔ **a queued mouth must not close the body's door** |
+| the startup row names the dial, and `off` opens no socket | `test_stackchan_next_daemon.py` | ⚠️ **a day that was silenced and a day that never rang are both zero** |
+| the delivered context carries the mouth only when it is open | `test_stackchan_next_daemon.py` | ⛔ **and the sentence itself is byte-identical either way** — the clause is whole or absent |
+
+⚠️ **What none of it covers:** the mouth has never run open for a day, so **no `night` and no `queued`
+has been seen on the machine**, and whether the body remembers to use the clause is not counted anywhere.
+**The installed job is still `--voice off`.**
 
 ## The rule that holds this directory — applied to us
 

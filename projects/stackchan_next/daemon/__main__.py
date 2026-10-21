@@ -47,6 +47,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import os
+import pathlib
 import select
 import signal
 import socket
@@ -82,7 +83,9 @@ from .room import (
     MAX_LINE,
     NextRoom,
     meta_socket_path,
+    mouth_socket_path,
     parse_request,
+    parse_voice,
     socket_path,
 )
 
@@ -101,6 +104,25 @@ def default_socket() -> str:
 def default_meta_socket() -> str:
     """**綴りは `room.meta_socket_path` に1つだけ在る。** ⚠️ uid を渡すだけである。"""
     return meta_socket_path(os.getuid())
+
+
+def default_mouth_socket() -> str:
+    """**綴りは `room.mouth_socket_path` に1つだけ在る。** ⚠️ uid を渡すだけである。"""
+    return mouth_socket_path(os.getuid())
+
+
+def mouth_command() -> str:
+    """**本体へ渡す、口の命令である。** ⚠️ **口が開いているときだけ、前置きに載る。**
+
+    ⛔ **道は走っている場所のものである。** 規則の層（`render.py`）は絶対の道を
+    持たない——**層が機械の住所を知れば、層はこの機械に縛られる**（§11.3）。
+    ⇒ **住所を組み立てるのは縁であり、縁は既に外の世界を読んでいる。**
+
+    ⚠️ **`parents[3]` は、このファイルから数えたリポジトリの根である**
+    （`daemon` / `stackchan_next` / `projects` / 根）。
+    """
+    root = pathlib.Path(__file__).resolve().parents[3]
+    return f'cd "{root}" && "{sys.executable}" -m projects.stackchan_next.mouth'
 
 
 def parse_listen(text: str) -> tuple[str, int]:
@@ -314,6 +336,78 @@ def meta_loop(listener: socket.socket, room: MetaRoom) -> None:
                 emit({"meta": "error", "error": type(exc).__name__})
 
 
+def voice_handle(connection: socket.socket, speaker: Speaker, link: Link | None,
+                 hour: int) -> None:
+    """**口の1接続を読む。** ⚠️ **文を受け取り、声の糸へ渡して、1語返すだけである。**
+
+    ⛔ **ここで合成しない。** 合成は声の糸の仕事であり、**この糸を止めれば
+    体のソケットも止まる**——同じプロセスに住んでいる（§13）。
+
+    ⛔ **夜は鳴らさない。** §17.4 (c) の裁定は「**昼に限り**、候補を1文の声に
+    してよい」であり、夜は表情だけである（§22.5）。⚠️ **規則は `quiet.py` に
+    1つだけ在る**——音の欄を閉じるのと同じ関数である。⇒ **声だけ別の時刻を読まない。**
+    """
+    try:
+        text = parse_voice(_read_text(connection))
+    except _Silent:
+        return
+    except BadRequest as exc:
+        # ⚠️ **断りも体と同じ符号である。** 新しい符号を発明しない。
+        emit({"voice": "refused", "error": exc.code})
+        reply(connection, {"voice": "refused", "error": exc.code})
+        return
+
+    # ⚠️ **板が居ないことは事実であり、規則ではない。** 先に見る——夜でも
+    #    「板が居ない」は同じ事実であり、そして**無い回線へ3秒の合成をしない。**
+    if link is None or link.peer is None:
+        emit({"voice": "no-board"})
+        reply(connection, {"voice": "no-board"})
+        return
+
+    if is_quiet(hour):
+        emit({"voice": "night"})
+        reply(connection, {"voice": "night"})
+        return
+
+    if not speaker.say(text):
+        # ⚠️ **`Speaker` が `busy` の行を自分で書く。** ここで書けば2行になる。
+        reply(connection, {"voice": "busy"})
+        return
+    # ⚠️ **返事は `queued` であり、行ではない。** この1文について残るのは、
+    #    声の糸が鳴り終えたときに書く `spoke` の1行だけである——⛔ **`queued` を
+    #    行にすれば、`voice` の値が1つ増え、計器がそれを `unreadable` と数える**
+    #    （2026-10-21、本体プロセスで通したときに気づいた）。**受け取ったことは、
+    #    鳴り終えた行が既に含んでいる。**
+    reply(connection, {"voice": "queued"})
+
+
+def voice_loop(listener: socket.socket, speaker: Speaker, link: Link | None) -> None:
+    """**口の糸。** ⛔ **体の `serve` の輪にも、メタの糸にも混ぜない。**
+
+    ⚠️ **3本目である理由は、`room.mouth_socket_path` に書いてある**——閉じた
+    2本のどちらかへ自由な欄を足せば、この層のプライバシーが**スキーマの水準で
+    偽になる。**
+
+    ⚠️ **例外はこの糸の縁で捕まえる**（§13）。ここで飲まなければ、プロセスが
+    落ち、**体も一緒に落ちる。**
+
+    ⚠️ **時刻は接続ごとに読む。** ⛔ 糸を起こした時刻を覚えない——**21:00 を
+    またいで走るデーモンが、夜に喋り続ける**（`quiet.py` の規則は壁時計である）。
+    """
+    while True:
+        try:
+            connection, _ = listener.accept()
+        except OSError:
+            # ⚠️ **受口が閉じられた。** 片付けの最中である——静かに降りる。
+            return
+        with connection:
+            try:
+                voice_handle(connection, speaker, link, datetime.datetime.now().hour)
+            except Exception as exc:  # noqa: BLE001 — 意図した catch である（§13）
+                # ⛔ **自由文を入れない。** 型名だけである。
+                emit({"voice": "error", "error": type(exc).__name__})
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python3 -m projects.stackchan_next.daemon",
@@ -349,6 +443,13 @@ def build_parser() -> argparse.ArgumentParser:
                         help="say this one sentence when the board dials in "
                              "(an instrument for the voice path, not the candidate "
                              "path; needs --listen)")
+    parser.add_argument("--voice", choices=("off", "on"), default="off",
+                        help="whether the body's mouth is open: a mouth socket, "
+                             "and the one clause in the prelude that tells the body "
+                             "how to speak (default: off)")
+    parser.add_argument("--mouth-socket", default=None, metavar="PATH",
+                        help="the mouth's Unix socket to bind "
+                             "(default: /tmp/ekl-stackchan-mouth-<uid>.sock)")
     return parser
 
 
@@ -368,6 +469,12 @@ def main(argv: list[str] | None = None) -> int:
     #    ⇒ **束縛する前に断る。** 束縛した後で断れば、片付ける道が4つに増える。
     if args.say is not None and args.listen is None:
         sys.stderr.write("--say needs --listen: the board dials us\n")
+        return 1
+    # ⛔ **口も回線を要る。** 鳴らす先が無い口は、**呼ばれるたびに `no-board` を
+    #    返すだけの道具**になる——そしてそれは、著者には「声が出ない日」と
+    #    同じに見える。⇒ **束縛する前に断る。**
+    if args.voice == "on" and args.listen is None:
+        sys.stderr.write("--voice on needs --listen: the board dials us\n")
         return 1
     watch: tuple[str, int] | None = None
     if args.listen is not None:
@@ -455,7 +562,55 @@ def main(argv: list[str] | None = None) -> int:
             os.close(wake_w)
             return 1
 
-    speaker = Speaker(link.send, samples, emit=emit) if args.say is not None else None
+    # ⛔ **口は3本目である。** `--voice off` なら束縛しない——**開かないことが
+    #    `off` の実装である**（メタと同じ形。§6）。⚠️ **そのとき前置きにも
+    #    命令は載らない**——開いていない口の命令は、失敗する道具の1行にしかならない。
+    mouth_path = args.mouth_socket or default_mouth_socket()
+    mouth_listener = None
+    if args.voice == "on":
+        try:
+            mouth_listener = bind(mouth_path)
+        except OSError as exc:
+            sys.stderr.write(f"cannot bind {mouth_path}: {exc}\n")
+            if link is not None:
+                link.close()
+            listener.close()
+            if meta_listener is not None:
+                meta_listener.close()
+                try:
+                    os.unlink(meta_path)
+                except FileNotFoundError:
+                    pass
+            try:
+                os.unlink(args.socket)
+            except FileNotFoundError:
+                pass
+            os.close(wake_r)
+            os.close(wake_w)
+            return 1
+        if mouth_listener is None:
+            sys.stderr.write(f"another mouth is alive on {mouth_path}\n")
+            if link is not None:
+                link.close()
+            listener.close()
+            if meta_listener is not None:
+                meta_listener.close()
+                try:
+                    os.unlink(meta_path)
+                except FileNotFoundError:
+                    pass
+            try:
+                os.unlink(args.socket)
+            except FileNotFoundError:
+                pass
+            os.close(wake_r)
+            os.close(wake_w)
+            return 1
+
+    # ⚠️ **口が開いていれば、声の糸は `--say` が無くても要る。** ⛔ **`--say` は
+    #    計器であり、口は道である**——同じ糸を使うが、開ける条件が違う（§22.10）。
+    speaking = args.say is not None or args.voice == "on"
+    speaker = Speaker(link.send, samples, emit=emit) if speaking else None
     if speaker is not None:
         speaker.start()
 
@@ -463,20 +618,35 @@ def main(argv: list[str] | None = None) -> int:
                     sound=args.sound == "on")
     outbound = Outbound()
     neck = Neck(link if link is not None else args.port)
+    # ⚠️ **口の語も起動行に載せる。** 載せなければ、「鳴らなかった日」と
+    #    「口が閉じていた日」が、どちらも声0になる（§10.6 と同じ理屈である）。
     emit({"daemon": "listening", "socket": args.socket, "port": args.port,
           "listen": (None if link is None else link.address),
-          "presence": args.presence, "meta": args.meta})
+          "presence": args.presence, "meta": args.meta, "voice": args.voice})
 
     meta_thread = None
     if meta_listener is not None:
         # ⚠️ **糸は1本増える。** 共有する状態は無いので、ロックも無い（§7.1）。
         #    ⛔ **`daemon=True`**——降りるのはプロセスと一緒であり、
         #    **糸が落ちても体は生きる。**
-        meta_room = MetaRoom(eager=args.meta == "eager", emit=emit)
+        # ⚠️ **口の命令は、口が開いているときだけ渡る**（§22.10）。⛔ **規則の
+        #    層は道を組み立てない**——住所を渡すのは縁である。
+        meta_room = MetaRoom(
+            eager=args.meta == "eager", emit=emit,
+            mouth=mouth_command() if mouth_listener is not None else None)
         meta_thread = threading.Thread(
             target=meta_loop, args=(meta_listener, meta_room),
             name="meta", daemon=True)
         meta_thread.start()
+
+    if mouth_listener is not None:
+        # ⚠️ **声の糸は既に走っている。** 口の糸は、その前に立つ受付である。
+        #    ⛔ **`speaker` はここで必ず在る**（`--voice on` は `--listen` を要り、
+        #    `speaking` は真になる）。
+        voice_thread = threading.Thread(
+            target=voice_loop, args=(mouth_listener, speaker, link),
+            name="mouth", daemon=True)
+        voice_thread.start()
 
     try:
         serve(room, outbound, listener, wake_r, neck, link,
@@ -492,6 +662,12 @@ def main(argv: list[str] | None = None) -> int:
             meta_listener.close()
             try:
                 os.unlink(meta_path)
+            except FileNotFoundError:
+                pass
+        if mouth_listener is not None:
+            mouth_listener.close()
+            try:
+                os.unlink(mouth_path)
             except FileNotFoundError:
                 pass
         try:

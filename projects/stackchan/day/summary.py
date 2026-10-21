@@ -108,6 +108,16 @@ class Summary:
     meta_dropped: int = 0       # `{"meta": "dropped", "why": …}`（**理由別には割らない**）
     meta_errors: int = 0        # `{"meta": "error", …}`（**糸の縁が捕まえた回数**）
     meta_off_starts: int = 0    # 起動行の `meta` が `off`（**黙らされた日**）
+    # ✅ **2026-10-21（0.19.70）から、口の6つの数も数える。** ⛔ **理由は上の
+    #    5つと同じである**——知らない行は `unreadable` に落ち、「ログが壊れている」
+    #    と毎日言う計器になる。⇒ **口と同じ日に、口より先に足す。**
+    # ⚠️ **文は数えない。** 口の行は1語しか持たない（§22.10）。
+    voice_spoke: int = 0        # `{"voice": "spoke", …}`（**鳴り終えた**）
+    voice_cut: int = 0          # `cut` と `cannot render`（**言いかけて止まった**）
+    voice_refused: int = 0      # `busy` / `refused`（**断った**）
+    voice_no_board: int = 0     # 基板が居ない（**回線が無い**）
+    voice_night: int = 0        # 夜に呼ばれた（**規則が働いた日**）
+    voice_errors: int = 0       # 口の糸の縁が捕まえた回数
     phases: dict[str, int] = field(default_factory=dict)
     # ✅ **2026-10-20（0.19.52）から、作業の語も数える。**
     # ⚠️ **鍵が無い行は数えない**——`None` に数えれば、*知らされていない* と
@@ -162,6 +172,30 @@ def summarize(lines: Iterable[str]) -> Summary:
                 s.meta_errors += 1
             else:
                 # ⚠️ **知らない `meta` の値は、知らない形である。** 数えずに捨てない。
+                s.unreadable += 1
+            continue
+
+        # ⚠️ **口の行も、他のどの枝にも当たらない形である。** ここで引き取らないと、
+        #    最後の枝が正しい行を `unreadable` に数える（2026-10-21、第3層と同じ理由）。
+        # ⛔ **`busy` と `refused` を1つに、`cut` と `cannot render` を1つにする。**
+        #    **「言えなかった」は1つの数であり、内訳は `jq` で数える**——計器は
+        #    毎日読むもの、内訳は調べるもの（`meta dropped` と同じ切り方である）。
+        if "voice" in obj:
+            kind = obj.get("voice")
+            if kind == "spoke":
+                s.voice_spoke += 1
+            elif kind in ("cut", "cannot render"):
+                s.voice_cut += 1
+            elif kind in ("busy", "refused"):
+                s.voice_refused += 1
+            elif kind == "no-board":
+                s.voice_no_board += 1
+            elif kind == "night":
+                s.voice_night += 1
+            elif kind == "error":
+                s.voice_errors += 1
+            else:
+                # ⚠️ **知らない `voice` の値は、知らない形である。** 数えずに捨てない。
                 s.unreadable += 1
             continue
 
@@ -315,6 +349,12 @@ def render(s: Summary) -> str:
         row("meta dropped", s.meta_dropped),
         row("meta errors", s.meta_errors),
         row("meta off starts", s.meta_off_starts),
+        row("voice spoke", s.voice_spoke),
+        row("voice cut", s.voice_cut),
+        row("voice refused", s.voice_refused),
+        row("voice no board", s.voice_no_board),
+        row("voice night", s.voice_night),
+        row("voice errors", s.voice_errors),
     ]
     for name, counter in (
         ("phases", s.phases),

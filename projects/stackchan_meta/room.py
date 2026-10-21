@@ -49,11 +49,16 @@ class MetaRoom:
         eager: bool = False,
         budget: Budget | None = None,
         emit: Sink | None = None,
+        mouth: str | None = None,
     ) -> None:
         self._trace = Trace()
         self._budget = budget if budget is not None else Budget()
         self._eager = eager
         self._emit = emit
+        # ⚠️ **口の命令は、値である**（2026-10-21、§22.10）。開いているときだけ
+        #    縁が渡す。⛔ **ここで道を組み立てない**——この部屋は、走っている
+        #    機械の住所を知らない（純粋である）。
+        self._mouth = mouth
 
     def _row(self, payload: dict) -> None:
         # ⚠️ **行は、その場で渡す。** 溜めない——落ちたときに何も残らない
@@ -79,7 +84,7 @@ class MetaRoom:
             if candidate is not None:
                 self._row({"meta": "delivered", "kind": candidate.kind,
                            "session": session, "at": at})
-                says = render(candidate)
+                says = render(candidate, mouth=self._mouth)
 
         # ⚠️ **「事象は数えたが規則は当てない」を分けられる形のまま呼ぶ**
         #    （`rules.observe` の註）。ここではその1つだけを呼ぶ。
