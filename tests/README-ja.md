@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.32.0 | canonical: tests/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.33.0 | canonical: tests/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**42ファイル・803テスト、すべて緑——実測 2026-10-21。**
+**47ファイル・887テスト、すべて緑——実測 2026-10-21。**
 
 **このファイルは、以前「1つも無い」と書いていた。** **最初のテストと同じコミットで変わった**——**`CLAUDE.md` のあの節が定め、このディレクトリが支えている規則が、それである。**
 

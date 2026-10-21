@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.50.0 | canonical: CLAUDE.md | translated: 2026-10-20 -->
+<!-- i18n-version: 1.51.0 | canonical: CLAUDE.md | translated: 2026-10-21 -->
 
 **Language:** [English](CLAUDE.md) | [日本語](CLAUDE-ja.md) | [中文](CLAUDE-zh.md)
 
@@ -72,7 +72,9 @@
 
 ## Tests
 
-**forty-two files, eight hundred and three tests, all green — measured 2026-10-21.** The five checks, and where each one lives, are in `tests/README.md`. ⚠️ **Three checks are not tests and do not live there** — `claude plugin validate --strict .`, `tools/check_i18n.py` and `tools/check_vocabulary.py`; the two tools have a `--self-test`.
+**forty-seven files, eight hundred and eighty-seven tests, all green — measured 2026-10-21.** The five checks, and where each one lives, are in `tests/README.md`. ⚠️ **Three checks are not tests and do not live there** — `claude plugin validate --strict .`, `tools/check_i18n.py` and `tools/check_vocabulary.py`; the two tools have a `--self-test`.
+
+✅ **Since 0.19.63 a third layer exists as source, and it opens nothing** — `projects/stackchan_meta/` counts a turn (`trace.py`), applies three rules (`rules.py`), holds one candidate per session (`budget.py`), and renders it as one line under one prelude (`render.py`). ⛔ **No socket, no daemon call, no hook, and no `__main__.py`** — **the body cannot change because of it.** **Eighty-four tests hold it** — `tests/test_stackchan_meta_*.py` — among them **that one tool call is one `PreToolUse` row and not a pair** (⛔ **counting `PostToolUse` too doubles the call and the streak**: measured 1,645 / 1,546), **that 25 calls is the boundary and 25 event rows is not**, **that `long-stretch` is not a word** — a run of 25 is evidence on `turn-review`, and **a test holds `META_WIDE_TOOLS == META_STREAK`**, because that equality is what makes the absorption structural — and **that a candidate has no free-text field**. ⚠️ **The vocabulary is closed at three words**; `verification-gap` / `fan-out` / `probe-only` were measured and left out. ✅ **Before the replay instrument was discarded, the implementation reproduced its counts on all three logs** — candidates **28 / 12 / 52**, deliveries **7 / 4 / 12**, every drop reason equal (design §18). ⛔ **Nothing has been delivered yet**: Phase 3.5 is the meta socket and the day instrument's five counters, and **the instrument lands with it, not after it** — otherwise every meta row counts as `unreadable` from that day.
 
 ⚠️ **Since 0.19.46 a second layer exists as source, and it is not installed** — `projects/stackchan_next/` adds a closed six-word work vocabulary, a two-second failure flash, a wake word and a `--presence` dial, and **composes over `projects/stackchan/`'s rules rather than copying them** (one phase table, one body floor, one focus rule). ⛔ **It sends nothing**: the script prints decisions and opens no port. **Its two files hold 37 and 19 tests**, and since 0.19.47 two of the eight light words — `writing` and `busy` — belong to it alone. ✅ **On 2026-10-20 an eye looked**, and reported **two colours** — 「青、紫」 ⇒ ⛔ **the rule stands unspent: an eye that could not tell them apart would have earned `busy` a deletion, and this one could.** ⚠️ **Which colour is which word was not established** — the sequence was sent without saying what was coming.
 
