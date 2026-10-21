@@ -50,3 +50,17 @@ CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096
 CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
 CONFIG_ESP_COREDUMP_CHECKSUM_CRC32=y
+
+# ⛔ **The receive window, raised on 2026-10-21 because a stream was slow.**
+#    IDF's default is 5,760 bytes — four MSS. Measured on the unit while
+#    speech was being pushed to the board: **`dial: link read` grew at about
+#    13 KB/s**, and one 512-byte `recv` arrived every 36 ms, while the sound
+#    needs 48,000 B/s (24 kHz, 16-bit, mono). ⚠️ **A window is a ceiling on
+#    window/RTT, and four MSS of ceiling is spent before the radio is asked
+#    for anything.** The Mac's own send buffer took the whole 133 KB at once,
+#    so the ceiling was here, not there.
+#    ⚠️ These are numbers chosen to be measured; the rate after them is the
+#    measurement, and it goes in `projects/stackchan-firmware/README.md`.
+CONFIG_LWIP_TCP_WND_DEFAULT=32768
+CONFIG_LWIP_TCP_RECVMBOX_SIZE=32
+CONFIG_LWIP_TCP_OOSEQ_MAX_PBUFS=8

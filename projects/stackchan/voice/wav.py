@@ -46,4 +46,37 @@ def join(parts: list[list[int]], pauses: list[int], rate: int) -> list[int]:
     return out
 
 
-__all__ = ["SILENCE", "trim", "join"]
+def normalize(samples: list[int], peak: int = 32767) -> list[int]:
+    """**いちばん大きい標本を `peak` に合わせる。** ⛔ **`say` の出力の大きさに任せない。**
+
+    ⚠️ **これが要る理由は実測である**（2026-10-21）。`say -v Kyoko` の声は
+    **ピーク −18.9 dBFS・RMS −32.7 dBFS** で返ってきた。アンプは −10 dB なので、
+    スピーカーは **−43 dBFS 相当**で鳴っていた——著者の耳は **「小さい／こもる」**。
+    ⛔ **小さい音は、こもって聞こえる**（同じ波形でも、小さいほど高域が痩せる）。
+    ⇒ **正規化してから `GAIN` を掛ける。** そうすれば**大きさの数は1つ**になり、
+    `say` の機嫌は音の中身だけを決める。
+
+    ⛔ **空にも、無音にも掛けられない**——0 で割る。**例外にする**（無音を返さない）。
+    """
+    if not samples:
+        raise ValueError("normalize: 標本が無い")
+    top = max(max(samples), -min(samples))
+    if top == 0:
+        raise ValueError("normalize: 全部が無音である")
+    return [int(round(sample * peak / top)) for sample in samples]
+
+
+def scale(samples: list[int], gain: float) -> list[int]:
+    """**標本に、声の大きさを掛ける。** ⛔ 範囲を越えたら丸める——例外にしない。"""
+    out: list[int] = []
+    for sample in samples:
+        value = int(round(sample * gain))
+        if value > 32767:
+            value = 32767
+        elif value < -32768:
+            value = -32768
+        out.append(value)
+    return out
+
+
+__all__ = ["SILENCE", "trim", "join", "normalize", "scale"]

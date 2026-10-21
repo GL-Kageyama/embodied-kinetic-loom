@@ -141,12 +141,14 @@ void wifi_probe::begin() {
   }
   g_started = true;
 
-  // ⚠️ Modem sleep is left at the driver's default (`WIFI_PS_MIN_MODEM`).
-  //    Turning it off was tried on 2026-10-21 and changed nothing: 12 pings
-  //    with it, 12 pings without it, **0 answered either way** (`pm start,
-  //    type: 0` was read from the board's own line). A dozing radio is not
-  //    why this board does not answer the Mac, and the change was taken back
-  //    out rather than left in for a reason that was never measured.
+  //: ⛔ **2026-10-21、省電力を切る。** かつて既定のままにして、こう書いた——
+  //: 「12 ping で 12、切っても 12、どちらも 0 answered」。⚠️ **それは「届くか」の
+  //: 測定であり、「速さ」ではなかった。** 同じ日、音を流すと基板は **約13 KB/s**
+  //: しか読めず（512 バイトに 36 ms、`dial: link read`）、24 kHz・16ビットの
+  //: 48 KB/s に届かなかった。⇒ **眠る無線は、届いても遅い。** ここで切って測る。
+  //: ⚠️ 電池で動く日には、これは電力と引き換えの数になる。
+  esp_wifi_set_ps(WIFI_PS_NONE);
+  printf("wifi: power save off (WIFI_PS_NONE)\n" );
 
   if (!stored) {
     // ⛔ Nothing to connect to. The radio is up and can scan, and the boot

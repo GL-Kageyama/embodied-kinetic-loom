@@ -24,10 +24,14 @@ import sys
 import tempfile
 import wave
 
-from .render import PITCH, VOICE, pitched, segments
-from .wav import join, trim
+from .render import GAIN, PITCH, VOICE, pitched, segments
+from .wav import join, normalize, scale, trim
 
 #: ⚠️ **基板の標本化周波数に合わせる**（`board.h` の `kAudioSampleRate`）。
+#: ⛔ **2026-10-21 に 16 kHz を試して、同じ日に戻した。** 回線には楽だった
+#: （32,000 B/s）が、著者の耳は **「始めの頃のほうがクリアだった」** と言い、
+#: 測れば **8〜12 kHz に −18.5 dB 分**があった——16 kHz はそれを消す。
+#: ⚠️ **間の長さは動かない**: `gap_frames` はミリ秒から標本を出すだけである。
 RATE = 24000
 
 
@@ -76,7 +80,11 @@ def main(argv: list[str] | None = None) -> int:
             except RuntimeError as error:
                 sys.stderr.write(f"{error}\n")
                 return 1
-        samples = join(parts, [pause for _, pause in pieces], RATE)
+        # ⚠️ **掛けるのは、つないだ後である**——端を切る閾値（200）は生の標本に当てる。
+        # ⛔ **正規化が先、`GAIN` が後。** `say` の返す大きさは一定でない
+        # （実測ピーク −18.9 dBFS）ので、掛け算だけで大きさを決めると
+        # **声の機嫌が音量になる**。正規化してから掛ければ、`GAIN` が唯一の数になる。
+        samples = scale(normalize(join(parts, [pause for _, pause in pieces], RATE)), GAIN)
 
     with wave.open(str(out), "wb") as w:
         w.setnchannels(1)

@@ -38,7 +38,7 @@
 
 ⛔ **不被保证的是板子会回答。** `sent: true` 说的是主机的 tty 收下了这行，不是板子收到了它; 自 0.19.41 起，帧的受理是板子自己的行，一次运行里四个帧四个都被受理——⛔ **四个帧不是保证。** 总线在没人询问的时候也会沉默，触发原因尚未被点名，而读回有时会回答。**测过之事的日期记录在 `HISTORY.md`，被观察到的东西在 `projects/stackchan-firmware/records/`。**
 
-⚠️ **核心、后端、Pet 的画面与运动、Stack-chan 的行为层及其守护进程、外发的帧与电线是绿的**——**49 个文件、947 项测试，实测 2026-10-21**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
+⚠️ **核心、后端、Pet 的画面与运动、Stack-chan 的行为层及其守护进程、外发的帧与电线是绿的**——**50 个文件、995 项测试，实测 2026-10-21**——**而绿意味着机构「按被吩咐的那样算了」。** **对于是否有东西「在那里」，它什么也不意味。**
 
 ## 在把机体接上之前
 
@@ -52,7 +52,7 @@
 .claude-plugin/     plugin.json 与 marketplace.json——必须承载同一个版本的两个文件
 docs/               文档。英语为正典，-ja 与 -zh 镜像并列其旁
 tools/              check_i18n.py——镜像。check_vocabulary.py——语汇的表。purity.py——禁止输入清单
-tests/              测试——49 个文件、947 项测试
+tests/              测试——50 个文件、995 项测试
 schemas/            motion-intent.schema.json——Motion Intent 的类型。stackchan-command.schema.json——通往机器 2 的帧。stackchan-pose.schema.json——每个刻度的姿势行
 engine/             决定论的核心。⚠️ 不调用 LLM，也不 import 任何会浮动之物
 engine/backend/     送出的一侧——协议、周期、门、轴对应、发送器、Mock

@@ -12,7 +12,9 @@ from __future__ import annotations
 import pytest
 
 from projects.stackchan.voice import render
-from projects.stackchan.voice.render import PITCH, PAUSE_MS, gap_frames, pitched, segments, spoken
+from projects.stackchan.voice.render import (
+    GAIN, PAUSE_MS, PITCH, gap_frames, pitched, segments, spoken,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -121,8 +123,53 @@ def test_a_zero_rate_is_named():
 
 
 def test_the_pitch_is_the_author_s_choice():
-    """⚠️ **+6 は著者の耳が選ぶまでの値である。** 実測で F0 218 → 276 Hz。"""
-    assert PITCH == 6
+    """⚠️ **著者の耳が三度動かした数である**（2026-10-21）。
+
+    +6（私の選択）→ **「もっと声を高く」** → +14 → **「中間がいい」** で
+    +6 と +8 を鳴らし **「2回目が良い」** → **+8**。
+    """
+    assert PITCH == 8
+
+
+def test_the_voice_is_quieter_than_the_four_sounds():
+    """⛔ **声の大きさは、アンプの -10 dB とは別である**（「もう少し声を小さく」）。
+
+    ⚠️ **0.5 で聞いて「少し小さい」と言われ、0.75 へ動いた**（2026-10-21）。
+    正規化（天井 32767）の後に掛かるので、これは**天井からの比**である。
+    """
+    assert GAIN == 0.75
+
+
+def test_the_gain_clamps_instead_of_wrapping():
+    from projects.stackchan.voice.wav import scale
+
+    assert scale([1000, -1000], 0.5) == [500, -500]
+    assert scale([32767, -32768], 2.0) == [32767, -32768]
+
+
+def test_the_loudest_sample_is_put_at_the_ceiling():
+    """⛔ **`say` の出力の大きさに任せない**（2026-10-21）。
+
+    ⚠️ 実測: `say -v Kyoko` はピーク **−18.9 dBFS** で返した。掛け算だけで
+    大きさを決めると、**声の機嫌が音量になる**。正規化が先である。
+    """
+    from projects.stackchan.voice.wav import normalize
+
+    out = normalize([100, -200, 50])
+    #: ⚠️ **「大きい」は絶対値である**——−200 が最大なので、天井に着くのは負の側。
+    assert max(max(out), -min(out)) == 32767
+    assert min(out) == -32767
+    assert normalize([7, -3, 0], peak=100) == [100, round(-3 * 100 / 7), 0]
+
+
+def test_silence_cannot_be_normalized():
+    """⛔ **0 で割らない。** そして**無音を返さない**——規則の不在を音で埋めない。"""
+    from projects.stackchan.voice.wav import normalize
+
+    with pytest.raises(ValueError):
+        normalize([0, 0, 0])
+    with pytest.raises(ValueError):
+        normalize([])
 
 
 def test_the_pitch_is_written_before_the_text():
@@ -170,3 +217,100 @@ def test_a_missing_pause_is_named():
 
     with pytest.raises(ValueError):
         join([[1]], [], 24000)
+
+
+# --- リンクへ流す塊（pcm.py）------------------------------------------------
+#
+# ⛔ **規則は塊の大きさではなく、境目である。** `audio <n>` のあとの n バイトは
+# 生の標本であり、**改行で割られない**——標本の1バイトが 0x0A でありうるから。
+
+
+def test_a_sample_is_two_bytes_little_endian():
+    from projects.stackchan.voice.pcm import bytes_of
+
+    assert bytes_of([1, -1, 0]) == b"\x01\x00\xff\xff\x00\x00"
+
+
+def test_a_sample_outside_the_range_is_clamped():
+    """⚠️ **例外にしない。** 割れた標本で音を止めるより、丸めて鳴らす。"""
+    from projects.stackchan.voice.pcm import bytes_of
+
+    assert bytes_of([40000, -40000]) == b"\xff\x7f\x00\x80"
+
+
+def test_the_head_is_spelled_once():
+    from projects.stackchan.voice.pcm import head
+
+    assert head(2048) == b"audio 2048\n"
+
+
+@pytest.mark.parametrize("count", [0, 4098, 8192, -2, 1, 3, 2047])
+def test_a_head_that_cannot_be_played_is_refused(count):
+    """⛔ **基板が丸ごと拒む頭を、こちらから送らない。**
+
+    ⚠️ **0 は「何もしない」である。** ⛔ **奇数は半端な標本である**——2バイトが
+    1標本なので、基板は丸ごと拒む（`audio_line::parse`）。
+    """
+    from projects.stackchan.voice.pcm import head
+
+    with pytest.raises(ValueError):
+        head(count)
+
+
+def test_the_blocks_rebuild_the_stream_they_were_given():
+    """**割って、つなげば、元の16ビットの並びに戻る。** ⚠️ 頭は塊ごとに1つ。
+
+    ⛔ **何も符号化されない**——`rebuilt` は `data` そのものである。µ-law の
+    ころはここが `ulaw(samples)` との一致だった。**損失の無い道では、元に戻る
+    ことが正しさの形**であり、それは**丸めも表引きも挟まっていない**ことを言う。
+    """
+    from projects.stackchan.voice.pcm import blocks, bytes_of
+
+    samples = list(range(-100, 100))
+    data = bytes_of(samples)
+    pieces = blocks(data, chunk=64)
+    assert len(pieces) == 7  # 400 バイト = 200 標本、1塊 64 バイト（32標本）で 7 塊
+    rebuilt = b""
+    for piece in pieces:
+        head, _, body = piece.partition(b"\n")
+        assert head == b"audio %d" % len(body)
+        assert len(body) % 2 == 0
+        rebuilt += body
+    assert rebuilt == data
+
+
+def test_no_block_is_bigger_than_the_board_s_buffer():
+    """⛔ **これを越える頭は、基板が丸ごと拒む。**"""
+    from projects.stackchan.voice.pcm import CHUNK, MAX_BYTES, blocks, bytes_of
+
+    assert CHUNK <= MAX_BYTES
+    data = bytes_of([0] * (MAX_BYTES * 3))
+    for piece in blocks(data):
+        assert len(piece) - piece.index(b"\n") - 1 <= MAX_BYTES
+
+
+def test_a_half_sample_is_never_sent():
+    """⛔ **16ビットの並びが奇数なら、標本として読めない。** 送らずに落とす。
+
+    ⚠️ **塊の側に偶数規則は無い**——1バイトが1標本（µ-law）である。
+    """
+    from projects.stackchan.voice.pcm import blocks
+
+    with pytest.raises(ValueError):
+        blocks(b"\x01\x02\x03")
+
+
+def test_a_newline_inside_a_sample_is_data():
+    """⛔ **これが、頭が在る理由である。**
+
+    0x0A を含む標本は、**行として読まれない**——頭が先に「n バイト」と言うからである。
+    ⚠️ ここで確かめるのは、塊がその2バイトを**そのまま**運ぶことだけである。
+    """
+    from projects.stackchan.voice.pcm import blocks, bytes_of
+
+    data = bytes_of([0x0A0A, 0x0D0A])
+    assert data == b"\x0a\x0a\x0a\x0d"
+    piece = blocks(data, chunk=4)[0]
+    head, _, body = piece.partition(b"\n")
+    assert head == b"audio 4"
+    assert body == b"\x0a\x0a\x0a\x0d"  # 16ビット線形のまま運ばれる

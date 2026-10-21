@@ -51,6 +51,14 @@ constexpr int kAxp2101Address = 0x34;   // the backlight rail (DLDO1)
 // --- the speaker (vendor: hal/board/config.h and cores3_audio_codec.cc) ---
 // ⚠️ 24,000 Hz, 16-bit stereo, the ESP32-S3 as I2S master. These are the
 //    vendor's numbers, read on 2026-10-18; ⛔ none of them was measured here.
+// ⛔ **The rate was taken to 16,000 for one afternoon and brought back the same
+//    day.** It was a saving for the wire (32,000 B/s instead of 48,000), and the
+//    author's ear said **「始めの頃のほうがクリアだった」**. Measured, that is
+//    not a preference: over this voice **8–12 kHz carries −18.5 dB of the whole
+//    signal**, and 16 kHz deletes it — the band the ear hears as *air*. ⇒ **the
+//    rate stays the vendor's and the wire is made to carry 48,000 B/s**; the
+//    blocks held ahead of it are `audio_line::kMaxBytes` (85 ms each, eight of
+//    them = 683 ms), which is what absorbs a dip.
 constexpr int kAudioSampleRate = 24000;
 constexpr int kAudioMclkMultiple = 256;  // I2S_MCLK_MULTIPLE_256
 constexpr int kAudioMclk = 0;            // GPIO 0

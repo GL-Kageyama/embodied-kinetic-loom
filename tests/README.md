@@ -4,7 +4,7 @@
 
 # tests/
 
-**forty-nine files, nine hundred and forty-seven tests, all green — measured 2026-10-21.**
+**fifty files, nine hundred and ninety-five tests, all green — measured 2026-10-21.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 

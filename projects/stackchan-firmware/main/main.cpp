@@ -27,6 +27,7 @@
 
 #include <cstdarg>
 #include <cstdio>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -222,6 +223,7 @@ void PrintHelp() {
   printf("  bench level               pin 0's pad read as an input, then as an output\n");
   printf("  bench leds                read the expander back, then set all twelve full red\n");
   printf("  bench sound <word>        play one of hello|pip|chime|fall\n");
+  printf("  bench audio <ms>          play a tone through the link's own path, and say how long it took\n");
   printf("  bench volume <0..100>     set the amplifier's volume and keep it\n");
   printf("  bench wifi                does nvs hold a network, is the station on one, has it an address\n");
   printf("  bench wifi scan           what the radio can hear; blocks for seconds\n");
@@ -717,6 +719,50 @@ void BenchSound(const char* name) {
   printf("bench: %s done\n", SoundName(word));
 }
 
+//: **`bench audio <ms>` — the link's own path, timed.** A 440 Hz tone of that
+//: length is generated into a buffer and played by `sound::play_pcm`, the one
+//: call an `audio` block reaches. ⚠️ What it prints is the wall clock against
+//: the tone's own length: **1.00 is the amplifier keeping up, and anything
+//: above it is the write path, not the wire.** Written 2026-10-21, when the
+//: first streamed sentence played at about a third of real time.
+void BenchAudio(const char* args) {
+  const long ms = std::strtol(args, nullptr, 10);
+  if (ms <= 0 || ms > 2000) {
+    printf("bench: audio needs 1..2000 milliseconds\n");
+    return;
+  }
+  if (!g_sound_ready) {
+    printf("bench: refused — the speaker did not come up\n");
+    return;
+  }
+  constexpr int kRate = board::kAudioSampleRate;
+  const int frames = static_cast<int>(ms) * kRate / 1000;
+  //: ⚠️ **200 ms at a time, not the whole tone.** A static second of tone is
+  //: 48 KB of internal RAM, and on 2026-10-21 that RAM was the difference
+  //: between the audio queue existing and not existing.
+  constexpr int kSlice = kRate / 5;
+  static int16_t tone[kSlice];
+  const int64_t started = esp_timer_get_time();
+  bool whole = true;
+  for (int done = 0; done < frames && whole; done += kSlice) {
+    int count = frames - done;
+    if (count > kSlice) {
+      count = kSlice;
+    }
+    for (int i = 0; i < count; ++i) {
+      const float phase = 2.0f * 3.14159265f * 440.0f * static_cast<float>(i) /
+                          static_cast<float>(kRate);
+      tone[i] = static_cast<int16_t>(std::sin(phase) * 0.20f * 32767.0f);
+    }
+    whole = sound::play_pcm(tone, count);
+  }
+  const int64_t ended = esp_timer_get_time();
+  printf("bench: audio %ld ms took %lld ms (%.2fx), %s\n", ms,
+         static_cast<long long>((ended - started) / 1000),
+         static_cast<double>(ended - started) / 1000.0 / static_cast<double>(ms),
+         whole ? "whole" : "cut");
+}
+
 void BenchVolume(int percent) {
   if (!g_sound_ready) {
     printf("bench: refused — the speaker did not come up\n");
@@ -808,6 +854,14 @@ void HandleBench(const char* args) {
       ++name;
     }
     BenchSound(name);
+    return;
+  }
+  if (std::strncmp(args, "audio", 5) == 0) {
+    const char* count = args + 5;
+    while (*count == ' ') {
+      ++count;
+    }
+    BenchAudio(count);
     return;
   }
   if (std::strncmp(args, "volume", 6) == 0) {

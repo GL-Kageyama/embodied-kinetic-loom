@@ -6,6 +6,7 @@
 #include "driver/i2c_master.h"
 #include "driver/i2s_std.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 
 #include "board.h"
@@ -17,6 +18,12 @@ namespace {
 i2c_master_dev_handle_t g_amp = nullptr;
 i2s_chan_handle_t g_tx = nullptr;
 bool g_ready = false;
+//: ⚠️ **Two tasks can reach the speaker now** — the console's (`bench sound`,
+//: the frame's word) and the link's (`audio_line`). One I2S channel, one chunk
+//: buffer: without this, a word typed at the console would rewrite the samples
+//: the link's block is in the middle of writing. Nothing else in this module
+//: takes it; `begin` creates it before either caller can exist.
+SemaphoreHandle_t g_speaker = nullptr;
 
 // --- the amplifier --------------------------------------------------------
 //
@@ -38,7 +45,13 @@ constexpr uint16_t kSysctrlUp = 0x4040;
 constexpr uint16_t kSysctrl2 = 0x0008;
 // Philips I2S, 16-bit frame; the low nibble is the sample-rate code and is
 // replaced below. ⚠️ The init table's own low nibble is `8` — 48,000 Hz — and
-//    this board runs at 24,000, which is code `5`.
+//    this board runs at 24,000, which is code `5`. The code is the vendor
+//    driver's own table (`aw88298_config_sample`, esp_codec_dev): 8k 0,
+//    11.025k 1, 12k 2, 16k 3, 22.05k 4, **24k 5**, 32k 6, 44.1k 7, 48k 8,
+//    96k 9, 192k A. ⛔ The table is the same one the arduino-audio-driver
+//    prints; two sources, one answer. ⚠️ **This register is not read back** —
+//    a wrong nibble would not announce itself, so if the voice goes thin the
+//    first thing to check is this line against `board::kAudioSampleRate`.
 constexpr uint16_t kI2sctrlBase = 0x3CC0;
 constexpr uint16_t kRateCode24k = 0x5;
 // The low byte is another field's; the init leaves it at 0x64 and the volume
@@ -273,6 +286,11 @@ bool sound::begin() {
   }
   // ⚠️ A little silence first, so the first note does not begin on a DC step.
   i2s_channel_write(g_tx, g_chunk, sizeof(g_chunk), nullptr, pdMS_TO_TICKS(200));
+  g_speaker = xSemaphoreCreateMutex();
+  if (g_speaker == nullptr) {
+    std::printf("sound: no mutex — the link will not be given the speaker\n");
+    return false;
+  }
   g_ready = true;
   std::printf("sound: AW88298 up, I2S %d Hz, 16-bit stereo\n", board::kAudioSampleRate);
   return true;
@@ -282,12 +300,48 @@ void sound::play(Sound word) {
   if (!g_ready || word == Sound::kNone) {
     return;
   }
+  xSemaphoreTake(g_speaker, portMAX_DELAY);
   int count = 0;
   const Note* notes = NotesFor(word, &count);
   const float amplitude = word == Sound::kFall ? kAmplitudeFall : kAmplitude;
   for (int i = 0; i < count; ++i) {
     WriteNote(notes[i], amplitude);
   }
+  xSemaphoreGive(g_speaker);
+}
+
+bool sound::play_pcm(const int16_t* samples, int frames) {
+  if (!g_ready || samples == nullptr || frames <= 0) {
+    return false;
+  }
+  // ⚠️ 10 ms a slice, the same chunk the notes use. ⛔ The samples arrive mono
+  //    and leave duplicated: this board's frame is stereo, and a mono stream
+  //    written raw would be read as alternating left and right — half speed,
+  //    and every sample on the wrong side of the frame.
+  xSemaphoreTake(g_speaker, portMAX_DELAY);
+  bool whole = true;
+  int done = 0;
+  while (done < frames) {
+    int count = frames - done;
+    if (count > kFramesPerChunk) {
+      count = kFramesPerChunk;
+    }
+    for (int i = 0; i < count; ++i) {
+      const int16_t value = samples[done + i];
+      g_chunk[i * 2] = value;
+      g_chunk[i * 2 + 1] = value;
+    }
+    size_t written = 0;
+    if (i2s_channel_write(g_tx, g_chunk,
+                          static_cast<size_t>(count) * 2 * sizeof(int16_t),
+                          &written, pdMS_TO_TICKS(500)) != ESP_OK) {
+      whole = false;
+      break;
+    }
+    done += count;
+  }
+  xSemaphoreGive(g_speaker);
+  return whole;
 }
 
 bool sound::set_volume_percent(int percent) {
