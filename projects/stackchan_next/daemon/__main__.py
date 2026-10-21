@@ -259,8 +259,8 @@ def serve(room: NextRoom, outbound: Outbound, listener: socket.socket, wake: int
                 emit({"link": "the board dialled in", "peer": peer})
                 # ⚠️ **`--say` は計器である**（2026-10-21）。回線が開いたことを
                 #    耳で確かめるために、1文だけ言う。⛔ **候補の道ではない**——
-                #    候補を言うかどうかは §17.4 (c) の裁定であり、
-                #    **文を作るのが誰かはまだ決まっていない**（§22.2）。
+                #    候補を言うかどうかは §17.4 (c) の裁定であり、**文を書くのは
+                #    本体である**（§22.10 に決まった）。この計器はその道を通らない。
                 if speaker is not None and greet is not None:
                     speaker.say(greet)
         elif link is not None and link.peer is not None and not link.alive():
