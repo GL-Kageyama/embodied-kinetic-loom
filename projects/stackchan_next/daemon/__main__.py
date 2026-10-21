@@ -318,7 +318,7 @@ def build_parser() -> argparse.ArgumentParser:
                         help="whether the neck channel chooses gestures (default: on)")
     parser.add_argument("--sound", choices=("on", "off"), default="off",
                         help="whether the speaker channel is on (default: off); "
-                             "the quiet hours 21:00-05:00 still close it")
+                             "the quiet hours 21:00-06:00 still close it")
     parser.add_argument("--presence", choices=PRESENCES, default=DEFAULT_PRESENCE,
                         help="how loud the layer added on 2026-10-20 may be "
                              "(default: %(default)s)")

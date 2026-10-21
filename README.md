@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.29.0 | canonical: README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.30.0 | canonical: README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -38,7 +38,7 @@ This repository holds what the engine *is*, what must never be assumed about the
 
 ⛔ **What is not guaranteed is that the board answers.** `sent: true` means the host's tty took the line, not that the board received it; since 0.19.41 the frame's acceptance is the board's own line, and four of four were accepted in one run — ⛔ **four frames are not a guarantee.** The bus falls silent on its own, with no trigger named, and the read-back answers sometimes. **The dated record of what was measured is `HISTORY.md`; what was observed is `projects/stackchan-firmware/records/`.**
 
-⚠️ **The core, the backend, the Pet's screen and motion, the Stack-chan behaviour layer, its daemon, its outbound frame and its wire are green — forty-eight files, nine hundred and twenty-four tests, measured 2026-10-21 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
+⚠️ **The core, the backend, the Pet's screen and motion, the Stack-chan behaviour layer, its daemon, its outbound frame and its wire are green — forty-nine files, nine hundred and forty tests, measured 2026-10-21 — and green means the mechanism computes what it was told to compute. It says nothing about whether anything is *there*.**
 
 ## Before you connect a machine
 
@@ -52,7 +52,7 @@ This repository holds what the engine *is*, what must never be assumed about the
 .claude-plugin/     plugin.json and marketplace.json — the two files that must carry one version
 docs/               the documents, canonical English with -ja and -zh mirrors beside them
 tools/              check_i18n.py — the mirrors; check_vocabulary.py — the vocabulary table; purity.py — the forbidden imports
-tests/              the suites — forty-eight files, nine hundred and twenty-four tests
+tests/              the suites — forty-nine files, nine hundred and forty tests
 schemas/            motion-intent.schema.json — the Motion Intent type; stackchan-command.schema.json — the frame to machine 2; stackchan-pose.schema.json — its per-tick pose line
 engine/             the deterministic core. ⚠️ It calls no LLM and imports nothing that varies
 engine/backend/     the sending side — protocol, cycle, gate, axis map, transmitter, mock
@@ -62,6 +62,7 @@ assets/             the repository's face (the README hero)
 locales/            the program's own words — en / ja / zh
 projects/pet/       the Pet — the five faces, the frame that carries them, and the motion that runs
 projects/stackchan/ the layer above the wire — events to phases, faces and lights; no numbers for machine 2
+projects/stackchan/voice/  the spoken line — 600 ms after 。 and 300 ms after 、, and the tool that bakes one
 projects/stackchan-firmware/  the machine's end of that wire — built, flashed, and the source of eleven records
 install.sh          installs the skill (--local writes .claude/skills/, which is committed)
 ```

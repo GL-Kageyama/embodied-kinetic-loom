@@ -25,16 +25,16 @@ from projects.stackchan.quiet import QUIET_FROM, QUIET_UNTIL, is_quiet
 # ---------------------------------------------------------------------------
 
 
-def test_the_rule_is_21_to_5():
+def test_the_rule_is_21_to_6():
     """⚠️ **著者の規則である。** 数は2つだけで、ここに在る。"""
-    assert (QUIET_FROM, QUIET_UNTIL) == (21, 5)
+    assert (QUIET_FROM, QUIET_UNTIL) == (21, 6)
 
 
 @pytest.mark.parametrize(
     "hour, quiet_now",
     [
         (0, True), (1, True), (2, True), (3, True), (4, True),
-        (5, False), (6, False), (7, False), (8, False), (9, False),
+        (5, True), (6, False), (7, False), (8, False), (9, False),
         (10, False), (11, False), (12, False), (13, False), (14, False),
         (15, False), (16, False), (17, False), (18, False), (19, False),
         (20, False),
@@ -43,7 +43,7 @@ def test_the_rule_is_21_to_5():
 )
 def test_every_hour_has_an_answer(hour, quiet_now):
     """✅ **24の時すべてを1つずつ数えた。** 端はどちらも静かな側ではない——
-    21:00 は静か、05:00 は昼である。"""
+    21:00 は静か、06:00 は昼である。"""
     assert is_quiet(hour) is quiet_now
 
 
@@ -131,9 +131,9 @@ def test_without_an_hour_the_edge_reads_the_wall_clock(monkeypatch):
 
 
 def test_the_rule_is_named_once():
-    """⚠️ **21 と 5 は `quiet.py` に在り、`__main__.py` は数を持たない。**"""
+    """⚠️ **21 と 6 は `quiet.py` に在り、`__main__.py` は数を持たない。**"""
     source = (
         __import__("pathlib").Path(edge.__file__).read_text(encoding="utf-8")
     )
     assert "QUIET_FROM" not in source and "QUIET_UNTIL" not in source
-    assert quiet.QUIET_FROM == 21 and quiet.QUIET_UNTIL == 5
+    assert quiet.QUIET_FROM == 21 and quiet.QUIET_UNTIL == 6

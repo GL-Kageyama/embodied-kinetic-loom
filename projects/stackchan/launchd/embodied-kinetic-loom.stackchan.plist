@@ -19,7 +19,7 @@
         <string>/dev/cu.usbmodem101</string>
         <!-- ⚠️ The speaker is on since 0.19.25. The quiet hours are not named here:
              the daemon reads the hour off its own wall clock and closes the sound
-             field between 21:00 and 05:00, and nothing else. A switch is a decision;
+             field between 21:00 and 06:00, and nothing else. A switch is a decision;
              an hour is a rule. -->
         <string>--sound</string>
         <string>on</string>

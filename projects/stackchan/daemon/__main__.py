@@ -19,7 +19,7 @@
 行は `accepted`（`True`・`False`・**何も言わなかった `None`**）を持つ。
 ⛔ **`sent: true` は今も tty のことであり、`accepted` が基板のことである。**
 
-⚠️ **そして 2026-10-19 から、音には時刻の門がある**——21:00–05:00 は静かな時間であり、
+⚠️ **そして 2026-10-19 から、音には時刻の門がある**——21:00–06:00 は静かな時間であり、
 `sound` の欄が閉じる（`quiet.py`）。⛔ **顔も光も首は従わない。**
 **静かであることは、居ないことではない。**
 
@@ -1043,7 +1043,7 @@ def build_parser() -> argparse.ArgumentParser:
                         help="whether the neck channel chooses gestures (default: on)")
     parser.add_argument("--sound", choices=("on", "off"), default="off",
                         help="whether the speaker channel is on (default: off); "
-                             "the quiet hours 21:00-05:00 still close it")
+                             "the quiet hours 21:00-06:00 still close it")
     return parser
 
 

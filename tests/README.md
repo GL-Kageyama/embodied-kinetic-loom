@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.36.0 | canonical: tests/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.37.0 | canonical: tests/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**forty-eight files, nine hundred and twenty-four tests, all green — measured 2026-10-21.**
+**forty-nine files, nine hundred and forty tests, all green — measured 2026-10-21.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -460,6 +460,24 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ⛔ **What none of them can see is the amplifier.** `sound.cpp` — the AW88298's register table, its reset line on the display's expander, the I2S channel and the four tones — **is compiled by no check**, and no test here opens a device. ⚠️ **The tones are choices, not measurements**, and the only thing that has judged them is one pair of ears: **on 2026-10-18 the board played all four from `bench sound`, and the author heard all four** (`projects/stackchan-firmware/records/2026-10-18-the-voice.md`). ⛔ **That says a sound was made. It says nothing about pitch, loudness, or whether a word suits its transition.**
 
+## The pauses in a spoken line (0.19.66)
+
+**`projects/stackchan/voice/render.py` carries the author's numbers — 「言葉の切れ目（。、）にひとはく入れよう」, answered 「2」: 600 ms after 。 and 300 ms after 、 — and `test_stackchan_voice.py` holds them with sixteen claims.**
+
+⚠️ **The rule lives in `PAUSE_MS` and nowhere else** — the tool that bakes fragments and the edge that synthesizes at run time both read it. The ones that carry a reason:
+
+| the check | what it is for |
+|---|---|
+| the two numbers are 600 and 300 | ⛔ **the author's ruling, and the only place both numbers live** |
+| a line splits after 。 and 、, and the mark stays in the piece before the silence | ⛔ **the silence comes *after* the mark** — replacing it would delete the word's ending |
+| no silence is left at the end | ⚠️ **a trailing gap is a blank, not a pause** |
+| 「！」 and 「？」 get no number | ⛔ **the author named two marks; deciding how strong an exclamation is in milliseconds has no ground** |
+| `spoken()` renders 「。」 as `[[slnc 600]]` and 「、」 as `[[slnc 300]]`, and leaves the text alone | the rule is visible in one string, so a wrong number is a wrong number here |
+| `gap_frames` at 24 kHz is 14,400 frames for 600 ms and 7,200 for 300 ms, floored | ⛔ **the board takes frames, not milliseconds** — one frame is 1/24000 s |
+| a negative pause and a rate of zero are refused | **a silence that cannot be built is the reader's mistake**, not another silence |
+
+⛔ **What none of them can see is the seam.** The numbers in §22.3 — **243.8 / 286.7 ms bare, 816.3 / 387.4 ms with the rule laid on top, 622.5 / 331.5 ms as built** — come from `検証/voice_pauses.py`, which counts runs below an amplitude threshold in a WAV; ⚠️ **this suite checks the rule's arithmetic, not the waveform it produces**, and the residual **+22–32 ms** is not something these tests would notice.
+
 ## The question the host asks the board (0.19.23)
 
 **`projects/stackchan/neck/readback.py` parses the answer to `bench pos`, and `test_stackchan_readback.py` holds it with twenty-two claims** — the twelve below are the ones that carry a reason.
@@ -491,8 +509,8 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 | the check | what it is for |
 |---|---|
-| the rule is 21 to 5 | ⚠️ **the author's rule, and the only place both numbers live** |
-| all twenty-four hours have an answer, one at a time | ✅ **both ends are counted**: 21:00 is quiet, 05:00 is day |
+| the rule is 21 to 6 | ⚠️ **the author's rule, and the only place both numbers live** |
+| all twenty-four hours have an answer, one at a time | ✅ **both ends are counted**: 21:00 is quiet, 06:00 is day |
 | an hour that is not an hour is refused | ⛔ **24 and −1 are the reader's mistake**, and the rule does not answer them with another answer |
 | a bool is not an hour | ⚠️ `True` is also `1` in Python; **that is not a reason to read it as one o'clock** |
 | quiet closes the sound and nothing else | ⛔ **the face, the light, the gesture and the phase equal the loud decision's** — quiet is not absence |
@@ -500,7 +518,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | all four words are closed | ⚠️ **a gate that closes one word is not a gate** |
 | the edge asks the rule with the hour it was given | ✅ **an hour passed in measures the boundary without stopping a clock** |
 | without an hour the edge reads the wall clock | ⛔ **the default path is walked once with the clock replaced** — otherwise the check changes its answer at midnight |
-| the rule is named once | ⚠️ `21` and `5` live in `quiet.py`; **`__main__.py` carries no number** |
+| the rule is named once | ⚠️ `21` and `6` live in `quiet.py`; **`__main__.py` carries no number** |
 
 ⛔ **Nothing here opens a port, and nothing here hears anything.** A closed field is counted; **whether the speaker is silent is not something a host can measure** — the ear is the instrument, and it has not yet heard a quiet night.
 

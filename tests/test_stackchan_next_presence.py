@@ -267,7 +267,7 @@ def test_waking_is_silent_when_the_speaker_is_off():
 
 
 def test_waking_is_silent_in_the_quiet_hours():
-    """⚠️ **21:00–05:00 は無音であり、存在しない時間ではない。**"""
+    """⚠️ **21:00–06:00 は無音であり、存在しない時間ではない。**"""
     room = _presence(sound=True)
     _start(room, 0.0)
     _rest(room, 0.0)

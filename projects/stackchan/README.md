@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.22.0 | canonical: projects/stackchan/README.md | translated: 2026-10-19 -->
+<!-- i18n-version: 2.22.1 | canonical: projects/stackchan/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -82,11 +82,11 @@
 | the screen | silent | always | the face — the information when you look |
 | **12 RGB LEDs** | **silent** | **always** | breathing, warmth, attention, dark — **presence in peripheral vision** |
 | the neck (2 axes) | servo noise | `--motion on` | **only at transitions** |
-| the speaker | audible | `--sound off` | **one word at four of the six transitions** — `hello`, `pip`, `chime`, `fall`; the board plays it. ⚠️ **And 21:00–05:00 close it even when the switch is on** |
+| the speaker | audible | `--sound off` | **one word at four of the six transitions** — `hello`, `pip`, `chime`, `fall`; the board plays it. ⚠️ **And 21:00–06:00 close it even when the switch is on** |
 
 ⛔ **There is no "silent mode" here, because the name would be false.** The servos are audible. **Motion and sound are two axes, not one enum**, and the face and the light obey neither — they make no noise.
 
-✅ **Since 2026-10-19 the speaker has an hour as well as a switch.** `projects/stackchan/quiet.py` answers one question — **is this hour between 21:00 and 05:00?** — and the daemon reads the wall clock once per event and passes the answer down as a value (`Room.offer(..., quiet=)`). ⛔ **The core still reads no clock.** ⚠️ **Quiet closes the sound field and nothing else**: the face, the light and the neck are unchanged — **being silent is not being absent.** ⚠️ **The boundaries are whole hours and minutes are not carried**: 20:59 is day, 21:00 is quiet, 05:00 is day again. ✅ **And since 0.19.26 the installed job names `--sound on`** — the author asked — so the daytime speaks and the night does not; ⛔ **the job names no hour**, because the hour lives in `quiet.py` alone.
+✅ **Since 2026-10-19 the speaker has an hour as well as a switch.** `projects/stackchan/quiet.py` answers one question — **is this hour between 21:00 and 06:00?** — and the daemon reads the wall clock once per event and passes the answer down as a value (`Room.offer(..., quiet=)`). ⛔ **The core still reads no clock.** ⚠️ **Quiet closes the sound field and nothing else**: the face, the light and the neck are unchanged — **being silent is not being absent.** ⚠️ **The boundaries are whole hours and minutes are not carried**: 20:59 is day, 21:00 is quiet, 06:00 is day again. ✅ **And since 0.19.26 the installed job names `--sound on`** — the author asked — so the daytime speaks and the night does not; ⛔ **the job names no hour**, because the hour lives in `quiet.py` alone.
 
 ✅ **The light is semantic, not RGB.** `Light` is `off`, `dim`, `writing`, `busy`, `breathe`, `warm`, `alert` or `error` — ⚠️ **this layer chooses six of the eight; the two work lights are chosen by `projects/stackchan_next/`**; the mapping to twelve pixels is firmware's job, and **the LED order and colour order of this unit are in no record here.** The stock firmware exposes `set_led_color`; this layer does not call it.
 
@@ -221,7 +221,7 @@ python3 -m projects.stackchan.neck --port /dev/cu.usbmodem101 \
 - a gesture inside the cooldown is dropped **while the light still changes**;
 - motion off keeps the face and the light;
 - sound is off by default, and carries one word on four of the six transitions — the other two are silent;
-- **21:00–05:00 close the sound field even with the switch on**, and leave the face, the light and the neck untouched;
+- **21:00–06:00 close the sound field even with the switch on**, and leave the face, the light and the neck untouched;
 - every sound word the layer can choose is one the wire's closed set names;
 - **no gesture is ever sent** — `sent` is `False` on every line;
 - **with more than one window, the first to speak takes the gaze**, a person's act in another window moves it, a tool call and a background `Stop` do not, and a background `PermissionRequest` steals it;
