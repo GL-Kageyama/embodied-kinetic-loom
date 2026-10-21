@@ -23,6 +23,24 @@
 **「ソケットが在ることは、片付けられる準備ができたことを意味する」**を真にする。
 
 ⚠️ **停止は何も送らない。** 駐機も、最後の身振りも無い——**この機体に停止命令は無い。**
+
+## 2本目のソケットと糸（0.19.64、Phase 3.5）
+
+⛔ **監修は、体のソケットに相乗りしない。** 体の `handle()` は枠を書いて基板の
+受理を待つので、その返事は中央 890ms である——**いちばん声をかけたい瞬間に落ちる**
+（設計 §19.1）。⇒ **同じプロセスの中に、メタ専用のソケットを1本と、糸を1本足す。**
+
+- 綴りは `room.meta_socket_path(uid)`（`/tmp/ekl-stackchan-meta-<uid>.sock`）。
+- `--meta off` なら**開かない**。⚠️ **フックはダイヤルを知らない**——ソケットが
+  無ければ `connect` が失敗し、何も印字せず0で終わる。**それが `off` の実装である**（§6）。
+- 要求の形は**体と同じ**（`parse_request`——窓・事象・作業語）。⇒ **契約を増やさない。**
+- 糸は数の規則を回して即答する。⛔ **体の糸を待たない**——`select` の輪に混ぜず、
+  `accept` する別の糸に置く（§19.7 の試作が測った形である）。
+- 例外は**糸の縁**で捕まえ、`{"meta": "error", "error": "<型名>"}` を1行残して
+  次の接続を待つ。⛔ **核心（`MetaRoom`）に `try` を書かない**——核心が自分で
+  例外を飲めば、「規則が壊れている」ことが見えなくなる（§19.7）。
+- **Phase 3.5 では、フックはまだこのソケットへ送らない。** 返事の1行はあるが、
+  **読む者が居ない**——配送は Phase 4 である（§15）。
 """
 from __future__ import annotations
 
@@ -33,6 +51,7 @@ import select
 import signal
 import socket
 import sys
+import threading
 import time
 from dataclasses import replace
 
@@ -51,13 +70,33 @@ from projects.stackchan.daemon.room import BadRequest, refusal, row
 from projects.stackchan.outbound import Outbound
 from projects.stackchan.quiet import is_quiet
 
+from projects.stackchan_meta import MetaRoom
+
 from ..presence import DEFAULT_PRESENCE, PRESENCES
-from .room import CLIENT_TIMEOUT, MAX_LINE, NextRoom, parse_request, socket_path
+from .room import (
+    CLIENT_TIMEOUT,
+    MAX_LINE,
+    NextRoom,
+    meta_socket_path,
+    parse_request,
+    socket_path,
+)
+
+
+#: ⛔ **閉じた3語である。** ダイヤルはユーザーが回すものであり、機械が決めるものではない（§6）。
+#: ⚠️ **`off` は「黙る」ではなく「ソケットを開かない」である**——フックはダイヤルを
+#: 知らないので、無いソケットへの `connect` が失敗することが `off` の実装である。
+META_DIALS = ("off", "quiet", "eager")
 
 
 def default_socket() -> str:
     """**綴りは `room.socket_path` に1つだけ在る。** ⚠️ ここは uid を渡すだけである。"""
     return socket_path(os.getuid())
+
+
+def default_meta_socket() -> str:
+    """**綴りは `room.meta_socket_path` に1つだけ在る。** ⚠️ uid を渡すだけである。"""
+    return meta_socket_path(os.getuid())
 
 
 def parse_listen(text: str) -> tuple[str, int]:
@@ -86,6 +125,36 @@ def decide(room: NextRoom, session: str, event: str, work: str | None, at: float
     return room.offer(session, event, at, quiet=is_quiet(hour), work=work)
 
 
+class _Silent(Exception):
+    """**行が届かなかった。** ⛔ **断りではない**——何も言わずに閉じる（既存の規則）。"""
+
+
+def _read_text(connection: socket.socket) -> str:
+    """**1行を読み、UTF-8 の文にする。** ⚠️ **体とメタで、読み方は1つである。**
+
+    ⛔ **断りの符号は、ここでは出さない**——体はそれをログの行にもするが、
+    メタは返事にだけ載せる。**違うのはそこだけであり、写せば2つの綴りが生まれる。**
+    """
+    connection.settimeout(CLIENT_TIMEOUT)
+    buffer = b""
+    while b"\n" not in buffer:
+        try:
+            chunk = connection.recv(RECV)
+        except OSError:
+            raise _Silent from None
+        if not chunk:
+            raise _Silent
+        buffer += chunk
+        if len(buffer) > MAX_LINE:
+            raise BadRequest("too-long")
+
+    line = buffer.partition(b"\n")[0]
+    try:
+        return line.decode("utf-8")
+    except UnicodeDecodeError:
+        raise BadRequest("bad-value") from None
+
+
 def handle(connection: socket.socket, room: NextRoom, outbound: Outbound, neck: Neck,
            at: float) -> None:
     """**1つの接続を読む。** ⚠️ **行が届かなければ、待ち続けずに閉じる。**
@@ -94,31 +163,11 @@ def handle(connection: socket.socket, room: NextRoom, outbound: Outbound, neck: 
     `work` が渡る。**それ以外（長さの上限・UTF-8・断りの符号・枠より先に首・
     同じ `at`）は同じである。**
     """
-    connection.settimeout(CLIENT_TIMEOUT)
-    buffer = b""
-    while b"\n" not in buffer:
-        try:
-            chunk = connection.recv(RECV)
-        except OSError:
-            return
-        if not chunk:
-            return
-        buffer += chunk
-        if len(buffer) > MAX_LINE:
-            emit(refusal("too-long"))
-            reply(connection, refusal("too-long"))
-            return
-
-    line = buffer.partition(b"\n")[0]
     try:
-        text = line.decode("utf-8")
-    except UnicodeDecodeError:
-        emit(refusal("bad-value"))
-        reply(connection, refusal("bad-value"))
-        return
-
-    try:
+        text = _read_text(connection)
         session, event, work = parse_request(text)
+    except _Silent:
+        return
     except BadRequest as exc:
         emit(refusal(exc.code))
         reply(connection, refusal(exc.code))
@@ -202,6 +251,52 @@ def serve(room: NextRoom, outbound: Outbound, listener: socket.socket, wake: int
             neck.pump(time.monotonic())
 
 
+def meta_handle(connection: socket.socket, room: MetaRoom, at: float) -> None:
+    """**メタの1接続を読む。** ⚠️ **体の `handle` を写したのではない**——順序が違う。
+
+    体は `emit` → 首 → 枠 → `reply` である（§19.1）。ここは**1行読んで、数えて、
+    1行返す**だけである——⛔ **待つものが1つも無い。** それが決定11の全部である。
+    """
+    try:
+        text = _read_text(connection)
+        session, event, work = parse_request(text)
+    except _Silent:
+        return
+    except BadRequest as exc:
+        # ⚠️ **断りも、体と同じ符号である。** 新しい符号を発明しない。
+        # ⛔ **ログには残さない**——日の計器の5つの欄は、この行を知らない（§10.6）。
+        reply(connection, refusal(exc.code))
+        return
+
+    # ⚠️ **時刻はここで1度だけ読む。** 核心（`MetaRoom`）は時計を持たない。
+    says = room.observe(session, event, at, work)
+    # ⚠️ **返事の形は今のうちに決めておく。** `context` が無ければ `null` である
+    #    ——⛔ **鍵そのものを省かない**: 読む側（Phase 4 のフック）が、
+    #    *返事が無い* と *返事の形が違う* を区別できなくなる。
+    reply(connection, {"context": says})
+
+
+def meta_loop(listener: socket.socket, room: MetaRoom) -> None:
+    """**メタの糸。** ⛔ **体の `serve` の輪には入らない**——別の糸である。
+
+    ⚠️ **例外はここで捕まえる**（§13）。糸の例外を `try` の外へ出せば、
+    プロセスが落ち、**体も一緒に落ちる**——同じプロセスに住んでいる以上、
+    これが唯一の危険である。
+    """
+    while True:
+        try:
+            connection, _ = listener.accept()
+        except OSError:
+            # ⚠️ **受口が閉じられた。** 片付けの最中である——静かに降りる。
+            return
+        with connection:
+            try:
+                meta_handle(connection, room, time.monotonic())
+            except Exception as exc:  # noqa: BLE001 — 意図した catch である（§13）
+                # ⛔ **自由文を入れない。** 型名だけである——`error` の欄は閉じている。
+                emit({"meta": "error", "error": type(exc).__name__})
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python3 -m projects.stackchan_next.daemon",
@@ -227,6 +322,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--presence", choices=PRESENCES, default=DEFAULT_PRESENCE,
                         help="how loud the layer added on 2026-10-20 may be "
                              "(default: %(default)s)")
+    parser.add_argument("--meta", choices=META_DIALS, default="quiet",
+                        help="how much the meta layer may say (default: %(default)s); "
+                             "off opens no meta socket at all")
+    parser.add_argument("--meta-socket", default=None, metavar="PATH",
+                        help="the meta Unix socket to bind "
+                             "(default: /tmp/ekl-stackchan-meta-<uid>.sock)")
     return parser
 
 
@@ -292,19 +393,72 @@ def main(argv: list[str] | None = None) -> int:
             os.close(wake_w)
             return 1
 
+    # ⛔ **`--meta off` なら、束縛しない。** ソケットが無いことが `off` の実装であり、
+    #    フックはダイヤルを知らない（§6）。⚠️ **起動行には値を載せる**——さもなければ、
+    #    「規則が鳴らなかった日」と「黙らされた日」が、どちらも候補0になる（§10.6）。
+    meta_path = args.meta_socket or default_meta_socket()
+    meta_listener = None
+    if args.meta != "off":
+        try:
+            meta_listener = bind(meta_path)
+        except OSError as exc:
+            sys.stderr.write(f"cannot bind {meta_path}: {exc}\n")
+            if link is not None:
+                link.close()
+            listener.close()
+            try:
+                os.unlink(args.socket)
+            except FileNotFoundError:
+                pass
+            os.close(wake_r)
+            os.close(wake_w)
+            return 1
+        if meta_listener is None:
+            # ⚠️ **生きているメタの受口が在る。** 体の受口は空いていたのに、である
+            #    ——それは、同じプロセスの2本が食い違っているということである。
+            sys.stderr.write(f"another meta daemon is alive on {meta_path}\n")
+            if link is not None:
+                link.close()
+            listener.close()
+            try:
+                os.unlink(args.socket)
+            except FileNotFoundError:
+                pass
+            os.close(wake_r)
+            os.close(wake_w)
+            return 1
+
     room = NextRoom(presence=args.presence, motion=args.motion == "on",
                     sound=args.sound == "on")
     outbound = Outbound()
     neck = Neck(link if link is not None else args.port)
     emit({"daemon": "listening", "socket": args.socket, "port": args.port,
           "listen": (None if link is None else link.address),
-          "presence": args.presence})
+          "presence": args.presence, "meta": args.meta})
+
+    meta_thread = None
+    if meta_listener is not None:
+        # ⚠️ **糸は1本増える。** 共有する状態は無いので、ロックも無い（§7.1）。
+        #    ⛔ **`daemon=True`**——降りるのはプロセスと一緒であり、
+        #    **糸が落ちても体は生きる。**
+        meta_room = MetaRoom(eager=args.meta == "eager", emit=emit)
+        meta_thread = threading.Thread(
+            target=meta_loop, args=(meta_listener, meta_room),
+            name="meta", daemon=True)
+        meta_thread.start()
+
     try:
         serve(room, outbound, listener, wake_r, neck, link)
     finally:
         if link is not None:
             link.close()
         listener.close()
+        if meta_listener is not None:
+            meta_listener.close()
+            try:
+                os.unlink(meta_path)
+            except FileNotFoundError:
+                pass
         try:
             os.unlink(args.socket)
         except FileNotFoundError:

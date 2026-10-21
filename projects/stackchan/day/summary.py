@@ -97,6 +97,17 @@ class Summary:
     servo_silent: int = 0       # そのうち、バスが黙りかけていた行（`strikes` > 0）
     rail_cycles: int = 0        # レールを落とした回数（**増えた分**の合計）
     rail_resets: int = 0        # 基板の数が戻った回数（＝再起動。その前は数えられない）
+    # ✅ **2026-10-21（0.19.64）から、監修の5つの数も数える。** ⛔ **第3層の行を
+    #    知らない計器は、正しい行を `unreadable` に落とす**——「ログが壊れている」と
+    #    毎日言い続ける計器になる（§10.6、2026-10-21 に実測）。⇒ **第3層と同じ日に、
+    #    第3層より先に足す。**
+    # ⚠️ **`why` の4つを4つの数にしない。** 名前の欄は16文字であり、4つに割れば
+    #    読めなくなる。**内訳は `jq` で数える**——計器は毎日読むもの、内訳は調べるもの。
+    meta_candidates: int = 0    # `{"meta": "candidate", …}`
+    meta_delivered: int = 0     # `{"meta": "delivered", …}`（声が届いた回数）
+    meta_dropped: int = 0       # `{"meta": "dropped", "why": …}`（**理由別には割らない**）
+    meta_errors: int = 0        # `{"meta": "error", …}`（**糸の縁が捕まえた回数**）
+    meta_off_starts: int = 0    # 起動行の `meta` が `off`（**黙らされた日**）
     phases: dict[str, int] = field(default_factory=dict)
     # ✅ **2026-10-20（0.19.52）から、作業の語も数える。**
     # ⚠️ **鍵が無い行は数えない**——`None` に数えれば、*知らされていない* と
@@ -130,6 +141,28 @@ def summarize(lines: Iterable[str]) -> Summary:
 
         if obj.get("daemon") == "listening":
             s.starts += 1
+            # ⛔ **0 は2つの意味を持つ。** 規則が鳴らなかった日と、`--meta off` で
+            #    走った日は、候補の数だけでは同じ0である。**分けるのは起動行の
+            #    `meta` だけである**（§10.6、2026-10-21 に実測）。
+            if obj.get("meta") == "off":
+                s.meta_off_starts += 1
+            continue
+
+        # ⚠️ **監修の行は、他のどの枝にも当たらない形である。** ここで引き取らないと、
+        #    最後の枝が正しい行を `unreadable` に数える——**「壊れている」と毎日言う。**
+        if "meta" in obj:
+            kind = obj.get("meta")
+            if kind == "candidate":
+                s.meta_candidates += 1
+            elif kind == "delivered":
+                s.meta_delivered += 1
+            elif kind == "dropped":
+                s.meta_dropped += 1
+            elif kind == "error":
+                s.meta_errors += 1
+            else:
+                # ⚠️ **知らない `meta` の値は、知らない形である。** 数えずに捨てない。
+                s.unreadable += 1
             continue
 
         if "frame" in obj:
@@ -275,6 +308,13 @@ def render(s: Summary) -> str:
         row("  seen silent", s.servo_silent),
         row("  rail cycles", s.rail_cycles),
         row("  rail resets", s.rail_resets),
+        # ⚠️ **候補と配送を1行にまとめない。** まとめれば、「作ったが渡らなかった」が
+        #    数えられない（§10.6）。**落ちた数も、理由別には割らない。**
+        row("meta candidates", s.meta_candidates),
+        row("meta delivered", s.meta_delivered),
+        row("meta dropped", s.meta_dropped),
+        row("meta errors", s.meta_errors),
+        row("meta off starts", s.meta_off_starts),
     ]
     for name, counter in (
         ("phases", s.phases),

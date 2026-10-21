@@ -61,6 +61,19 @@ def socket_path(uid: int) -> str:
     return f"/tmp/ekl-stackchan-next-{uid}.sock"
 
 
+def meta_socket_path(uid: int) -> str:
+    """**メタのソケットの場所。** ⚠️ **体のソケットとは別の1本である**（決定11）。
+
+    ⛔ **相乗りしない。** 体の `handle()` は枠を書いて基板の受理を待つので、
+    その返事は中央 890ms である——**いちばん声をかけたい瞬間に落ちる**（§19.1）。
+    ⇒ **同じプロセスに、2本目のソケットと2本目の糸を置く。**
+
+    ⚠️ **綴りはここに1つだけ在る。** フック（Phase 4）もデーモンも、この関数を通る——
+    **2か所に書けば、片方だけが直る日が来る。**
+    """
+    return f"/tmp/ekl-stackchan-meta-{uid}.sock"
+
+
 def parse_request(line: str) -> tuple[str, str, str | None]:
     """**1行を、窓・事象・作業に割る。** ⛔ **読めない行は、理由の符号を付けて断る。**
 
@@ -154,6 +167,7 @@ __all__ = [
     "CLIENT_TIMEOUT",
     "MAX_LINE",
     "socket_path",
+    "meta_socket_path",
     "parse_request",
     "NextRoom",
 ]

@@ -37,6 +37,12 @@
              for when the day was too loud. -->
         <string>--presence</string>
         <string>normal</string>
+        <!-- ⚠️ The meta dial is written out for the same reason, and it is the line a
+             reader looks for on a day that was too quiet — or too loud. `off` would
+             open no meta socket at all; `quiet` builds candidates and hands one
+             sentence to the next prompt; `eager` also interrupts a `Stop`. -->
+        <string>--meta</string>
+        <string>quiet</string>
     </array>
 
     <key>WorkingDirectory</key>

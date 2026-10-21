@@ -183,11 +183,18 @@ class Daemon:
     """**1つのデーモンを、試験のあいだだけ起こす。** ⚠️ **モジュールは引数である。**"""
 
     def __init__(self, path: pathlib.Path, port: pathlib.Path | None = None,
-                 module: str = NEW_MODULE, extra: tuple[str, ...] = ()) -> None:
+                 module: str = NEW_MODULE, extra: tuple[str, ...] = (),
+                 meta: bool = True) -> None:
         self.path = path
+        # ⚠️ **メタのソケットも、試験の短いパスに置く。** ⛔ **既定の
+        #    `/tmp/ekl-stackchan-meta-<uid>.sock` を使わない**——設置済みの
+        #    デーモンがそこを握っていれば、この試験は**本物の受口を奪い合う。**
+        self.meta = path.parent / "meta.sock"
         command = [sys.executable, "-m", module, "--socket", str(path)]
         if port is not None:
             command += ["--port", str(port)]
+        if module == NEW_MODULE and meta:
+            command += ["--meta-socket", str(self.meta)]
         command += list(extra)
         self.proc = subprocess.Popen(
             command,
@@ -239,6 +246,26 @@ class Daemon:
                     break
                 chunks += chunk
         return json.loads(chunks.partition(b"\n")[0])
+
+    def send_meta(self, payload: dict | str) -> dict:
+        """**メタのソケットへ1行。** ⚠️ **体のソケットとは別の戸口である。**"""
+        line = payload if isinstance(payload, str) else json.dumps(payload)
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+            client.settimeout(READY_SECONDS)
+            client.connect(str(self.meta))
+            client.sendall(line.encode("utf-8") + b"\n")
+            chunks = b""
+            while b"\n" not in chunks:
+                chunk = client.recv(4096)
+                if not chunk:
+                    break
+                chunks += chunk
+        return json.loads(chunks.partition(b"\n")[0])
+
+    def meta_rows(self) -> list[dict]:
+        """**監修の行だけ。** ⚠️ 起動行も `meta` を持つので、値で分ける。"""
+        return [row for row in self._lines()
+                if row.get("meta") in ("candidate", "delivered", "dropped", "error")]
 
     def _lines(self) -> list[dict]:
         rows = []
@@ -309,9 +336,13 @@ def test_the_signal_handler_is_installed_before_the_socket_is_bound():
     """⛔ **順序そのものを読む。** 2026-10-19 に一度だけ落ちた検査の隙間である。"""
     source = (REPO_ROOT / f"{NEW_MODULE.replace('.', '/')}/__main__.py").read_text(
         encoding="utf-8")
+    # ⚠️ **数えるのは体のソケットの束縛だけである**——0.19.64 にメタの束縛が
+    #    1つ増えたので、`listener = bind(` で数えると `meta_listener = bind(` にも当たる
+    #    （**数え方の側が、増えた側に化ける**）。⇒ **引数まで書いて名指す。**
     assert source.count("signal.signal(signal.SIGTERM") == 1
-    assert source.count("listener = bind(") == 1
-    assert source.index("signal.signal(signal.SIGTERM") < source.index("listener = bind(")
+    assert source.count("listener = bind(args.socket)") == 1
+    assert source.index("signal.signal(signal.SIGTERM") < source.index(
+        "listener = bind(args.socket)")
 
 
 def test_the_edge_copies_none_of_the_machinery():
@@ -509,3 +540,142 @@ def test_the_startup_row_names_the_dial_and_the_socket(sock, presence):
     assert listening[0]["socket"] == str(sock)
     assert listening[0]["presence"] == presence
     assert listening[0]["port"] is None
+
+
+# ---------------------------------------------------------------------------
+# 2本目のソケットと糸（0.19.64、Phase 3.5）。⚠️ 返事はまだ誰も読まない。
+# ---------------------------------------------------------------------------
+
+
+def test_the_meta_socket_is_a_second_door_on_the_same_process(sock):
+    """✅ **同じプロセスが、2本の戸口を持つ。** ⛔ **体のソケットに相乗りしない。**
+
+    相乗りすれば、体が枠を書いて基板の受理を待つあいだ（中央 890ms）、
+    **監修の一言がその後ろで待つ**——§19.1 の実測がそれである。
+    """
+    with Daemon(sock) as daemon:
+        assert sock.exists()
+        assert daemon.meta.exists()
+        assert sock != daemon.meta
+
+        # ⚠️ **返事の形は `context` の1つである。** 候補が無ければ `null` であり、
+        #    ⛔ **鍵そのものを省かない**——読む側が *返事なし* と *形が違う* を
+        #    区別できなくなる。
+        assert daemon.send_meta(
+            {"session": "m", "event": "UserPromptSubmit"}) == {"context": None}
+        assert daemon.send_meta({"session": "m", "event": "Stop"}) == {"context": None}
+
+
+def test_a_turn_review_is_logged_as_a_candidate_and_carried_by_the_next_prompt(sock):
+    """⚠️ **規則が鳴ることと、声が届くことを、別の行にする**（§10.6）。
+
+    ⛔ **1行にまとめれば、「作ったが渡らなかった」が数えられない。**
+    ⚠️ **25回は呼び出しの数である**（`PreToolUse` の1行が1回）——往復で倍に数えない。
+    """
+    # ⚠️ **Phase 4 のフックと同じ形で送る**——同じ1行を、2つのソケットへ。
+    #    ⛔ **体のソケットへ送っただけでは、メタの糸は1行も見ない。**
+    with Daemon(sock) as daemon:
+        # ⚠️ **ターンはプロンプトで開く。** 開かなければ、道具は数えられない
+        #    （`Trace.observe`——`STEALS` が窓を決める）。
+        opening = {"session": "m", "event": "UserPromptSubmit"}
+        daemon.send(opening)
+        daemon.send_meta(opening)
+        for _ in range(25):
+            event = {"session": "m", "event": "PreToolUse"}
+            daemon.send(event)
+            daemon.send_meta(event)
+        assert daemon.meta_rows() == [], "閉じる前に候補が立っている"
+
+        closing = {"session": "m", "event": "Stop"}
+        daemon.send(closing)
+        daemon.send_meta(closing)
+        answer = daemon.send_meta({"session": "m", "event": "UserPromptSubmit"})
+
+    rows = daemon.meta_rows()
+    assert [row["meta"] for row in rows] == ["candidate", "delivered"], rows
+    assert rows[0]["kind"] == rows[1]["kind"] == "turn-review"
+    assert rows[0]["session"] == rows[1]["session"] == "m"
+
+    # ⚠️ **返事は、このプロンプトに載る1文である。** 文にするのは `render` の1か所。
+    assert answer["context"] is not None
+    assert "over 25 tool calls" in answer["context"]
+    assert answer["context"].startswith("[stack-chan meta]")
+
+    # ⛔ **行に自由文は無い。** 数と、閉じた語だけである（§10.6、§14）。
+    for row in rows:
+        assert set(row) <= {"meta", "kind", "session", "why", "at", "error"}
+        assert isinstance(row["at"], (int, float))
+
+
+def test_meta_off_opens_no_socket_and_the_startup_row_says_so(sock):
+    """⛔ **0 は2つの意味を持つ。** 規則が鳴らなかった日と、黙らされた日である。
+
+    ⚠️ **分けるのは起動行の `meta` だけである**——候補の数では、どちらも0である。
+    ⛔ **`off` の実装は「ソケットが無い」である。** フックはダイヤルを知らない。
+    """
+    with Daemon(sock, extra=("--meta", "off")) as daemon:
+        assert sock.exists()
+        assert not daemon.meta.exists()
+        assert daemon.send({"session": "m", "event": "Stop"})["ok"] is True
+
+    listening = [row for row in daemon._lines() if row.get("daemon") == "listening"]
+    assert listening and listening[0]["meta"] == "off"
+
+
+def test_the_meta_dial_is_written_on_the_startup_row(sock):
+    """⚠️ **既定でも、値を書く。** 黙った日と黙らされた日を、計器が同じ0と言わないように。"""
+    with Daemon(sock) as daemon:
+        daemon.send({"session": "m", "event": "Stop"})
+
+    listening = [row for row in daemon._lines() if row.get("daemon") == "listening"]
+    assert listening and listening[0]["meta"] == "quiet"
+
+
+def test_the_meta_socket_is_removed_with_the_body_socket(sock):
+    """⛔ **戸口が2つなら、片付けも2つである。**"""
+    with Daemon(sock) as daemon:
+        assert daemon.meta.exists()
+
+    assert daemon.code == 0
+    assert not sock.exists() and not daemon.meta.exists()
+
+
+def test_an_exception_at_the_thread_edge_is_one_row_and_the_loop_waits(sock, capsys):
+    """⛔ **核心に `try` を書かない。** 例外は糸の縁で捕まえ、型名だけを1行残す。
+
+    核心が自分で例外を飲めば、「規則が壊れている」ことが見えなくなる（§19.7）。
+    ⛔ **自由文を入れない**——`error` の欄は閉じている。
+    """
+    import threading
+
+    class Boom:
+        def observe(self, *args: object, **kwargs: object) -> str:
+            raise ValueError("boom")
+
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    listener.bind(str(sock))
+    listener.listen(1)
+    thread = threading.Thread(target=edge.meta_loop,
+                              args=(listener, Boom()), daemon=True)
+    thread.start()
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+            client.settimeout(READY_SECONDS)
+            client.connect(str(sock))
+            client.sendall(b'{"session": "m", "event": "Stop"}\n')
+            # ⚠️ **返事は来ない。** 例外は `reply` の前に起きる——縁が1行残して
+            #    次の接続を待つことを、ここから見る。
+            client.recv(1)
+    finally:
+        listener.close()
+
+    rows = []
+    limit = time.monotonic() + READY_SECONDS
+    while time.monotonic() < limit:
+        rows = [json.loads(line) for line in capsys.readouterr().out.splitlines()
+                if line.strip()]
+        if rows:
+            break
+        time.sleep(0.02)
+
+    assert rows == [{"meta": "error", "error": "ValueError"}], rows

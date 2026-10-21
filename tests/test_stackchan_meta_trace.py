@@ -180,7 +180,7 @@ def test_events_with_no_turn_are_not_counted():
 
 
 @pytest.mark.parametrize("module", ["trace.py", "rules.py", "candidates.py",
-                                    "render.py", "budget.py"])
+                                    "render.py", "budget.py", "room.py"])
 def test_no_part_of_the_layer_reads_a_clock(module: str):
     source = (REPO_ROOT / "projects" / "stackchan_meta" / module).read_text("utf-8")
     for word in ("import time", "import datetime", "time.monotonic", "time.time"):

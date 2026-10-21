@@ -328,3 +328,82 @@ def test_a_word_that_is_not_a_string_is_not_counted(empty: object):
     """⚠️ **語の欄に語でないものが来ても、数えない。** 壊れた枠は壊れた枠である。"""
     s = summarize([frame(sound=empty)])
     assert s.frames == 1 and s.sounds == {}
+
+
+# ---------------------------------------------------------------------------
+# 監修の5つの欄（0.19.64、設計 §10.6）——⛔ 知らない計器は正しい行を「壊れた行」にする。
+# ---------------------------------------------------------------------------
+
+
+def test_the_meta_rows_are_counted_and_not_called_unreadable():
+    """⛔ **正しい行が `unreadable` に入れば、計器は「ログが壊れている」と言い始める。**
+
+    2026-10-21 に実測した: メタの5行を食わせると `unreadable` が5になり、
+    5つの欄を足すと0に戻った（設計 §19.10）。
+    """
+    lines = [
+        line({"meta": "candidate", "kind": "turn-review", "session": "s", "at": 1.0}),
+        line({"meta": "candidate", "kind": "failure-loop", "session": "s", "at": 2.0}),
+        line({"meta": "delivered", "kind": "turn-review", "session": "s", "at": 3.0}),
+        line({"meta": "dropped", "kind": "failure-loop", "why": "budget", "at": 4.0}),
+        line({"meta": "error", "error": "ValueError"}),
+    ]
+    s = summarize(lines)
+
+    assert s.unreadable == 0, "正しい行が壊れた行に数えられている"
+    assert s.meta_candidates == 2
+    assert s.meta_delivered == 1
+    assert s.meta_dropped == 1
+    # ⛔ **残した行が数えられないなら、残した意味が無い**（§10.6）。
+    assert s.meta_errors == 1
+
+
+@pytest.mark.parametrize("why", ["budget", "cooldown", "expired", "superseded"])
+def test_a_dropped_row_is_one_count_whatever_the_reason(why):
+    """⚠️ **`why` の4つを、4つの数にしない。** 名前の欄は16文字である。
+
+    内訳は `jq` で数える——**計器は毎日読むもの、内訳は調べるときに読むもの**（§10.6）。
+    """
+    s = summarize([line({"meta": "dropped", "kind": "turn-review",
+                         "why": why, "at": 1.0})])
+    assert s.meta_dropped == 1
+    assert s.unreadable == 0
+
+
+def test_a_silenced_day_is_not_a_silent_day():
+    """⛔ **候補0は2つの意味を持つ。** 分けるのは起動行の `meta` だけである。
+
+    黙った日（`quiet`）と、黙らされた日（`off`）は、**候補の数では同じ0**である。
+    """
+    silent = summarize([line({"daemon": "listening", "socket": "s", "meta": "quiet"})])
+    silenced = summarize([line({"daemon": "listening", "socket": "s", "meta": "off"})])
+
+    assert silent.meta_off_starts == 0
+    assert silenced.meta_off_starts == 1
+    assert silent.starts == silenced.starts == 1
+    assert silent.meta_candidates == silenced.meta_candidates == 0
+
+
+def test_a_startup_row_without_the_dial_is_not_silenced():
+    """⚠️ **この欄より前の起動行には `meta` が無い。** それを `off` と読まない。"""
+    s = summarize([line({"daemon": "listening", "socket": "s"})])
+    assert s.starts == 1 and s.meta_off_starts == 0 and s.unreadable == 0
+
+
+def test_an_unknown_meta_value_is_still_unreadable():
+    """⚠️ **知らない形は、数えずに捨てない。** 捨てたことを言うために数える。"""
+    s = summarize([line({"meta": "whisper", "at": 1.0})])
+    assert s.unreadable == 1
+    assert s.meta_candidates == 0
+
+
+def test_the_five_names_fit_the_sixteen_character_column():
+    """⚠️ **名前の欄は16文字である。** 数えるものが増えても、桁は動かない。"""
+    s = summarize([])
+    rows = [row for row in render(s).splitlines() if row.startswith("meta ")]
+    assert len(rows) == 5, rows
+    for row in rows:
+        assert len(row[:row.index(str(0))].rstrip()) <= 16, row
+    assert [row[:16].rstrip() for row in rows] == [
+        "meta candidates", "meta delivered", "meta dropped", "meta errors",
+        "meta off starts"]

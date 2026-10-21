@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.33.0 | canonical: tests/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.34.0 | canonical: tests/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**forty-seven files, eight hundred and eighty-seven tests, all green — measured 2026-10-21.**
+**forty-eight files, nine hundred and fifteen tests, all green — measured 2026-10-21.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -238,7 +238,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | **a port that cannot be opened leaves the gesture in the frame** (0.19.15) | `test_stackchan_daemon.py` | the board plays it instead, and the room carries on |
 | **an unanswered probe keeps what the board said, and a swallowed query is asked once more** (0.19.33) | `test_stackchan_daemon.py` | ⛔ **`heard: false` alone cannot tell silence from a merged line** — `ConsoleTask` does not read while a gesture or a sound plays |
 
-**Forty-two more hold the second layer's daemon — the same room, on its own socket (0.19.49):**
+**Forty-eight more hold the second layer's daemon — the same room, on its own socket (0.19.49):**
 
 | the check | where | what it is for |
 |---|---|---|
@@ -508,7 +508,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The log, read back (0.19.28)
 
-**`projects/stackchan/day/` reads the daemon's own log; `test_stackchan_day.py` holds it with twenty-eight claims** — twenty-six functions, one of them parametrized three ways. ⚠️ **The line said seventeen until 0.19.52**, and the file already held twenty — **the same drift the document rules warn about, found while moving the count.**
+**`projects/stackchan/day/` reads the daemon's own log; `test_stackchan_day.py` holds it with thirty-seven claims** — thirty-two functions, two of them parametrized (three ways and four ways). ⚠️ **The line said seventeen until 0.19.52**, and the file already held twenty — **the same drift the document rules warn about, found while moving the count.**
 
 ⚠️ **The log existed before its reader did.** By 05:36 on 2026-10-19 it held **3,852 lines** and **not one of them was unreadable** — ⛔ **and nothing in the repository read it.** A record nobody reads is a file with a timetable in it.
 
@@ -532,6 +532,25 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 ⛔ **Nothing here opens a log file**: the core takes lines. ⇒ **the edge is the only place that opens a path, and the path has no default** — the installed job names the log once, and a second spelling here would be the one that goes stale.
 
 ⚠️ **And the instrument can count a restart without saying why.** The daemon started **eleven** times by 05:37 on 2026-10-19 and wrote **not one line** to stderr. **A restart is not evidence that it crashed — nor that it did not.**
+
+## The third layer — the room, its door, and the day's five new columns (0.19.63–0.19.64)
+
+**Twenty-eight more hold it** — eleven on the room, six on the daemon's second door, nine on the instrument, one on the job and one in the layer's clock-free scan. ⚠️ **What is listed below are the ones with a reason; the rest are the same checks applied to the other rules and the other rows.**
+
+| the check | where | what it is for |
+|---|---|---|
+| one tool call is one `PreToolUse` row, and a run of 25 is evidence on `turn-review` | `test_stackchan_meta_trace.py` | ⛔ **counting `PostToolUse` too doubles both the call and the streak** — measured 1,645 / 1,546 |
+| the vocabulary is closed, and a candidate has no free-text field | `test_stackchan_meta_candidates.py` | ⛔ **a word outside the set cannot be built, and `render` refuses it** — a word added without a drawing rings |
+| the sentence is one line under one prelude | `test_stackchan_meta_render.py` | ⚠️ **`None` becoming text is closed by a missing key raising** |
+| one slot per session, one budget and one cooldown overall, four `why` words | `test_stackchan_meta_budget.py` | ⛔ **`superseded` counts conflicts, not losses — the four sums are not the candidate total** |
+| a closed turn becomes a `candidate` row; the next prompt carries `delivered` and the sentence | `test_stackchan_meta_room.py` | ⛔ **making and handing over are two rows** — or "made but never delivered" cannot be counted |
+| the room takes the clock as `at` and the sink as a value, and has no `try` | `test_stackchan_meta_room.py` | ✅ **the room is pure** — no file, no socket, no import that varies; the edge catches, not the room |
+| a second socket answers, its thread never enters the body's `select`, and a thread-edge exception is one row while the loop continues | `test_stackchan_next_daemon.py` | ⛔ **the body's `handle()` waits for the board (median 890 ms) — a meta question must not queue behind it** |
+| `--meta off` binds no socket, and the startup row names the dial | `test_stackchan_next_daemon.py` | ⚠️ **a silenced day and a silent day are both zero candidates; only the startup row tells them apart** |
+| the five meta rows are counted, and an unknown kind is still `unreadable` | `test_stackchan_day.py` | ⛔ **an instrument that does not know a row calls a correct row broken** |
+| the four `why` words are one column, and `off` is counted only when the dial said so | `test_stackchan_day.py` | ⚠️ **the name column is sixteen characters**, and a row without `meta` is older than this counter |
+
+⛔ **Nothing here delivers.** The reply is written to a client that does not exist yet — **the hook is Phase 4**, and until then the sentence is made, logged as `delivered` and dropped on the floor. ⚠️ **A `delivered` row means the room handed it to the socket, not that anyone read it.**
 
 ## The rule that holds this directory — applied to us
 

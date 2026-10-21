@@ -71,10 +71,30 @@ def test_the_dial_is_written_out_rather_than_left_to_its_default():
 
 
 def test_the_hour_is_not_written_into_the_job():
-    """⛔ **時刻は `quiet.py` に在る。** ジョブが時を名指せば、規則は2箇所になる。"""
-    for token in arguments():
+    """⛔ **時刻は `quiet.py` に在る。** ジョブが時を名指せば、規則は2箇所になる。
+
+    ⚠️ **0.19.64 に、`quiet` は2つの意味を持つ語になった**——静かな時間と、
+    監修のダイヤルである。⇒ **語で数えると、ダイヤルの値に当たる。**
+    **時刻の語だけを名指す**（[[measured-scope-vs-claimed-scope]] の同族）。
+    """
+    args = arguments()
+    for token in args:
         assert "QUIET" not in token
-        assert token not in ("21", "05", "5", "quiet")
+        assert token not in ("21", "05", "5")
+    # ⚠️ **`quiet` が現れてよいのは `--meta` の値としてだけである。**
+    for index, token in enumerate(args):
+        if token == "quiet":
+            assert args[index - 1] == "--meta", args
+
+
+def test_the_meta_dial_is_written_out_rather_than_left_to_its_default():
+    """⚠️ **静かな日と、黙らされた日を、計器が同じ0と言わないように。**
+
+    ⛔ **`off` は「黙る」ではなく「ソケットを開かない」である**（§6）。
+    """
+    args = arguments()
+    assert "--meta" in args
+    assert args[args.index("--meta") + 1] == "quiet"
 
 
 def test_the_job_waits_for_the_board_rather_than_opening_a_wire():
