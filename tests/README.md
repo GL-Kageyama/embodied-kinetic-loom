@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.37.0 | canonical: tests/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.38.0 | canonical: tests/README.md | translated: 2026-10-21 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**forty-nine files, nine hundred and forty tests, all green — measured 2026-10-21.**
+**forty-nine files, nine hundred and forty-seven tests, all green — measured 2026-10-21.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -460,9 +460,9 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ⛔ **What none of them can see is the amplifier.** `sound.cpp` — the AW88298's register table, its reset line on the display's expander, the I2S channel and the four tones — **is compiled by no check**, and no test here opens a device. ⚠️ **The tones are choices, not measurements**, and the only thing that has judged them is one pair of ears: **on 2026-10-18 the board played all four from `bench sound`, and the author heard all four** (`projects/stackchan-firmware/records/2026-10-18-the-voice.md`). ⛔ **That says a sound was made. It says nothing about pitch, loudness, or whether a word suits its transition.**
 
-## The pauses in a spoken line (0.19.66)
+## The pauses in a spoken line (0.19.66–0.19.67)
 
-**`projects/stackchan/voice/render.py` carries the author's numbers — 「言葉の切れ目（。、）にひとはく入れよう」, answered 「2」: 600 ms after 。 and 300 ms after 、 — and `test_stackchan_voice.py` holds them with sixteen claims.**
+**`projects/stackchan/voice/render.py` carries the author's numbers — 「言葉の切れ目（。、）にひとはく入れよう」, answered 「2」: 600 ms after 。 and 300 ms after 、 — and `test_stackchan_voice.py` holds them with **twenty-three** claims.**
 
 ⚠️ **The rule lives in `PAUSE_MS` and nowhere else** — the tool that bakes fragments and the edge that synthesizes at run time both read it. The ones that carry a reason:
 
@@ -475,8 +475,13 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | `spoken()` renders 「。」 as `[[slnc 600]]` and 「、」 as `[[slnc 300]]`, and leaves the text alone | the rule is visible in one string, so a wrong number is a wrong number here |
 | `gap_frames` at 24 kHz is 14,400 frames for 600 ms and 7,200 for 300 ms, floored | ⛔ **the board takes frames, not milliseconds** — one frame is 1/24000 s |
 | a negative pause and a rate of zero are refused | **a silence that cannot be built is the reader's mistake**, not another silence |
+| the pitch is the author's number, written before the text, sign kept | ⛔ **`+3` and `-3` must not collapse** — `pbas` accepts an unsigned number, and that is exactly how a direction goes missing (0.19.67) |
+| the ends of a piece are cut and the middle is not | ⛔ **silence inside a piece is the space between words**; only the ends belong to the rule (0.19.67) |
+| a piece quieter than the threshold becomes empty | ⚠️ **a silent piece is not a pause** (0.19.67) |
+| the join puts exactly 14,400 zero frames where the rule says 600 ms | ⛔ **and a missing pause is refused, not filled with zero** — *no pause* is the absence of a rule, not its default (0.19.67) |
 
-⛔ **What none of them can see is the seam.** The numbers in §22.3 — **243.8 / 286.7 ms bare, 816.3 / 387.4 ms with the rule laid on top, 622.5 / 331.5 ms as built** — come from `検証/voice_pauses.py`, which counts runs below an amplitude threshold in a WAV; ⚠️ **this suite checks the rule's arithmetic, not the waveform it produces**, and the residual **+22–32 ms** is not something these tests would notice.
+⛔ **What none of them can see is the seam.** The numbers in §22.3 — **243.8 / 286.7 ms bare, 816.3 / 387.4 ms with the rule laid on top, 600.0 / 300.0 ms as built** — come from `検証/voice_pauses.py`, which counts runs below an amplitude threshold in a WAV; ⚠️ **this suite checks the rule's arithmetic, not the waveform it produces.**
+⛔ **And it cannot see the defect that mattered here:** 0.19.66 shipped the *overlay* path while the design had selected the per-segment one, and every test stayed green — because the tests checked what the rule said and nothing checked **which construction the edge used**. The seam was found by measuring the file the edge produced (**811.8 / 384.1 ms** against a rule of 600 / 300). ⚠️ **The instrument and the builder must cut at the same threshold**; the prototype's +22–32 ms was that difference, not the voice.
 
 ## The question the host asks the board (0.19.23)
 

@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from projects.stackchan.voice import render
-from projects.stackchan.voice.render import PAUSE_MS, gap_frames, segments, spoken
+from projects.stackchan.voice.render import PITCH, PAUSE_MS, gap_frames, pitched, segments, spoken
 
 
 # ---------------------------------------------------------------------------
@@ -113,3 +113,60 @@ def test_a_negative_pause_is_named():
 def test_a_zero_rate_is_named():
     with pytest.raises(ValueError):
         gap_frames(600, 0)
+
+
+# ---------------------------------------------------------------------------
+# 声の高さ。⚠️ **著者の言葉は「もうちょっと可愛らしい声で喋って」である。**
+# ---------------------------------------------------------------------------
+
+
+def test_the_pitch_is_the_author_s_choice():
+    """⚠️ **+6 は著者の耳が選ぶまでの値である。** 実測で F0 218 → 276 Hz。"""
+    assert PITCH == 6
+
+
+def test_the_pitch_is_written_before_the_text():
+    """⛔ **`say` の命令であり、SSML ではない。** 綴りが違えば記号のまま読まれる。"""
+    assert pitched("終わりました。", 6) == "[[pbas +6]]終わりました。"
+
+
+def test_the_pitch_keeps_its_sign():
+    """⚠️ **負の高さも書ける形にしておく**——符号を落とすと、+3 と -3 が同じ文字列になる。"""
+    assert pitched("あ", -3) == "[[pbas -3]]あ"
+    assert pitched("あ", 3) == "[[pbas +3]]あ"
+
+
+# ---------------------------------------------------------------------------
+# つなぎ。⛔ **`say` に間を任せない**——設計 §22.3 が選んだ形はこちらである。
+# ---------------------------------------------------------------------------
+
+
+def test_the_ends_are_cut_and_the_middle_is_not():
+    """⛔ **中の無音は語と語の間である。** 切るのは端だけ。"""
+    from projects.stackchan.voice.wav import trim
+
+    assert trim([0, 5, 900, 0, 0, 900, 5, 0]) == [900, 0, 0, 900]
+
+
+def test_a_quiet_piece_is_empty():
+    """⚠️ **閾値より静かな断片は、空になる**——無音を「間」として数えないため。"""
+    from projects.stackchan.voice.wav import trim
+
+    assert trim([0, 100, -199]) == []
+
+
+def test_the_join_puts_exactly_the_rule_s_between_the_pieces():
+    from projects.stackchan.voice.wav import join
+
+    out = join([[1, 2], [3]], [600, 0], 24000)
+    assert out[:2] == [1, 2]
+    assert out[2:2 + 14400] == [0] * 14400
+    assert out[-1] == 3
+
+
+def test_a_missing_pause_is_named():
+    """⛔ **足りない間を 0 で埋めない**——「間なし」は規則の不在であって、既定ではない。"""
+    from projects.stackchan.voice.wav import join
+
+    with pytest.raises(ValueError):
+        join([[1]], [], 24000)

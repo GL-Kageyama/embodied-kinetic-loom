@@ -24,6 +24,23 @@ from __future__ import annotations
 #: ⚠️ **著者の裁定の数（2026-10-21）。** ここ以外に書かない。
 PAUSE_MS: dict[str, int] = {"。": 600, "、": 300}
 
+#: ⚠️ **声そのものの2つの設定も、ここに在る。** 著者の言葉——「もうちょっと可愛らしい声で喋って」
+#: （2026-10-21）。**`pbas` は `say` の命令であり、単位はセミトーンではない**——実測で
+#: **+6 が F0 218 → 276 Hz**（`検証/f0.py`）。⛔ **数を上げすぎれば、可愛さではなく機械になる。**
+PITCH = 6
+#: ⚠️ **声は1つに決めていない。** Kyoko は著者の耳が決めるまでの仮である。
+VOICE = "Kyoko"
+
+
+def pitched(text: str, pitch: int = PITCH) -> str:
+    """**`say` に渡す本文の頭に、声の高さを置く。**
+
+    ⛔ **`say` の命令であり、SSML ではない。** 綴りを変えれば、記号のまま読み上げられる。
+    ⚠️ **符号を必ず付ける**（`+6`・`-3`）——`pbas` は符号なしでも動くが、
+    **負の数と紛れない形にしておく。**
+    """
+    return f"[[pbas {pitch:+d}]]{text}"
+
 
 def segments(text: str) -> list[tuple[str, int]]:
     """**切れ目で割り、後ろに置く無音の長さ（ms）を添える。**
@@ -74,4 +91,4 @@ def gap_frames(pause_ms: int, rate: int) -> int:
     return rate * pause_ms // 1000
 
 
-__all__ = ["PAUSE_MS", "segments", "spoken", "gap_frames"]
+__all__ = ["PAUSE_MS", "PITCH", "VOICE", "segments", "spoken", "pitched", "gap_frames"]

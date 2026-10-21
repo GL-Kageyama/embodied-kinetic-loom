@@ -6,6 +6,8 @@
 """
 from __future__ import annotations
 
-from .render import PAUSE_MS, gap_frames, segments, spoken
+from .render import PITCH, VOICE, PAUSE_MS, gap_frames, pitched, segments, spoken
+from .wav import SILENCE, join, trim
 
-__all__ = ["PAUSE_MS", "gap_frames", "segments", "spoken"]
+__all__ = ["PAUSE_MS", "PITCH", "VOICE", "gap_frames", "pitched", "segments", "spoken",
+           "SILENCE", "join", "trim"]

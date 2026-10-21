@@ -3,8 +3,12 @@
 
 `python3 -m projects.stackchan.voice "終わりました。次は、走ります。" --out /tmp/a.wav`
 
-⛔ **間の数は、ここに無い。** `render.spoken()` が `[[slnc N]]` として書き込み、
-`render.PAUSE_MS` が唯一の出どころである（**2つ目の綴りを作らない**）。
+⛔ **規則はここに無い。** 間は `render.PAUSE_MS`、声の高さは `render.PITCH`、
+つなぎ方は `wav.trim` と `wav.join`——**この縁は道具を呼ぶだけで、数を1つも持たない。**
+
+⛔ **1文を1回の `say` に渡さない。** 渡せば `say` が句読点に自分の間を入れ、
+**規則がその上に乗って二重になる**（実測で 600 のつもりが 816.3 ms）。
+⇒ **断片ごとに合成し、端を切り、規則どおりの無音でつなぐ**（設計 §22.3 の3行目）。
 
 ⚠️ **`say` と `afconvert` は macOS のものである。** ここが縁である理由——
 **規則は音を持たず、音を作るのは縁だけ**（`projects/**/__main__.py` は決定論の走査から除かれる）。
@@ -18,42 +22,69 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import wave
 
-from .render import spoken
+from .render import PITCH, VOICE, pitched, segments
+from .wav import join, trim
 
-#: ⚠️ **声は1つに決めていない。** 既定は Kyoko——**著者の耳が決めるまで、これは仮である。**
-DEFAULT_VOICE = "Kyoko"
 #: ⚠️ **基板の標本化周波数に合わせる**（`board.h` の `kAudioSampleRate`）。
 RATE = 24000
+
+
+def _say(text: str, voice: str, pitch: int, into: pathlib.Path) -> list[int]:
+    """**1つの断片を合成し、端を切った標本を返す。** ⛔ 失敗は例外である——無音で埋めない。"""
+    aiff = into.with_suffix(".aiff")
+    wav = into.with_suffix(".wav")
+    said = subprocess.run(
+        ["say", "-v", voice, "-o", str(aiff), pitched(text, pitch)],
+        capture_output=True, text=True,
+    )
+    if said.returncode != 0:
+        raise RuntimeError(f"say failed: {said.stderr.strip()}")
+    converted = subprocess.run(
+        ["afconvert", "-f", "WAVE", "-d", f"LEI16@{RATE}", "-c", "1",
+         str(aiff), str(wav)],
+        capture_output=True, text=True,
+    )
+    if converted.returncode != 0:
+        raise RuntimeError(f"afconvert failed: {converted.stderr.strip()}")
+    with wave.open(str(wav)) as w:
+        data = w.readframes(w.getnframes())
+    return trim([
+        int.from_bytes(data[i:i + 2], "little", signed=True)
+        for i in range(0, len(data) - 1, 2)
+    ])
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="projects.stackchan.voice")
     parser.add_argument("text", help="読み上げる文（日本語）")
     parser.add_argument("--out", required=True, help="書き出す .wav のパス")
-    parser.add_argument("--voice", default=DEFAULT_VOICE)
+    parser.add_argument("--voice", default=VOICE)
+    parser.add_argument("--pitch", type=int, default=PITCH,
+                        help="声の高さ（say の pbas。⚠️ セミトーンではない）")
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
 
+    pieces = segments(args.text)
     out = pathlib.Path(args.out)
     with tempfile.TemporaryDirectory() as tmp:
-        aiff = pathlib.Path(tmp) / "voice.aiff"
-        said = subprocess.run(
-            ["say", "-v", args.voice, "-o", str(aiff), spoken(args.text)],
-            capture_output=True,
-            text=True,
-        )
-        if said.returncode != 0:
-            sys.stderr.write(f"say failed: {said.stderr}\n")
-            return 1
-        converted = subprocess.run(
-            ["afconvert", "-f", "WAVE", "-d", f"LEI16@{RATE}", "-c", "1",
-             str(aiff), str(out)],
-            capture_output=True,
-            text=True,
-        )
-        if converted.returncode != 0:
-            sys.stderr.write(f"afconvert failed: {converted.stderr}\n")
-            return 1
+        work = pathlib.Path(tmp)
+        parts = []
+        for i, (piece, _) in enumerate(pieces):
+            try:
+                parts.append(_say(piece, args.voice, args.pitch, work / f"p{i}"))
+            except RuntimeError as error:
+                sys.stderr.write(f"{error}\n")
+                return 1
+        samples = join(parts, [pause for _, pause in pieces], RATE)
+
+    with wave.open(str(out), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(RATE)
+        w.writeframes(b"".join(
+            int(s).to_bytes(2, "little", signed=True) for s in samples
+        ))
     print(out)
     return 0
 
