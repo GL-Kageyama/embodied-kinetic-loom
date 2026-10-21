@@ -7,8 +7,10 @@
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
+#include "wifi_retry.h"
 
 namespace {
 
@@ -16,6 +18,27 @@ namespace {
 //    does with them is print them — nothing is routed, and no line is read
 //    back over the radio.
 bool g_started = false;
+
+// ⛔ **2026-10-21、切れた接続は切れたままでいた。** このファイルは
+//    `WIFI_EVENT_STA_START` で一度だけ `esp_wifi_connect()` を呼び、以後
+//    `WIFI_EVENT_STA_DISCONNECTED` は理由を印刷して返っていた。その日、板は
+//    電源が入って `bench pos` に答え、画面は暗く、`not associated, no ip` のまま
+//    12 分そこにいた——dial は 18 回、接続は 0。
+//    ⇒ **切れた状態は、この体が留まってよい状態ではない。**
+//
+// ⚠️ The retry waits, and the wait is `wifi_retry`'s rule, not a number here.
+//    The wake is a binary semaphore given by the disconnect handler; the task
+//    sleeps in slices so that an association that lands early ends the wait
+//    instead of sitting out the whole backoff.
+SemaphoreHandle_t g_dropped = nullptr;
+volatile bool g_have_ip = false;
+volatile uint32_t g_retries = 0;   // attempts since boot
+volatile int g_last_reason = 0;    // the reason the last drop carried
+
+//: The granularity at which the wait can be cut short. ⚠️ Chosen, not measured:
+//: small enough that an association is noticed within a blink of the delay it
+//: incurred, large enough that the loop is not a scheduler exercise.
+constexpr uint32_t kSliceMs = 250;
 
 // The SSID the driver is holding, if any. Kept because `report()` has to answer
 // with a name, and `esp_wifi_get_config` copies it out each time anyway.
@@ -49,9 +72,6 @@ void OnWifi(void*, esp_event_base_t base, int32_t id, void* data) {
     return;
   }
   if (id == WIFI_EVENT_STA_START) {
-    // ⚠️ One attempt, and no retry loop. A probe that retried would print a
-    //    line every few seconds and bury the first reason, which is the one
-    //    worth reading.
     esp_wifi_connect();
   } else if (id == WIFI_EVENT_STA_CONNECTED) {
     printf("wifi: associated — waiting for an address\n");
@@ -59,8 +79,52 @@ void OnWifi(void*, esp_event_base_t base, int32_t id, void* data) {
     const auto* e = static_cast<const wifi_event_sta_disconnected_t*>(data);
     // ⛔ Only the number and the name. The frame that carried the reason can
     //    carry an SSID, and an SSID is not a secret but a neighbour's is.
+    // ⚠️ A disconnect is also what `bench wifi join` causes, on purpose. The
+    //    line is printed either way, because a line that only appears for
+    //    unintended drops cannot be read to tell the two apart.
     printf("wifi: not connected — reason %d (%s)\n", e->reason,
            ReasonName(e->reason));
+    // ⛔ This line is the fix of 2026-10-21. The reason is printed here, the
+    //    retry happens there — so the first reason is the first thing on the
+    //    console and stays there, and the retries ration their own lines.
+    g_have_ip = false;
+    g_last_reason = e->reason;
+    if (g_dropped != nullptr) {
+      xSemaphoreGive(g_dropped);
+    }
+  }
+}
+
+// The one thing this body does about a drop.
+void RetryTask(void*) {
+  for (;;) {
+    if (xSemaphoreTake(g_dropped, portMAX_DELAY) != pdTRUE) {
+      continue;
+    }
+    uint32_t waited = wifi_retry::kMinMs;
+    uint32_t attempt = 0;
+    while (!g_have_ip) {
+      for (uint32_t slept = 0; slept < waited && !g_have_ip; slept += kSliceMs) {
+        vTaskDelay(pdMS_TO_TICKS(kSliceMs));
+      }
+      if (g_have_ip) {
+        break;
+      }
+      ++attempt;
+      // ⚠️ Not `++`: `g_retries` is volatile so the task and `report()` see the
+      //    same number, and the compiler warns on a volatile increment.
+      g_retries = g_retries + 1;
+      if (wifi_retry::worth_printing(attempt)) {
+        printf("wifi: asking again — attempt %u, waited %u ms\n",
+               static_cast<unsigned>(attempt), static_cast<unsigned>(waited));
+      }
+      esp_wifi_connect();
+      waited = wifi_retry::next(waited);
+    }
+    if (attempt > 0) {
+      printf("wifi: associated after %u attempt(s)\n",
+             static_cast<unsigned>(attempt));
+    }
   }
 }
 
@@ -80,6 +144,9 @@ void OnGotIp(void*, esp_event_base_t, int32_t, void* data) {
     printf("wifi: got an address, but the event carried none\n");
     return;
   }
+  // ⚠️ Set before the line, so the retry task stops waiting on the fact and
+  //    not on the printing — a console that blocks must not hold a retry open.
+  g_have_ip = true;
   char address[16] = {0};
   esp_ip4addr_ntoa(&got->ip_info.ip, address, sizeof(address));
   printf("wifi: connected ip=%s\n", address);
@@ -117,6 +184,17 @@ void wifi_probe::begin() {
 
   esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &OnWifi, nullptr);
   esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &OnGotIp, nullptr);
+
+  // ⚠️ The semaphore and the task exist before `esp_wifi_start()`, because the
+  //    first disconnect can follow the start within a second and a handler
+  //    that finds `g_dropped` null would drop a wake on the floor.
+  g_dropped = xSemaphoreCreateBinary();
+  if (g_dropped == nullptr) {
+    printf("wifi: no retry task — a drop will not be retried\n");
+  } else if (xTaskCreate(&RetryTask, "wifi_retry", 3072, nullptr, 4, nullptr) !=
+             pdPASS) {
+    printf("wifi: the retry task did not start — a drop will not be retried\n");
+  }
 
   esp_wifi_set_mode(WIFI_MODE_STA);
   // ⚠️ Anything `join` writes goes to NVS, so it survives the reset that this
@@ -323,6 +401,16 @@ void wifi_probe::report() {
          associated ? "associated" : "not associated", has_ip ? address : "no ip");
   if (associated) {
     printf("wifi:   ch %u rssi %d\n", static_cast<unsigned>(ap.primary), ap.rssi);
+  }
+  // ⛔ Zero here is not "the radio is healthy" — it is "nothing has dropped
+  //    since boot". A board that was off the network for a day and never
+  //    retried also reads zero, which is why the count is only worth reading
+  //    beside the association above.
+  if (g_retries != 0) {
+    printf("wifi:   %u retr%s since boot, last drop reason %d (%s)\n",
+           static_cast<unsigned>(g_retries),
+           g_retries == 1 ? "y" : "ies", g_last_reason,
+           ReasonName(g_last_reason));
   }
 
   // ⚠️ The margin, in bytes, of the task that runs every handler here. The

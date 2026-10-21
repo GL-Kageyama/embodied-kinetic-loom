@@ -334,6 +334,16 @@ reset: reason <n> (<name>)        the boot banner's new line
 
 ⚠️ **The cost is 517,808 bytes** — 357,520 before the radio, 875,328 after. The whole Wi-Fi stack (`esp_wifi`, `lwip`, `wpa_supplicant`, `mbedtls`) links in the first time any code names it. The app partition is 5.1 MB and 83 % of it is still free.
 
+### A drop is asked for again — 0.19.73
+
+⛔ **Until 2026-10-21 the station connected once** — at `WIFI_EVENT_STA_START` — **and the `WIFI_EVENT_STA_DISCONNECTED` branch printed its reason and returned.** A dropped association was never re-made. Measured that day: the board was powered and answering (`bench pos` gave yaw 492, pitch 773, and the console printed `alive`), its screen was dark, and it sat **`not associated, no ip`** while the dial task tried **18 times and connected 0**.
+
+⇒ **The disconnect branch now clears `g_have_ip` and gives a binary semaphore, and a `wifi_retry` task asks again** — after `wifi_retry::kMinMs` (**2,000 ms**), doubling to `wifi_retry::kMaxMs` (**30,000 ms**). ⚠️ **Both numbers are chosen, not measured**: the fault was a day, not a curve. The task sleeps in 250 ms slices, so an association that lands early ends the wait instead of sitting out the backoff, and ⛔ **the doubling is clamped before it multiplies** — a wrap near `UINT32_MAX` would be a retry every two seconds, which is the busy loop the wait exists to avoid.
+
+⛔ **The reason stays the first line on the console.** The handler prints it and does not repeat it; the retry prints its **first three attempts and then every tenth**, so a night off the network is tens of lines and not thousands. `bench wifi` adds the attempts since boot beside the association — ⛔ **zero there is *nothing has dropped*, not *the radio is healthy*.**
+
+The rule lives in `main/wifi_retry.h` / `.cpp`, which take no IDF header and are compiled on the host by `tests/test_stackchan_wifi_retry.py` — **thirty-three checks: twenty-six on the rule, seven reading this file's wiring**. ⛔ **Nothing here has observed a reconnection**: that needs the network turned off and a wait, and by hand. ⛔ **And the image has not been written to the board yet** — the unit still runs the previous build until it is flashed.
+
 ## The dial — 2026-10-21
 
 ✅ **`main/dial.cpp` makes the board open the connection.** The proven direction was outward and only outward — the Mac could never speak first — so the body's second wire is a socket the board dials, not one it listens on.

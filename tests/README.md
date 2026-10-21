@@ -4,7 +4,7 @@
 
 # tests/
 
-**fifty-two files, one thousand and fifty-five tests, all green — measured 2026-10-21.**
+**fifty-three files, one thousand and eighty-eight tests, all green — measured 2026-10-21.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -376,6 +376,28 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | a line that is not `bench …` at all is not the console's | `test_stackchan_dial_policy.py` | the rule is about one namespace of command, not about refusing traffic |
 
 ⛔ **It does not test the link.** It compiles a pure function and asks it about strings; whether a socket opens, whether the board dials at boot, and whether one mutex is enough for two writers are all measured by hand or by nothing — **`main.cpp` is compiled by no check.**
+
+## A drop is asked for again (0.19.73)
+
+⛔ **Why it exists.** Until 2026-10-21 `main/wifi.cpp` connected once — at `WIFI_EVENT_STA_START` — and the `WIFI_EVENT_STA_DISCONNECTED` branch printed its reason and returned. **A dropped association was never re-made.** Measured that day: the board was powered and answering (`bench pos` gave yaw 492, pitch 773, and the console printed `alive`), its screen was dark, and it sat `not associated, no ip` while the dial task tried **18 times and connected 0**.
+
+✅ **`tests/test_stackchan_wifi_retry.py` compiles `projects/stackchan-firmware/main/wifi_retry.cpp` with `clang++` or `g++` and runs it** — thirty-three checks, **twenty-six on a compiled rule and seven reading the source**. It skips the compiled half when no C++ compiler is on the host, and says so rather than passing.
+
+| the check | where | what it is for |
+|---|---|---|
+| the wait doubles from 2,000 ms and never passes 30,000 ms | `test_stackchan_wifi_retry.py` | ⚠️ **both numbers are chosen, not measured** — the fault was a day, not a curve |
+| the cap is applied **before** the doubling | `test_stackchan_wifi_retry.py` | ⛔ `waited_ms * 2` near `UINT32_MAX` wraps, and a wrap is a retry every two seconds — the busy loop the wait exists to avoid |
+| a wait under 2,000 ms is lifted, not doubled | `test_stackchan_wifi_retry.py` | a hole under the curve would be an exception nobody wrote down |
+| a hundred steps never decrease and never exceed the cap | `test_stackchan_wifi_retry.py` | the curve and the floor are one sequence, not two claims |
+| the first three attempts print, then every tenth | `test_stackchan_wifi_retry.py` | ⛔ **the reason the handler prints stays the first line on the console** |
+| zero is not an attempt | `test_stackchan_wifi_retry.py` | `0 % 10 == 0` would print a line for a retry that did not happen |
+| the disconnect branch prints the reason, clears the flag and gives the semaphore | `test_stackchan_wifi_retry.py` (source) | ⛔ **this is the fix itself** |
+| the retry task calls `esp_wifi_connect()` and names `wifi_retry`'s numbers | `test_stackchan_wifi_retry.py` (source) | the wait is the header's, not a literal in the task |
+| the semaphore and the task exist before `esp_wifi_start()` | `test_stackchan_wifi_retry.py` (source) | ⛔ the first drop can follow the start within a second, and a null semaphore drops the wake on the floor |
+| the address handler sets the flag before it prints | `test_stackchan_wifi_retry.py` (source) | ⚠️ a console that blocks must not hold a retry open |
+| the comment *one attempt, and no retry loop* is gone | `test_stackchan_wifi_retry.py` (source) | ⛔ **the comment named the defect as a rule** — that sentence was the 2026-10-21 fault written down |
+
+⛔ **It does not build `wifi.cpp`, and nothing here watches a reconnection.** The wiring rows read the source; the rule rows compile a file with no IDF in it. **Whether this body rejoins a network after a drop is measured by turning the network off and waiting, and that has not been done** — on the day it was written, the defect was a reading of the source and the fix was unobserved.
 
 ## The link the board opens (0.19.61)
 
