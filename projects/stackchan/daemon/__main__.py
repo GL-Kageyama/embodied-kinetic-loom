@@ -37,6 +37,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime
 import errno
 import json
@@ -46,6 +47,7 @@ import select
 import signal
 import socket
 import sys
+import threading
 import time
 from dataclasses import replace
 
@@ -73,6 +75,12 @@ EXIT_ALREADY_RUNNING = 3
 
 #: ⚠️ **続きを読む単位である。** 数は意味を持たない。
 RECV = 1024
+
+#: **音声の塊1つを、書き切るまでの上限（秒）。** ⚠️ **`PORT_WAIT` でも `LINK_WAIT` でもない**
+#: ——あの2つは**答えを待つ**窓であり、こちらは**書く**窓である。4096 バイトは
+#: 24 kHz で 85 ms の音であり、実測の回線（40,000〜133,000 B/s）なら 31〜102 ms で
+#: 書き切れる。⛔ **上限が無ければ、詰まった回線が声の糸を永久に止める。**
+SEND_WAIT = 0.75
 
 
 def default_socket() -> str:
@@ -218,6 +226,12 @@ class Link:
         self.address = f"{host}:{self._listener.getsockname()[1]}"
         self._connection: socket.socket | None = None
         self.peer: str | None = None
+        #: ⛔ **書き手は2人になった（2026-10-21）。** 枠と姿勢は `serve` の糸、
+        #: 声は別の糸である——**2人が同じ回線へ書けば、塊の真ん中に枠の行が入る。**
+        self._writing = threading.Lock()
+        #: ⚠️ **塊の途中で書けなくなった。** 回線の上では、続きのバイトはもう
+        #: **頭ではない**——ゆえにこの接続は捨てるしかない（`broken` を読むのは `serve`）。
+        self._broken = False
 
     @property
     def listener(self) -> socket.socket:
@@ -237,7 +251,67 @@ class Link:
                 pass
         self._connection = connection
         self.peer = f"{address[0]}:{address[1]}"
+        # ⚠️ **新しい回線は、頭から始まる。** 前の回線の壊れを持ち越さない。
+        self._broken = False
         return self.peer
+
+    @property
+    def writing(self) -> threading.Lock:
+        """**この回線へ書く権利。** ⚠️ **枠・姿勢・声が、同じ1つの錠を使う。**"""
+        return self._writing
+
+    @property
+    def broken(self) -> bool:
+        """**塊の途中で書けなくなったか。** ⛔ **読むのは `serve` である**——下の理由。"""
+        return self._broken
+
+    def send(self, payload: bytes, wait: float = SEND_WAIT) -> bool:
+        """**回線へ、そのままのバイト列を送る。** ⛔ **行ではない。**
+
+        ⚠️ **音声の塊は行ではない**——`audio <n>` の頭のあとの n バイトは生の標本で
+        あり、**その中の 0x0A は改行ではない**（`audio_line.h`）。ゆえにここは
+        行を組まず、`pcm.blocks` が組んだ1つの塊を**そのまま**書く。
+
+        ⛔ **途中で諦めたら、この接続は捨てる。** 塊の残りを送らなければ、基板は
+        次の頭のバイトを**前の塊の続き**として食う——**頭と標本の境目がずれた回線は、
+        もう戻らない。** ⇒ **ここでは閉じない**（閉じるのは `serve` の糸であり、
+        2つの糸が同じ fd を閉じれば、**番号が再利用されて別のファイルへ書く**）。
+        ここは `_broken` を立てるだけである。
+
+        ⚠️ **書き切るまでの上限は `SEND_WAIT`。** 4096 バイトは 24 kHz で 85 ms であり、
+        実測の回線（40,000〜133,000 B/s）なら 31〜102 ms で書き切れる。
+        ⛔ **上限が無ければ、詰まった回線が声の糸を永久に止める。**
+        """
+        with self._writing:
+            if self._connection is None:
+                return False
+            deadline = time.monotonic() + wait
+            sent = 0
+            while sent < len(payload):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0.0:
+                    self._broken = True
+                    return False
+                try:
+                    written = self._connection.send(payload[sent:])
+                except BlockingIOError:
+                    written = 0
+                except OSError:
+                    self._broken = True
+                    return False
+                if written:
+                    sent += written
+                    continue
+                try:
+                    _, writable, _ = select.select(
+                        [], [self._connection], [], remaining)
+                except (OSError, ValueError):
+                    self._broken = True
+                    return False
+                if not writable:
+                    self._broken = True
+                    return False
+            return True
 
     def fd(self) -> int | None:
         """**いま繋がっている接続の fd。** ⛔ **無ければ `None`**——閉じた番号を返さない。"""
@@ -262,6 +336,8 @@ class Link:
             return False
 
     def drop(self) -> None:
+        # ⚠️ **捨てた回線の壊れは、次の回線のものではない。**
+        self._broken = False
         if self._connection is not None:
             try:
                 self._connection.close()
@@ -308,7 +384,10 @@ def send_frame_and_read(
         if fd is None:
             # ⛔ **開けないのではなく、まだ誰も dial していない。**
             return False, None, "nobody"
-        return _frame_on_fd(fd, line, LINK_WAIT)
+        # ⚠️ **1行を書くあいだだけ錠を取る。** ⛔ **答えを待つあいだは取らない**
+        #    ——`LINK_WAIT`（1.5 秒）を錠で持てば、**声が1.5秒ずつ止まる。**
+        #    読みと書きは別の向きなので、答えを読むのに錠は要らない。
+        return _frame_on_fd(fd, line, LINK_WAIT, lock=source.writing)
     try:
         fd = os.open(source, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK | os.O_APPEND)
     except OSError as error:
@@ -322,8 +401,9 @@ def send_frame_and_read(
             pass
 
 
-def _frame_on_fd(fd: int, line: str,
-                wait: float | None = None) -> tuple[bool, bool | None, str | None]:
+def _frame_on_fd(fd: int, line: str, wait: float | None = None,
+                 lock: threading.Lock | None = None
+                 ) -> tuple[bool, bool | None, str | None]:
     """**開いた fd の上で、枠を1行書いて答えるを読む。** ⛔ **ここでは閉じない。**
 
     ⚠️ **`wait` は、答えを待つ上限である。** 渡さなければ `PORT_WAIT`（有線で測った値）。
@@ -341,12 +421,15 @@ def _frame_on_fd(fd: int, line: str,
             except (BlockingIOError, OSError):
                 break
     payload = line.encode("ascii")
-    try:
-        if os.write(fd, payload) != len(payload):
-            # ⚠️ **端末が受け取りきらなかった。** 数ではなく、そのまま名指しする。
-            return False, None, "short"
-    except OSError as error:
-        return False, None, errno_name(error)
+    # ⚠️ **`lock` は、同じ回線へ別の糸が書くときだけ渡る**（声）。渡らなければ
+    #    `nullcontext` であり、端末への1行は今までと1バイトも変わらない。
+    with (lock if lock is not None else contextlib.nullcontext()):
+        try:
+            if os.write(fd, payload) != len(payload):
+                # ⚠️ **端末が受け取りきらなかった。** 数ではなく、そのまま名指しする。
+                return False, None, "short"
+        except OSError as error:
+            return False, None, errno_name(error)
     try:
         os.lseek(fd, 0, os.SEEK_SET)
     except OSError:
@@ -477,6 +560,10 @@ class Neck:
         #    （身振りの終わりに閉じる）。⛔ **`Link` の fd は `Link` のものである**
         #    ——ここで閉じれば、**1つの身振りが、基板との接続そのものを畳む。**
         self._fd_owned = True
+        #: ⚠️ **リンクの上では、声の糸が同じ回線へ書く**（2026-10-21）。
+        #: ⇒ **姿勢の行も、声と同じ錠を取る**——さもなければ、**塊の真ん中に
+        #: 姿勢の1行が入る。** ⛔ **道（tty）では錠は無い**（書き手は1人である）。
+        self._lock: threading.Lock | None = None
         # ⚠️ **問いに答えるまでの上限も、行き先で変わる。** ⛔ **有線で測った
         #    0.5 秒は、リンクの上の基板には短い**（2026-10-21: +0.861 秒を測った）。
         self._probe_wait = PORT_WAIT
@@ -512,6 +599,7 @@ class Neck:
                 return False
             self._fd = fd
             self._fd_owned = False
+            self._lock = self.port.writing
             self._probe_wait = LINK_WAIT
             self._verdict_wait = LINK_VERDICT_WAIT
         else:
@@ -547,6 +635,9 @@ class Neck:
                     pass
             self._fd = None
         self._fd_owned = True
+        # ⚠️ **錠は回線のものである。** 離した後に持ち続ければ、次の身振りが
+        #    **もう繋がっていない回線の錠**を取ることになる。
+        self._lock = None
         # ⚠️ **閉じたら、待っていた判定も捨てる**——次の身振りの始点に混ぜない。
         self._verdict_at = None
         self._verdict_next = 0.0
@@ -555,6 +646,16 @@ class Neck:
 
     def _write_to(self, fd: int, payload: bytes) -> bool:
         """**その fd へ1行。** ⛔ **待ちには上限がある。**
+
+        ⚠️ **リンクの上では、声の糸と同じ錠を取る**（`_lock`）。**行は1つずつ、
+        塊の外へ出る**——半分だけ書いて声に割り込まれれば、基板は行の続きを
+        音声として食う。
+        """
+        with (self._lock if self._lock is not None else contextlib.nullcontext()):
+            return self._write_lines(fd, payload)
+
+    def _write_lines(self, fd: int, payload: bytes) -> bool:
+        """**錠を持ったまま、1行を書き切る。**
 
         ⚠️ **短く書けた行は、続きを書く。** それでも `PORT_WAIT` を越えたら
         失敗である——**読まない端末を、行の列で埋めない。**
@@ -1008,6 +1109,12 @@ def serve(room: Room, outbound: Outbound, listener: socket.socket, wake: int,
         elif link is not None and link.peer is not None and not link.alive():
             # ⛔ **切れたことは、黙って消さない。** 次の身振りは、これを知っている。
             emit({"link": "the board let go", "peer": link.peer})
+            link.drop()
+        elif link is not None and link.broken:
+            # ⛔ **音声の塊を、途中で諦めた。** 続きはもう頭ではない——**回線の上の
+            #    頭と標本の境目はずれており、戻す手は無い。** ⇒ **捨てる。**
+            #    ⚠️ **閉じるのはこの糸だけである**（声の糸は `_broken` を立てるだけ）。
+            emit({"link": "the song broke mid-block", "peer": link.peer})
             link.drop()
 
         now = time.monotonic()

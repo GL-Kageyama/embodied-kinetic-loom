@@ -409,3 +409,147 @@ def test_a_wire_keeps_the_wait_it_was_measured_with(tmp_path):
     assert edge.Neck(None)._probe_wait == edge.PORT_WAIT
     assert edge.Neck(str(port))._verdict_wait == edge.VERDICT_WAIT
     assert edge.Neck(None)._verdict_wait == edge.VERDICT_WAIT
+
+
+# ---------------------------------------------------------------------------
+# 回線へ、行ではないものを書く（声、2026-10-21）。
+# ---------------------------------------------------------------------------
+
+
+class Ears(Board):
+    """**バイトを、そのまま溜める基板。** ⛔ **行に割らない。**
+
+    ⚠️ 音声の塊は行ではない——`audio <n>` のあとの n バイトの中の 0x0A は改行でなく、
+    **行に割る読み方では、塊が1行ずつに砕ける**（`audio_line.h`）。
+    """
+
+    def __init__(self, connection: socket.socket) -> None:
+        super().__init__(connection)
+        self.data = bytearray()
+
+    def run(self) -> None:
+        self.connection.settimeout(WAIT)
+        while not self._done.is_set():
+            try:
+                chunk = self.connection.recv(4096)
+            except OSError:
+                return
+            if not chunk:
+                return
+            self.data += chunk
+
+    def take(self, count: int) -> bytes:
+        """**`count` バイトが届くまで待ち、渡す。** ⚠️ 届かなければ空である。"""
+        deadline = time.monotonic() + WAIT
+        while len(self.data) < count and time.monotonic() < deadline:
+            time.sleep(0.01)
+        got = bytes(self.data[:count])
+        del self.data[:count]
+        return got
+
+
+def test_a_block_goes_down_the_link_byte_for_byte():
+    """⛔ **行ではなく、バイトである。** ⚠️ **1バイトも変えない、1バイトも足さない。**
+
+    ⚠️ **`0x0a` を塊の中に入れてある**——頭のあとの標本の1バイトが改行でありうる
+    ことを、この試験は固定する。**行として書けば、そこで切れる。**
+    """
+    from projects.stackchan.voice import pcm
+
+    link = _link()
+    board = _dial(link, kind=Ears)
+    try:
+        payload = pcm.head(8) + b"\x0a\x00\x0d\xff\x0a\x0a\x0d\x00"
+        assert link.send(payload) is True
+        assert board.take(len(payload)) == payload
+        assert link.broken is False
+    finally:
+        board.stop()
+        link.close()
+
+
+def test_send_with_nobody_on_the_link_is_false_and_not_broken():
+    """⛔ **誰も居ないことは、壊れたことではない。** ⚠️ **2つを混ぜない。**"""
+    link = _link()
+    try:
+        assert link.send(b"audio 2\n\x00\x00") is False
+        assert link.broken is False
+    finally:
+        link.close()
+
+
+def test_a_board_that_let_go_makes_the_next_send_broken():
+    """⛔ **塊の途中で書けなくなったら、その回線は捨てる。**
+
+    ⚠️ **ここでは閉じない**——`broken` を立てるだけである。閉じるのは `serve` の糸で
+    あり、**2つの糸が同じ fd を閉じれば、番号が再利用されて別のファイルへ書く。**
+    """
+    link = _link()
+    board = _dial(link)
+    try:
+        board.stop()  # 向こうから切れる
+        for _ in range(20):
+            if not link.send(b"audio 2\n\x00\x00"):
+                break
+            time.sleep(0.02)
+        assert link.send(b"audio 2\n\x00\x00") is False
+        assert link.broken is True
+    finally:
+        link.close()
+
+
+def test_the_neck_and_the_voice_write_through_one_lock():
+    """⛔ **書き手は2人である。** 錠が別なら、**塊の真ん中に姿勢の1行が入る。**
+
+    ⚠️ **同じ物であることを、`is` で測る**——「どちらも錠を持っている」では、
+    **2つの錠を持っていても通る。**
+    """
+    link = _link()
+    board = _dial(link)
+    try:
+        neck = edge.Neck(link)
+        assert neck._open() is True
+        try:
+            assert neck._lock is link.writing
+        finally:
+            neck._close()
+        # ⚠️ **離した後は持たない。** 次の身振りが、繋がっていない回線の錠を取らない。
+        assert neck._lock is None
+    finally:
+        board.stop()
+        link.close()
+
+
+def test_two_writers_do_not_mix_their_bytes():
+    """⚠️ **1回の `send` は、割り込まれない。** それだけを約束する。
+
+    ⛔ **約束しないこと**: 2つの糸のあいだの順序。**塊と塊のあいだは自由である**——
+    塊はそれぞれ頭を持つので、順序が入れ替われば音が入れ替わるだけで、
+    **頭と標本の境目は動かない。**
+    """
+    link = _link()
+    board = _dial(link, kind=Ears)
+    try:
+        first = b"A" * 256
+        second = b"B" * 256
+        count = 4
+
+        def write(payload: bytes) -> None:
+            for _ in range(count):
+                assert link.send(payload) is True
+
+        threads = [threading.Thread(target=write, args=(first,)),
+                   threading.Thread(target=write, args=(second,))]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=WAIT)
+
+        got = board.take(len(first) * count * 2)
+        assert len(got) == len(first) * count * 2
+        # ⚠️ **256バイトの窓は、どれも1人のものである。**
+        windows = {got[i:i + 256] for i in range(0, len(got), 256)}
+        assert windows == {first, second}, "2人のバイトが混ざった"
+    finally:
+        board.stop()
+        link.close()

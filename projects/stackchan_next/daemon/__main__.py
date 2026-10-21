@@ -69,6 +69,10 @@ from projects.stackchan.daemon.__main__ import (
 from projects.stackchan.daemon.room import BadRequest, refusal, row
 from projects.stackchan.outbound import Outbound
 from projects.stackchan.quiet import is_quiet
+#: ⚠️ **合成は縁のものである**（`subprocess` を輸入してよいのは `__main__.py` だけ）。
+#: ⛔ **鎖をここに書き写さない**——`samples` が唯一の鎖である（`voice/__main__.py`）。
+from projects.stackchan.voice.__main__ import samples
+from projects.stackchan.voice.speaker import Speaker
 
 from projects.stackchan_meta import MetaRoom
 
@@ -196,7 +200,8 @@ def handle(connection: socket.socket, room: NextRoom, outbound: Outbound, neck: 
 
 
 def serve(room: NextRoom, outbound: Outbound, listener: socket.socket, wake: int,
-          neck: Neck, link: Link | None = None) -> None:
+          neck: Neck, link: Link | None = None,
+          speaker: Speaker | None = None, greet: str | None = None) -> None:
     """**ソケットか、次の期限か、基板の dial か、合図まで待つ。** ⛔ **固定の刻みは無い。**
 
     ⚠️ **期限は2つある**——部屋の期限（点滅の期限を含む）と、首の次の姿勢の
@@ -230,9 +235,21 @@ def serve(room: NextRoom, outbound: Outbound, listener: socket.socket, wake: int
                 # ⚠️ **誰が dial してきたかを残す。** ⛔ **初めての接続でなければ、
                 #    前の1本は畳まれている**——体は1つである。
                 emit({"link": "the board dialled in", "peer": peer})
+                # ⚠️ **`--say` は計器である**（2026-10-21）。回線が開いたことを
+                #    耳で確かめるために、1文だけ言う。⛔ **候補の道ではない**——
+                #    候補を言うかどうかは §17.4 (c) の裁定であり、
+                #    **文を作るのが誰かはまだ決まっていない**（§22.2）。
+                if speaker is not None and greet is not None:
+                    speaker.say(greet)
         elif link is not None and link.peer is not None and not link.alive():
             # ⛔ **切れたことは、黙って消さない。** 次の身振りは、これを知っている。
             emit({"link": "the board let go", "peer": link.peer})
+            link.drop()
+        elif link is not None and link.broken:
+            # ⛔ **音声の塊を、途中で諦めた。** 続きはもう頭ではない——**回線の上の
+            #    頭と標本の境目はずれており、戻す手は無い。** ⇒ **捨てる。**
+            #    ⚠️ **閉じるのはこの糸だけである**（声の糸は `_broken` を立てるだけ）。
+            emit({"link": "the song broke mid-block", "peer": link.peer})
             link.drop()
 
         now = time.monotonic()
@@ -328,6 +345,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--meta-socket", default=None, metavar="PATH",
                         help="the meta Unix socket to bind "
                              "(default: /tmp/ekl-stackchan-meta-<uid>.sock)")
+    parser.add_argument("--say", default=None, metavar="TEXT",
+                        help="say this one sentence when the board dials in "
+                             "(an instrument for the voice path, not the candidate "
+                             "path; needs --listen)")
     return parser
 
 
@@ -341,6 +362,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.port is not None and args.listen is not None:
         sys.stderr.write("--port and --listen name two ways to the same body; "
                          "choose one\n")
+        return 1
+    # ⛔ **`--say` は回線を要る。** 声は、基板が開いた回線へしか流れない
+    #    （§17.4 の代価の表——Mac から基板へは、33回すべて届かなかった）。
+    #    ⇒ **束縛する前に断る。** 束縛した後で断れば、片付ける道が4つに増える。
+    if args.say is not None and args.listen is None:
+        sys.stderr.write("--say needs --listen: the board dials us\n")
         return 1
     watch: tuple[str, int] | None = None
     if args.listen is not None:
@@ -428,6 +455,10 @@ def main(argv: list[str] | None = None) -> int:
             os.close(wake_w)
             return 1
 
+    speaker = Speaker(link.send, samples, emit=emit) if args.say is not None else None
+    if speaker is not None:
+        speaker.start()
+
     room = NextRoom(presence=args.presence, motion=args.motion == "on",
                     sound=args.sound == "on")
     outbound = Outbound()
@@ -448,8 +479,12 @@ def main(argv: list[str] | None = None) -> int:
         meta_thread.start()
 
     try:
-        serve(room, outbound, listener, wake_r, neck, link)
+        serve(room, outbound, listener, wake_r, neck, link,
+              speaker=speaker, greet=args.say)
     finally:
+        # ⚠️ **声の糸を先に降ろす。** ⛔ **後なら、閉じた回線へ書く糸が残る。**
+        if speaker is not None:
+            speaker.stop()
         if link is not None:
             link.close()
         listener.close()

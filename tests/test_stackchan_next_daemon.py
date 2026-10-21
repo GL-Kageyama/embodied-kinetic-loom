@@ -679,3 +679,103 @@ def test_an_exception_at_the_thread_edge_is_one_row_and_the_loop_waits(sock, cap
         time.sleep(0.02)
 
     assert rows == [{"meta": "error", "error": "ValueError"}], rows
+
+
+# ---------------------------------------------------------------------------
+# 声（2026-10-21）。⛔ **`--say` は計器であり、候補の道ではない。**
+# ---------------------------------------------------------------------------
+
+
+def test_say_without_listen_is_refused_before_anything_is_bound(tmp_path):
+    """⛔ **声は、基板が開いた回線へしか流れない。**
+
+    ⚠️ **Mac から基板へは、33回すべて届かなかった**（2026-10-21 の実測）。
+    ⇒ **`--listen` の無い `--say` は、鳴らない約束である**——束縛する前に断る。
+    """
+    path = tmp_path / "body.sock"
+    code = edge.main(["--socket", str(path), "--say", "これは試験である。"])
+    assert code == 1
+    assert not path.exists(), "断ったのに、ソケットが作られている"
+
+
+def _shut(proc: subprocess.Popen) -> tuple[str, str]:
+    """**必ず終わらせて、出力を返す。** ⛔ **待ちに上限が無いと、試験が止まる。**"""
+    if proc.poll() is None:
+        proc.send_signal(signal.SIGTERM)
+    try:
+        return proc.communicate(timeout=READY_SECONDS)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        return proc.communicate()
+
+
+def _free_port() -> int:
+    """**空いている番号を1つ。** ⚠️ 閉じた番号を渡すので、厳密には競争である。"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
+
+
+@pytest.mark.skipif(
+    __import__("shutil").which("say") is None,
+    reason="say が無い機械では、声そのものを作れない")
+def test_the_board_hears_the_sentence_when_it_dials_in(sock):
+    """**基板が dial すると、頭つきの塊が来る。** ⛔ **これが B の配管の端から端である。**
+
+    ⚠️ **本物の `say` と `afconvert` が走る**（1〜2 秒）。これは計器の試験であり、
+    声の良し悪しは**著者の耳**である（§22.6）。ここで測るのは
+    **「文が、頭とバイトの列として回線に出た」ことだけ**である。
+    """
+    # ⚠️ **`tmp_path` は `sun_path` に長すぎる**（`conftest` の `sock`）。
+    path = sock
+    port = _free_port()
+    proc = subprocess.Popen(
+        [sys.executable, "-m", NEW_MODULE, "--socket", str(path),
+         "--listen", f"127.0.0.1:{port}", "--meta", "off",
+         "--say", "これは、試験である。"],
+        cwd=REPO_ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    board: socket.socket | None = None
+    try:
+        limit = time.monotonic() + READY_SECONDS
+        while True:
+            # ⛔ **失敗したソケットを、もう一度 `connect` しない。** macOS では
+            #    2回目が `EINVAL` で返り、**「まだ居ない」が「永久に繋がらない」に化ける**
+            #    ——2026-10-21、この試験がその形で10秒を使って落ちた。
+            attempt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                attempt.connect(("127.0.0.1", port))
+                board = attempt
+                break
+            except OSError:
+                attempt.close()
+                # ⛔ **上限の無い `communicate()` を書かない。** 書けば、
+                #    **デーモンが生きているあいだ、試験が永久に止まる**
+                #    （2026-10-21 にこの試験が2分止まり、その形で止まった）。
+                if time.monotonic() > limit or proc.poll() is not None:
+                    out, err = _shut(proc)
+                    raise AssertionError(f"dial できなかった: {out}{err}")
+                time.sleep(0.02)
+        assert board is not None
+        board.settimeout(READY_SECONDS * 4)
+        heard = b""
+        while b"\n" not in heard:
+            chunk = board.recv(4096)
+            if not chunk:
+                raise AssertionError("回線が閉じた")
+            heard += chunk
+        header, _, body = heard.partition(b"\n")
+        # ⚠️ **頭は基板の綴りである**（`audio <n>`）。
+        assert header.startswith(b"audio "), header
+        assert int(header.split()[1]) % 2 == 0
+        # ⚠️ **頭が言う数だけ、標本が来る。** 1バイトも足りない。
+        want = int(header.split()[1])
+        while len(body) < want:
+            chunk = board.recv(4096)
+            if not chunk:
+                raise AssertionError("塊が途中で終わった")
+            body += chunk
+        assert len(body) >= want
+    finally:
+        if board is not None:
+            board.close()
+        _shut(proc)
