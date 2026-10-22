@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.15.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 2.16.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-23 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -365,7 +365,7 @@ dial: connected to <ip>:<port>   the dial landed
 
 ### 0.19.61 — the daemon waits, and the cable is out
 
-✅ **The daemon now listens rather than opening a wire.** `projects/stackchan/daemon/__main__.py` binds one socket, takes **one** connection, and asks only whether it is still there (`MSG_PEEK` — ⛔ a `recv` here would swallow the verdict and the position, which belong to the neck and the frame). The installed job names `--listen 0.0.0.0:3333`, and the board's NVS holds `192.168.0.103:3333` — ⛔ **3333 cannot be changed over the link**, because `bench dial` is the console's, so the address is fixed until the cable goes back in.
+✅ **The daemon now listens rather than opening a wire.** `projects/stackchan/daemon/__main__.py` binds one socket, takes **one** connection, and asks only whether it is still there (`MSG_PEEK` — ⛔ a `recv` here would swallow the verdict and the position, which belong to the neck and the frame). The installed job names `--listen 0.0.0.0:3333`, and the board's NVS holds `192.168.0.103:3333` — ⛔ **3333 cannot be changed over the link**, because `bench dial` is the console's, so the address is fixed until the cable goes back in. ⚠️ **On 2026-10-23 that address became `192.168.0.106`** — a DHCP lease moved, and the board kept dialling the old one; 0.19.75 is what the dialer does about that.
 
 ⛔ **The waits measured against a wire did not survive the journey.** Ten `bench pos` queries over the link answered in **+0.041…+0.861 s** against `PORT_WAIT = 0.5`, and the first two live runs wrote `read: ""`; the board's stream tally arrived **1.647 s** after the last pose, against `VERDICT_WAIT = 1.5`. ⇒ **`LINK_WAIT = 1.5` and `LINK_VERDICT_WAIT = 3.0`**, used only when the fd came from a `Link`. ⚠️ **The first is a measurement; the second is a margin placed on one.**
 
@@ -412,3 +412,48 @@ so the watchdog's two numbers ride on the answer to `bench pos`. This is the rul
 ⛔ **No head moved for any of it** — both `look_up` calls came back `skipped: "no motion"` — and no eye saw the screen, the lights or the neck. The record is `records/2026-10-21-the-line-that-crosses.md`.
 
 The image is **928,256 bytes**, and the count moved from **797 to 803** while the file count stayed at 42.
+
+
+### 0.19.75 — the board looks for its host
+
+⛔ **The dialer knew one address, and that address was a fact about one router's lease.** On 2026-10-23 a reboot moved the Mac from `192.168.0.103` to `192.168.0.106`; the board went on dialling `.103`, the daemon's log filled with `"err": "nobody"`, and **nothing on the board said why** — *the host did not answer* and *there is no host at that address* are one failure to a socket.
+
+✅ **`main/dial_scan.h` / `.cpp` hold the search rule, and they hold no socket**: the address the console named is tried **first**, then its `/24` **nearest-first** (`.+1`, `.-1`, `.+2`, `.-2`, …), **`.0` and `.255` skipped** as the network and the broadcast, never more than **254** candidates. ⛔ **A string that is not an address returns nothing** — a board that swept without having been pointed anywhere would be a board that walks out of the room — and **a cut address is refused rather than returned**, because `192.168.0.` is an address to somewhere else.
+
+⛔ **The sweep is not a search for services.** The host writes **`loom`** as the first line on every connection (`GREET = b"loom\n"`, written *before* the connection is made public, so the voice thread cannot put an audio head where the greeting belongs), and a candidate is accepted **only if it greets**: `is_loom` matches a word, so `loomish` is not this host. ⛔ Without that line the sweep would drive the body from whatever answered port 3333 — **the link is unauthenticated, and an address is not an identity.**
+
+⚠️ **Four numbers here are chosen, not measured**: **400 ms** per candidate, **3,000 ms** for the named address, **1,500 ms** for the greeting, **30 s** between sweeps. ⚠️ **A silent address reports `gave nothing in 3002 ms (errno -1)`** — `-1` is *the clock ran out*, and `118` is *the network refused* (`ENETUNREACH`); **the two are not the same failure and the line says which.**
+
+⛔ **The first live version found the rule it was missing.** At boot `dial::begin()` runs before the station has an address, `connect` returns `ENETUNREACH` in **0–1 ms**, and **a missing route and a missing host are one failure to a socket**: that version "swept" **402 addresses in about 7 s** and connected to none. ⇒ `sweep_when(routed, now_us, last_us, every_us)` in `dial_scan.cpp`, with **`kNoRoute` first** — a body that cannot route has no reason to doubt an address. `main/wifi.h` gained `wifi_probe::routed()`, which reads the station's own address, and `DialTask` sweeps only when the rule says `kNow`. ⛔ **A sweep stops at the first candidate it cannot make a socket to, and at the loss of the route** — the rest of the walk would be the same failure 250 more times.
+
+⚠️ **The address the sweep finds lives in RAM and nowhere else.** NVS belongs to the console — `bench dial` over the link is still refused (0.19.60) — so a found address lasts until the next boot and no longer, and `bench dial` goes on reporting **the named address**, not the found one.
+
+**Three counts were added to the report**, and each one answers a different question:
+
+```
+dial: 2 address(es) swept, 1 found by the sweep
+dial: 4 connect attempt(s) failed (last -1), 0 opened without a greeting
+dial: 0 attempt(s) had no socket to make
+```
+
+⛔ **`0 opened without a greeting` is the line that says the greeting rule has not had to fire** — it counts candidates that were closed for saying something else, and it is zero on every run below.
+
+✅ **Measured on the unit, 2026-10-23.** At boot, with the gate in place: `dial: 192.168.0.106:3333 gave nothing in 1 ms (errno 118)` and `dial: no route yet — 192.168.0.106:3333 is not being looked for`, **twice**, then **`0 address(es) swept`** — and after `wifi: connected ip=192.168.0.100`, `dial: connected to 192.168.0.106:3333`. ⚠️ **The same boot was watched twice** (05:38 and 05:44) and both runs printed the two refusals before the address and the connection after it.
+
+✅ **And a sweep that had a route found a host.** Pointed at an address nobody held — `bench dial 192.168.0.104 3333` — the board said `dial: 192.168.0.104:3333 gave nothing in 3002 ms (errno -1)`, then `dial: found the host at 192.168.0.103:3333 — 2 address(es) past the named one`, then `dial: connected to 192.168.0.103:3333`; the report read `2 address(es) swept, 1 found by the sweep`. ⚠️ **`.103` answers because a hand-made alias on `en0` answers** — the walk was measured, **the lease that moved was not reproduced**.
+
+**The host says when nobody came.** `projects/stackchan/daemon/__main__.py` gained `Link.silence`, `Link.due` and `Link.nobody`: after **`NOBODY_EVERY = 300`** seconds with no connection, the serve loop emits
+
+```
+{"link": "nobody dialled in", "for": 300.0}
+```
+
+⛔ **A quiet log was being read as a quiet machine**: the log was full of `"err": "nobody"` and held nothing that said *the board has not arrived*, and those are not the same sentence. ⚠️ **The due time joins the `select` timeout**, or the row would print minutes late, whenever the next pose happened to wake the loop. `projects/stackchan_next/daemon/__main__.py` takes the same two methods, and `projects/stackchan/day/summary.py` counts **`link_up`**, **`link_down`** and **`link_nobody`** — ⛔ **the row shape arrived with its counter**, which is the 0.19.64 lesson.
+
+⛔ **Not watched yet: the `nobody` row itself.** The 300 s line is held by tests only — the installed daemon has seen the board arrive on every boot since the change, and **a row that has never printed on the machine is a row the machine has not confirmed.**
+
+⚠️ **And the greeting's other side was not exercised**: no candidate has yet been closed for saying something else, so `0 opened without a greeting` has only ever been a zero.
+
+**The image** is **934,064 bytes**, descriptor `a465702-dirty`, compiled `Oct 23 2026 05:21:18`, written at **`0x20000`** after reading `otadata` (`seq 1`, `state 0x2`) and read back off the boot banner. ⚠️ **The first flash attempts failed three times with `No serial data received`**, and `esptool.py --before usb_reset` connected where the default reset did not — ⛔ **that is a fact about this board's USB, written here because the next person will meet it too.**
+
+⛔ **No eye saw anything.** No head moved, no light lit, no screen was looked at. **This version moved a search and a sentence, not a body.**

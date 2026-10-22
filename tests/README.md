@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.41.0 | canonical: tests/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 1.42.0 | canonical: tests/README.md | translated: 2026-10-23 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**fifty-three files, one thousand and eighty-eight tests, all green — measured 2026-10-21.**
+**fifty-four files, one thousand one hundred and seventeen tests, all green — measured 2026-10-23.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -399,9 +399,30 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ⛔ **It does not build `wifi.cpp`, and nothing here watches a reconnection.** The wiring rows read the source; the rule rows compile a file with no IDF in it. **Whether this body rejoins a network after a drop is still nothing a check can say** — on 2026-10-21 it was observed **by hand**: the author carried the unit about 50 m away and brought it back, and the console recorded `reason 200 (beacon timeout)`, five attempts at **2,000 / 4,000 / 8,000 / 16,000 / 30,000 ms**, and **`wifi: associated after 5 attempt(s)`**. ⛔ **Only three of those five printed** — the rule silences the fourth and the fifth, so a reader counting `asking again` lines undercounts. The record is `projects/stackchan-firmware/records/2026-10-21-the-body-that-asked-again.md`; **no test here holds any of it.**
 
+## The board looks for its host (0.19.75)
+
+⛔ **Why it exists.** Until 2026-10-23 the dialer knew one address, and that address was a fact about one router's lease. A reboot moved the Mac from `192.168.0.103` to `192.168.0.106`; the board kept dialling `.103`, the daemon's log filled with `"err": "nobody"`, and **nothing on the board said why**.
+
+✅ **`tests/test_stackchan_dial_scan.py` compiles `projects/stackchan-firmware/main/dial_scan.cpp` with `clang++` or `g++` and runs it** — twenty-one claims, **seventeen on the order and the spelling and four on when a sweep may run**. It skips when no C++ compiler is on the host, and says so rather than passing.
+
+| the check | where | what it is for |
+|---|---|---|
+| the named address is tried first, and the walk goes `. +1`, `.-1`, `.+2`, `.-2` | `test_stackchan_dial_scan.py` | ⚠️ **nearest-first is the only reason a 254-address walk is short** — the 2026-10-23 move was three doors down |
+| `.0` and `.255` are not hosts, and a `/24` yields exactly 254 | `test_stackchan_dial_scan.py` | ⛔ **a sweep that tried the network would be asking itself** |
+| a string that is not an address sweeps nothing | `test_stackchan_dial_scan.py` | ⛔ **a board that walked without having been pointed anywhere is a board that walks out of the room** |
+| a buffer too small returns 0, not `192.168.0.` | `test_stackchan_dial_scan.py` | ⛔ **a cut address is an address to somewhere else** |
+| `loom` is a word — `loomish`, `LOOM` and ` loom` are not | `test_stackchan_dial_scan.py` | ⛔ **without the greeting the sweep would drive the body from whatever answered 3333** |
+| with no route, a sweep is not due however old the last one is | `test_stackchan_dial_scan.py` | ⛔ **a missing route and a missing host are one failure to a socket** — the first live version swept 402 addresses in about 7 s for nothing |
+| never swept is due, and the interval holds at its boundary | `test_stackchan_dial_scan.py` | ⚠️ **30 s is chosen, not measured** |
+| a clock that goes backwards is not a reason to sweep | `test_stackchan_dial_scan.py` | a returned value is state, not an expiry |
+
+✅ **The host's side arrived in the same change, and its row shape came with its counter.** `test_stackchan_link.py` grew four claims — **the greeting is written before the connection is made public**, and a silent link says so — and `test_stackchan_day.py` grew three for `link_up` / `link_down` / `link_nobody`; `test_stackchan_next_daemon.py` gained one, that the second room's daemon says `nobody` on its own clock.
+
+⛔ **What this file does not do.** It builds `dial_scan.cpp` and nothing else: **`dial.cpp` needs lwIP and FreeRTOS and is compiled by no check**, so the sweep's loop, its counters and its abort conditions are read by nothing. ⛔ **And no check here has ever seen the board find a host** — that was watched once, by hand, on 2026-10-23.
+
 ## The link the board opens (0.19.61)
 
-✅ **`tests/test_stackchan_link.py` is twenty claims about `Link`, the socket the board dials into** — `projects/stackchan/daemon/__main__.py` binds a listener, takes **one** connection, and asks only whether it is still there. ⚠️ **The fake board in this file is a socket on loopback that reads and writes lines**; it is not the firmware's `ConsoleTask`, and ⛔ **`accepted: True` here is not a real board's word.**
+✅ **`tests/test_stackchan_link.py` is twenty-nine claims about `Link`, the socket the board dials into** — `projects/stackchan/daemon/__main__.py` binds a listener, takes **one** connection, and asks only whether it is still there. ⚠️ **Four of the twenty-nine arrived in 0.19.75**: the host **greets with `loom` before the connection is made public** (so the voice thread cannot put an audio head where the greeting belongs), and a link nobody has dialled into **says so** after its own interval. ⚠️ **The fake board in this file is a socket on loopback that reads and writes lines**; it is not the firmware's `ConsoleTask`, and ⛔ **`accepted: True` here is not a real board's word.**
 
 | the check | what it is for |
 |---|---|
@@ -553,7 +574,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 ## The log, read back (0.19.28)
 
-**`projects/stackchan/day/` reads the daemon's own log; `test_stackchan_day.py` holds it with forty claims** — thirty-five functions, two of them parametrized (three ways and four ways). ⚠️ **The line said seventeen until 0.19.52**, and the file already held twenty — **the same drift the document rules warn about, found while moving the count.**
+**`projects/stackchan/day/` reads the daemon's own log; `test_stackchan_day.py` holds it with forty-three claims** — thirty-eight functions, two of them parametrized (three ways and four ways). ⚠️ **The line said seventeen until 0.19.52**, and the file already held twenty — **the same drift the document rules warn about, found while moving the count.**
 
 ⚠️ **The log existed before its reader did.** By 05:36 on 2026-10-19 it held **3,852 lines** and **not one of them was unreadable** — ⛔ **and nothing in the repository read it.** A record nobody reads is a file with a timetable in it.
 

@@ -785,13 +785,25 @@ def test_the_board_hears_the_sentence_when_it_dials_in(sock):
                 time.sleep(0.02)
         assert board is not None
         board.settimeout(READY_SECONDS * 4)
-        heard = b""
-        while b"\n" not in heard:
-            chunk = board.recv(4096)
-            if not chunk:
-                raise AssertionError("回線が閉じた")
-            heard += chunk
-        header, _, body = heard.partition(b"\n")
+
+        def read_line() -> tuple[bytes, bytes]:
+            heard = b""
+            while b"\n" not in heard:
+                chunk = board.recv(4096)
+                if not chunk:
+                    raise AssertionError("回線が閉じた")
+                heard += chunk
+            head, _, rest = heard.partition(b"\n")
+            return head, rest
+
+        # ⛔ **最初の1行は名乗りである**（`Link.accept`、0.19.75）——
+        #    **通す前に相手を決める**ための語であり、塊の頭ではない。
+        greeting, body = read_line()
+        assert greeting == b"loom", greeting
+        header, _, rest = body.partition(b"\n")
+        while not header:
+            header, rest = read_line()
+        body = rest
         # ⚠️ **頭は基板の綴りである**（`audio <n>`）。
         assert header.startswith(b"audio "), header
         assert int(header.split()[1]) % 2 == 0
@@ -925,3 +937,53 @@ def test_a_delivered_sentence_carries_the_mouth_only_when_it_is_open(sock):
     assert "projects.stackchan_next.mouth" not in closed_context
     # ⚠️ **1文そのものは、どちらも同じである。** 節は語ごとではなく、丸ごと付く。
     assert open_context.startswith(closed_context), (open_context, closed_context)
+
+
+def test_the_room_says_when_nobody_has_dialled_in(capsys):
+    """⛔ **黙って待たない。** 2026-10-23、板は Mac の古い住所を叩き続け、
+    この側のログは `"err": "nobody"` で埋まっていた——**来ないことは、来たことと
+    同じだけ記録に値する。** ⚠️ 板の住所が動くのは、これからも起きる。
+
+    ⚠️ **300 秒を待たずに測る。** 間隔は `Link` の値であり、規則は同じである。
+    """
+    import os
+    import threading
+
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    link = edge.Link("127.0.0.1", 0, nobody_every=0.05)
+    read_end, write_end = os.pipe()
+    thread = threading.Thread(
+        target=edge.serve,
+        args=(NextRoom(), edge.Outbound(), listener, read_end,
+              edge.Neck(None), link),
+        daemon=True,
+    )
+    thread.start()
+    said = None
+    try:
+        deadline = time.monotonic() + READY_SECONDS
+        while time.monotonic() < deadline:
+            for line in capsys.readouterr().out.splitlines():
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                if row.get("link") == "nobody dialled in":
+                    said = row
+                    break
+            if said is not None:
+                break
+            time.sleep(0.02)
+    finally:
+        try:
+            os.write(write_end, b"x")
+        except OSError:
+            pass
+        thread.join(timeout=READY_SECONDS)
+        os.close(read_end)
+        os.close(write_end)
+        link.close()
+        listener.close()
+    assert said is not None, "誰も来ないことが言われなかった"
+    assert said["for"] >= 0.05

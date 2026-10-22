@@ -13,6 +13,8 @@
 #include "freertos/task.h"
 #include "audio_line.h"
 #include "dial_policy.h"
+#include "dial_scan.h"
+#include "wifi.h"
 #include "lwip/inet.h"
 #include "lwip/sockets.h"
 #include "nvs.h"
@@ -33,6 +35,14 @@ constexpr const char* kPortKey = "port";
 constexpr int kMaxLine = 256;        // the console's bound; a link line is a console line
 constexpr int kSendWaitMs = 500;     // ⛔ a stalled socket must not stop a pose stream
 constexpr int kConnectWaitMs = 3000;
+//: ⚠️ **A sweep candidate gets a shorter wait than the named address.** A host
+//:    on the same segment answers in milliseconds; the 3,000 ms of the named
+//:    address is there for a busy one. ⛔ At 254 candidates a long wait here
+//:    would turn one failed sweep into many minutes of silence.
+constexpr int kSweepWaitMs = 400;
+//: ⚠️ **The host's first line, `loom`** (`projects/stackchan/daemon/__main__.py`).
+//:    It identifies the far end before any line of it reaches `RunLine`.
+constexpr int kHelloWaitMs = 1500;
 constexpr int kPollMs = 100;
 //: ⚠️ **8192 に上げた（2026-10-21）。** 読み手の `chunk` を 4096 にしたので、
 //: 8192 の stack では 1 つの `recv` が任務ごと越える。
@@ -54,6 +64,29 @@ SemaphoreHandle_t g_send = nullptr;
 
 uint32_t g_dials = 0;
 uint32_t g_connects = 0;
+//: ⚠️ **2026-10-23 に足した。** 名指しの住所が黙ったとき、板は自分の /24 を
+//: 順に試す。`g_swept` は試した住所の数、`g_found` は挨拶で見つけた数である。
+//: ⛔ **見つけた住所は NVS に書かない**——住所を書くのはコンソールの言葉であり、
+//: 見つけた住所は1つのリースの事実である（`dial.h`）。
+uint32_t g_swept = 0;
+uint32_t g_found = 0;
+//: ⚠️ **2026-10-23、掃き出しが「0件」とだけ言ったので足した。** 404 の住所を
+//: 試して1つも繋がらなかった、という事実だけでは、**繋がらなかった理由**が
+//: 分からない——`socket()` が取れなかったのか、`connect` が断られたのか、
+//: 時間切れか。⛔ **数は、理由の代わりにならない。**
+uint32_t g_connect_failed = 0;
+int g_connect_errno = 0;
+uint32_t g_greet_failed = 0;
+//: ⛔ **`socket()` が取れなかった失敗は、住所の失敗ではない。** 掃き出しを続けても
+//: 1つも繋がらないので、**掃き出しを止める理由**になる——2026-10-23 の実測では、
+//: これを見分けられないあいだ、404 の住所が 3 秒足らずで「試された」ことになっていた。
+uint32_t g_no_socket = 0;
+//: ⛔ **掃き出しは、静かな間隔を置いてからである。** 経路の無い起動直後に
+//: 一度走らせれば足りるものを、失敗のたびに 254 の住所へ繰り返すのは、
+//: **回線の調子ではなく、こちらの焦りを測っている**。⚠️ 30 秒は選んだ数で
+//: あり、測った数ではない。
+constexpr int64_t kSweepEveryUs = 30 * 1000 * 1000;
+int64_t g_last_sweep_us = 0;
 uint32_t g_lines_in = 0;
 uint32_t g_lines_out = 0;
 uint32_t g_drops = 0;
@@ -163,7 +196,7 @@ bool WriteAll(int fd, const char* data, size_t length) {
 // ⚠️ Non-blocking for the whole life of the socket, including the connect:
 //    a `connect` to an address with nobody behind it can sit for a minute, and
 //    this task must still be able to notice the stop flag of the build above it.
-int Dial(const char* host, int port) {
+int Dial(const char* host, int port, int wait_ms) {
   sockaddr_in address;
   std::memset(&address, 0, sizeof(address));
   address.sin_family = AF_INET;
@@ -175,6 +208,9 @@ int Dial(const char* host, int port) {
 
   const int fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd < 0) {
+    ++g_connect_failed;
+    ++g_no_socket;
+    g_connect_errno = errno;
     return -1;
   }
   const int flags = fcntl(fd, F_GETFL, 0);
@@ -182,6 +218,8 @@ int Dial(const char* host, int port) {
 
   if (connect(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) != 0) {
     if (errno != EINPROGRESS) {
+      ++g_connect_failed;
+      g_connect_errno = errno;
       close(fd);
       return -1;
     }
@@ -189,20 +227,88 @@ int Dial(const char* host, int port) {
     FD_ZERO(&writable);
     FD_SET(fd, &writable);
     timeval wait;
-    wait.tv_sec = kConnectWaitMs / 1000;
-    wait.tv_usec = (kConnectWaitMs % 1000) * 1000L;
-    if (select(fd + 1, nullptr, &writable, nullptr, &wait) <= 0) {
+    wait.tv_sec = wait_ms / 1000;
+    wait.tv_usec = (wait_ms % 1000) * 1000L;
+    const int ready = select(fd + 1, nullptr, &writable, nullptr, &wait);
+    if (ready <= 0) {
+      // ⚠️ **-1 (時間切れ) と、`select` 自身の失敗を、同じ数にしない。**
+      //    `select` が 0 を返したのは「窓の中で何も起きなかった」であり、
+      //    負を返したのは errno が動いたということである。
+      ++g_connect_failed;
+      g_connect_errno = (ready == 0) ? -1 : errno;
       close(fd);
       return -1;
     }
     int error = 0;
     socklen_t length = sizeof(error);
     if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &length) != 0 || error != 0) {
+      ++g_connect_failed;
+      g_connect_errno = (error != 0) ? error : errno;
       close(fd);
       return -1;
     }
   }
   return fd;
+}
+
+// ⚠️ **The first line belongs to the identification, not to the body.**
+//
+// ⛔ The host writes `loom` before anything else on every connection
+//    (`projects/stackchan/daemon/__main__.py`, `Link.accept`). It is read here
+//    and **never handed to `RunLine`** — a greeting that reached the dispatcher
+//    is an unknown command printed back at the console, and a line the host
+//    never meant as a command.
+//
+// ⚠️ **A connection that does not greet is not this host.** Without this rule
+//    the sweep would drive the body from whatever holds port 3333 on the
+//    segment — the link is not authenticated, and an address is not an
+//    identity. ⛔ **The named address is held to the same rule**: a stale lease
+//    can belong to a different machine holding the same number.
+bool Greet(int fd, char* line, int size) {
+  int length = 0;
+  const TickType_t started = xTaskGetTickCount();
+  while (true) {
+    const uint32_t elapsed = static_cast<uint32_t>(
+        xTaskGetTickCount() - started) * portTICK_PERIOD_MS;
+    if (elapsed >= static_cast<uint32_t>(kHelloWaitMs)) {
+      return false;
+    }
+    fd_set readable;
+    FD_ZERO(&readable);
+    FD_SET(fd, &readable);
+    timeval wait;
+    const uint32_t left = static_cast<uint32_t>(kHelloWaitMs) - elapsed;
+    wait.tv_sec = left / 1000;
+    wait.tv_usec = (left % 1000) * 1000L;
+    if (select(fd + 1, &readable, nullptr, nullptr, &wait) <= 0) {
+      // ⚠️ Nothing inside the window, or an error — the same answer to the
+      //    same question, and both mean "try the next address".
+      return false;
+    }
+    char c = 0;
+    const int got = recv(fd, &c, 1, 0);
+    if (got <= 0) {
+      if (got < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)) {
+        continue;
+      }
+      return false;
+    }
+    if (c == '\r') {
+      continue;
+    }
+    if (c == '\n') {
+      break;
+    }
+    if (length < size - 1) {
+      line[length++] = c;
+    } else {
+      // ⛔ A greeting this long is not a greeting. Reading on would let a
+      //    hostile or confused far end fill the buffer with anything.
+      return false;
+    }
+  }
+  line[length] = '\0';
+  return dial_scan::is_loom(line, length);
 }
 
 void Take(const char* line, int length) {
@@ -349,7 +455,105 @@ void DialTask(void*) {
     }
 
     ++g_dials;
-    const int fd = Dial(host, port);
+    char reached[sizeof(g_host)] = {0};
+    char hello[64];
+    // ⚠️ **窓を開けて、窓が閉じるまでの実時間を測る。** ⛔ 掃き出しが
+    //    「3秒足らずで404の住所を試した」なら、窓は窓として働いていない。
+    const int64_t began = esp_timer_get_time();
+    int fd = Dial(host, port, kConnectWaitMs);
+    if (fd < 0) {
+      printf("dial: %s:%d gave nothing in %lld ms (errno %d)\n", host, port,
+             static_cast<long long>((esp_timer_get_time() - began) / 1000),
+             g_connect_errno);
+    }
+    if (fd >= 0) {
+      if (Greet(fd, hello, sizeof(hello))) {
+        std::memcpy(reached, host, sizeof(reached));
+      } else {
+        ++g_greet_failed;
+        close(fd);
+        fd = -1;
+        printf("dial: %s:%d did not greet — not this host\n", host, port);
+      }
+    }
+
+    // ⛔ **The named address answered nothing.** 2026-10-23: the Mac's lease
+    //    moved and this board went on dialling a number nobody held. ⇒ look,
+    //    rather than wait for a wrong number to become right again.
+    //
+    // ⛔ **But only if this body has somewhere to look FROM.** At boot this
+    //    task runs before the station has an address, and then `connect`
+    //    returns `ENETUNREACH` in 0 ms against every candidate: the sweep
+    //    would "try" 254 addresses in three seconds and learn nothing, because
+    //    a missing route and a missing host are one failure to a socket.
+    //    ⇒ ask for the route first, and sweep on a quiet interval after.
+    bool sweep = false;
+    if (fd < 0) {
+      const int64_t now_us = esp_timer_get_time();
+      // ⚠️ The rule itself lives in `dial_scan::sweep_when`, where the host can
+      //    compile and ask it. ⛔ This side only prints which way it went.
+      switch (dial_scan::sweep_when(wifi_probe::routed(), now_us, g_last_sweep_us,
+                                    kSweepEveryUs)) {
+        case dial_scan::Sweep::kNoRoute:
+          printf("dial: no route yet — %s:%d is not being looked for\n", host, port);
+          break;
+        case dial_scan::Sweep::kTooSoon:
+          printf("dial: %s:%d is still silent; the last sweep was %lld s ago\n",
+                 host, port,
+                 static_cast<long long>((now_us - g_last_sweep_us) / 1000000));
+          break;
+        case dial_scan::Sweep::kNow:
+          sweep = true;
+          g_last_sweep_us = now_us;
+          break;
+      }
+    }
+    if (sweep) {
+      uint32_t list[dial_scan::kMaxCandidates];
+      const int count = dial_scan::candidates(host, list, dial_scan::kMaxCandidates);
+      for (int i = 1; i < count; ++i) {
+        char text[20];
+        if (dial_scan::format(list[i], text, sizeof(text)) == 0) {
+          continue;
+        }
+        ++g_swept;
+        const uint32_t dead = g_no_socket;
+        fd = Dial(text, port, kSweepWaitMs);
+        if (fd < 0) {
+          // ⛔ **ソケットが取れないなら、残りの住所も同じ理由で失敗する。**
+          //    254 回同じことを試すのは、掃き出しではなく空回りである。
+          if (g_no_socket != dead) {
+            printf("dial: no socket to make — the sweep stops at %s\n", text);
+            break;
+          }
+          // ⛔ **経路が途中で消えたなら、残りも同じ失敗である。**
+          if (!wifi_probe::routed()) {
+            printf("dial: the route went away — the sweep stops at %s\n", text);
+            break;
+          }
+          continue;
+        }
+        if (!Greet(fd, hello, sizeof(hello))) {
+          ++g_greet_failed;
+          close(fd);
+          fd = -1;
+          continue;
+        }
+        ++g_found;
+        std::memcpy(reached, text, sizeof(reached));
+        printf("dial: found the host at %s:%d — %d address(es) past the named one\n",
+               text, port, i);
+        // ⚠️ Remembered for this boot, and only here: the sweep's answer is
+        //    where the host is *now*, and NVS is still the console's to write.
+        if (g_send != nullptr) {
+          xSemaphoreTake(g_send, portMAX_DELAY);
+          std::memcpy(g_host, text, sizeof(g_host));
+          xSemaphoreGive(g_send);
+        }
+        break;
+      }
+    }
+
     if (fd < 0) {
       vTaskDelay(pdMS_TO_TICKS(backoff));
       backoff = (backoff * 2 > kMaxBackoffMs) ? kMaxBackoffMs : backoff * 2;
@@ -358,7 +562,7 @@ void DialTask(void*) {
 
     Publish(fd, true);
     ++g_connects;
-    printf("dial: connected to %s:%d\n", host, port);
+    printf("dial: connected to %s:%d\n", reached, port);
     const TickType_t started = xTaskGetTickCount();
 
     Service(fd);
@@ -418,6 +622,19 @@ void dial::report() {
   } else {
     printf("dial: nothing is named — `bench dial <ip> <port>`\n");
   }
+  //: ⚠️ **0 は「走らなかった」であり、「探して見つからなかった」ではない**——
+  //: それを分けるのは上の `dial(s)` と `connect(s)` である。
+  printf("dial: %u address(es) swept, %u found by the sweep\n",
+         static_cast<unsigned>(g_swept), static_cast<unsigned>(g_found));
+  //: ⚠️ **`-1` は「窓の中で何も起きなかった」、正の数は `connect` の断りである。**
+  //: ⛔ **0件という数だけでは、掃き出しが届かなかったのか、届いて名乗らなかったのか
+  //: 分からない。**
+  printf("dial: %u connect attempt(s) failed (last %d), %u opened without a greeting\n",
+         static_cast<unsigned>(g_connect_failed), g_connect_errno,
+         static_cast<unsigned>(g_greet_failed));
+  //: ⛔ **`socket()` が 0 でないとき、住所の一覧は何も語らない。**
+  printf("dial: %u attempt(s) had no socket to make\n",
+         static_cast<unsigned>(g_no_socket));
   printf("dial: %u line(s) in, %u out, %u drop(s), %u refused\n",
          static_cast<unsigned>(g_lines_in), static_cast<unsigned>(g_lines_out),
          static_cast<unsigned>(g_drops), static_cast<unsigned>(g_refused));

@@ -426,9 +426,25 @@ class Ears(Board):
     def __init__(self, connection: socket.socket) -> None:
         super().__init__(connection)
         self.data = bytearray()
+        self.greeting = ""
 
     def run(self) -> None:
         self.connection.settimeout(WAIT)
+        # ⛔ **塊の前に、名乗りが1行ある**（`Link.accept` は接続を公にする前に
+        # `loom\n` を書く）。⚠️ **行として読み飛ばす**——そうしなければ、
+        # 「1バイトも変えない」を測る側の buffer の先頭に `loom\n` が混ざる。
+        pending = b""
+        while not self._done.is_set() and b"\n" not in pending:
+            try:
+                chunk = self.connection.recv(4096)
+            except OSError:
+                return
+            if not chunk:
+                return
+            pending += chunk
+        raw, _, rest = pending.partition(b"\n")
+        self.greeting = raw.decode("utf-8", "replace")
+        self.data = bytearray(rest)
         while not self._done.is_set():
             try:
                 chunk = self.connection.recv(4096)
@@ -462,6 +478,8 @@ def test_a_block_goes_down_the_link_byte_for_byte():
         payload = pcm.head(8) + b"\x0a\x00\x0d\xff\x0a\x0a\x0d\x00"
         assert link.send(payload) is True
         assert board.take(len(payload)) == payload
+        # ⚠️ **名乗りは塊の外である**——塊の1バイト目ではない。
+        assert board.greeting == "loom"
         assert link.broken is False
     finally:
         board.stop()
@@ -547,9 +565,89 @@ def test_two_writers_do_not_mix_their_bytes():
 
         got = board.take(len(first) * count * 2)
         assert len(got) == len(first) * count * 2
+        # ⚠️ **名乗りは2人の書き手より先に、1度だけ出る。**
+        assert board.greeting == "loom"
         # ⚠️ **256バイトの窓は、どれも1人のものである。**
         windows = {got[i:i + 256] for i in range(0, len(got), 256)}
         assert windows == {first, second}, "2人のバイトが混ざった"
+    finally:
+        board.stop()
+        link.close()
+
+
+# ---------------------------------------------------------------------------
+# 名乗りと、来ないこと。⚠️ **2026-10-23 に足した。**
+# ---------------------------------------------------------------------------
+
+
+def test_the_link_says_loom_before_anything_else():
+    """⛔ **名乗りが最初の1行である。** 基板はこれを見て相手を決める
+    （`dial_scan::is_loom`）。
+
+    ⚠️ **名乗らなければ、掃き出しは 3333 を持つ何者でも受け入れる**——回線は
+    認証されておらず、住所は身元ではない。⛔ **名乗りは、接続を公にする前に出る。**
+    """
+    link = _link()
+    board = _dial(link)
+    try:
+        deadline = time.monotonic() + WAIT
+        while not board.lines and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert board.lines, "名乗りが届かなかった"
+        assert board.lines[0] == "loom"
+    finally:
+        board.stop()
+        link.close()
+
+
+def test_the_greeting_comes_before_the_connection_is_published():
+    """⚠️ **`accept()` が返った時点で、名乗りはもう出ている。**
+
+    ⛔ 公にしてから名乗ると、声の糸が先に塊を送り、**基板は名乗りの代わりに
+    音の頭を1行目として読む**——そして相手が違うと判定して切る。
+
+    ⚠️ **偽の基板の糸は起こさない。** 起こせば名乗りを先に食べ、この試験は
+    **自分が読む前に読まれている**ことを測ってしまう。
+    """
+    link = _link()
+    connection = socket.create_connection(
+        ("127.0.0.1", int(link.address.rsplit(":", 1)[1])), timeout=WAIT)
+    try:
+        select.select([link.listener], [], [], WAIT)
+        assert link.accept() is not None
+        assert connection.recv(16) == b"loom\n"
+    finally:
+        connection.close()
+        link.close()
+
+
+def test_nobody_is_said_only_after_the_interval():
+    """⛔ **黙って待たない。** 300 秒を待たずに測るため、間隔は値で渡す。
+
+    ⚠️ **同じ沈黙を二度言わない**——言えば、ログが5分ごとの同じ行で埋まる。
+    """
+    link = edge.Link("127.0.0.1", 0, nobody_every=0.05)
+    try:
+        assert link.nobody() is None, "すぐに「誰も来ない」と言った"
+        assert 0.0 <= link.due() <= 0.05
+        time.sleep(0.08)
+        waited = link.nobody()
+        assert waited is not None and waited >= 0.05
+        assert link.nobody() is None, "同じ沈黙を二度言った"
+        time.sleep(0.08)
+        assert link.nobody() is not None, "次の間隔で言わなかった"
+    finally:
+        link.close()
+
+
+def test_a_board_stops_the_nobody_clock():
+    """⚠️ **繋がっているあいだは言わない。** ⛔ **`due()` は `None` を返す。**"""
+    link = edge.Link("127.0.0.1", 0, nobody_every=0.05)
+    board = _dial(link)
+    try:
+        assert link.due() is None
+        time.sleep(0.08)
+        assert link.nobody() is None
     finally:
         board.stop()
         link.close()

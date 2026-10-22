@@ -459,3 +459,40 @@ def test_the_six_voice_names_fit_the_sixteen_character_column():
         "voice night", "voice errors"]
     for row in rows:
         assert len(row[:row.index(str(0))].rstrip()) <= 16, row
+
+
+# ---------------------------------------------------------------------------
+# 回線の行。⚠️ **2026-10-23 に足した。**
+# ---------------------------------------------------------------------------
+
+
+def test_the_link_rows_are_counted_and_not_called_unreadable():
+    """⛔ **`link` の行を `unreadable` に落とさない。** 落とせば、正しいログが
+    「壊れている」と毎日言われる（`meta` と `voice` に同じ理由が書いてある）。
+
+    ⛔ **「来た」「切れた」「来ない」を1つにしない**——来ないことは、来たことと
+    同じだけ記録に値する。⚠️ 2026-10-23 の9分間がそうだった。
+    """
+    s = summarize([
+        line({"link": "the board dialled in", "peer": "192.168.0.100:60732"}),
+        line({"link": "the board let go", "peer": "192.168.0.100:60732"}),
+        line({"link": "the song broke mid-block", "peer": "192.168.0.100:60732"}),
+        line({"link": "nobody dialled in", "for": 300.4}),
+    ])
+    assert s.link_up == 1
+    assert s.link_down == 2
+    assert s.link_nobody == 1
+    assert s.unreadable == 0
+
+
+def test_an_unknown_link_value_is_still_unreadable():
+    """⚠️ **知らない `link` の値は、知らない形である。** 数えずに捨てない。"""
+    assert summarize([line({"link": "something new"})]).unreadable == 1
+
+
+def test_the_three_link_names_fit_the_sixteen_character_column():
+    """⚠️ **名前の欄は16文字である。** `link nobody` が最も長く、11文字である。"""
+    s = summarize([])
+    rows = [row for row in render(s).splitlines() if row.startswith("link ")]
+    assert [row[:16].rstrip() for row in rows] == [
+        "link up", "link down", "link nobody"]

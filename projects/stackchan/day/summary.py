@@ -118,6 +118,12 @@ class Summary:
     voice_no_board: int = 0     # 基板が居ない（**回線が無い**）
     voice_night: int = 0        # 夜に呼ばれた（**規則が働いた日**）
     voice_errors: int = 0       # 口の糸の縁が捕まえた回数
+    # ✅ **2026-10-23（0.19.75）から、回線の行も数える。** ⛔ **数えなければ、
+    #    正しい行が `unreadable` に落ち、「ログが壊れている」と毎日言う**
+    #    （0.19.64 の教訓であり、`meta` と `voice` に同じ理由が書いてある）。
+    link_up: int = 0            # 基板が dial してきた
+    link_down: int = 0          # 切れた／音の塊が途中で壊れた
+    link_nobody: int = 0        # N秒、誰も dial してこなかった
     phases: dict[str, int] = field(default_factory=dict)
     # ✅ **2026-10-20（0.19.52）から、作業の語も数える。**
     # ⚠️ **鍵が無い行は数えない**——`None` に数えれば、*知らされていない* と
@@ -196,6 +202,23 @@ def summarize(lines: Iterable[str]) -> Summary:
                 s.voice_errors += 1
             else:
                 # ⚠️ **知らない `voice` の値は、知らない形である。** 数えずに捨てない。
+                s.unreadable += 1
+            continue
+
+        # ⚠️ **回線の行も、他のどの枝にも当たらない形である。** ここで引き取らないと、
+        #    最後の枝が正しい行を `unreadable` に数える（`meta` と `voice` と同じ理由）。
+        # ⛔ **「来た」「切れた」「来ない」を1つにしない**——来ないことは、
+        #    来たことと同じだけ記録に値する（2026-10-23 の9分間がそうだった）。
+        if "link" in obj:
+            kind = obj.get("link")
+            if kind == "the board dialled in":
+                s.link_up += 1
+            elif kind in ("the board let go", "the song broke mid-block"):
+                s.link_down += 1
+            elif kind == "nobody dialled in":
+                s.link_nobody += 1
+            else:
+                # ⚠️ **知らない `link` の値は、知らない形である。** 数えずに捨てない。
                 s.unreadable += 1
             continue
 
@@ -355,6 +378,9 @@ def render(s: Summary) -> str:
         row("voice no board", s.voice_no_board),
         row("voice night", s.voice_night),
         row("voice errors", s.voice_errors),
+        row("link up", s.link_up),
+        row("link down", s.link_down),
+        row("link nobody", s.link_nobody),
     ]
     for name, counter in (
         ("phases", s.phases),

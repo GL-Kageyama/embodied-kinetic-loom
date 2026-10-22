@@ -82,6 +82,17 @@ RECV = 1024
 #: 書き切れる。⛔ **上限が無ければ、詰まった回線が声の糸を永久に止める。**
 SEND_WAIT = 0.75
 
+#: **回線が開いたときに、ホストが最初に書く1行。** ⚠️ **基板はこれを見て相手を決める**
+#: （`dial_scan::is_loom`）。⛔ **名乗らなければ掃き出しは 3333 を持つ何者でも
+#: 体を動かしかねない**——回線は認証されていない、住所は身元ではない。
+GREET = b"loom\n"
+GREET_WAIT = 0.5
+
+#: **これだけの秒、誰も dial してこなければ、ログがそう言う。**
+#: ⚠️ 2026-10-23: 板は前の Mac の住所を叩き続け、この側のログは
+#: `"err": "nobody"` で埋まっていた——**静かだったのではなく、黙って待っていた。**
+NOBODY_EVERY = 300.0
+
 
 def default_socket() -> str:
     """**綴りは `room.socket_path` に1つだけ在る。** ⚠️ ここは uid を渡すだけである。"""
@@ -216,7 +227,8 @@ class Link:
     判定も姿勢も消える。** ⇒ **切れたかどうかは `MSG_PEEK` で見る。1バイトも食べない。**
     """
 
-    def __init__(self, host: str, port: int) -> None:
+    def __init__(self, host: str, port: int, *,
+                 nobody_every: float = NOBODY_EVERY) -> None:
         self._listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._listener.bind((host, port))
@@ -226,6 +238,13 @@ class Link:
         self.address = f"{host}:{self._listener.getsockname()[1]}"
         self._connection: socket.socket | None = None
         self.peer: str | None = None
+        #: ⚠️ **最後に繋がってからの秒を数える2つ。** `_last_heard` は接続が
+        #: 開いた時刻、`_nobody` は「誰も来ない」を最後に言ったときの沈黙の長さ。
+        self._last_heard = time.monotonic()
+        self._nobody = 0.0
+        #: ⚠️ **間隔は値である。** 試験は短くして、300 秒を待たずに規則を測る
+        #: ——⛔ **待たない試験は、待つ規則を測っていない。** 既定は `NOBODY_EVERY`。
+        self._every = nobody_every
         #: ⛔ **書き手は2人になった（2026-10-21）。** 枠と姿勢は `serve` の糸、
         #: 声は別の糸である——**2人が同じ回線へ書けば、塊の真ん中に枠の行が入る。**
         self._writing = threading.Lock()
@@ -238,7 +257,13 @@ class Link:
         return self._listener
 
     def accept(self) -> str | None:
-        """**1本だけ持つ。** ⚠️ **2本目が来たら、古い方を畳む**——体は1つである。"""
+        """**1本だけ持つ。** ⚠️ **2本目が来たら、古い方を畳む**——体は1つである。
+
+        ⚠️ **名乗りは、接続を公にする前に書く。** ⛔ 公にしてから書くと、声の糸が
+        先に塊を送り、**基板は名乗りの代わりに音の頭を読む**——`Greet` は1行目しか
+        見ないので、**相手が違うと判定される。** ⇒ 名乗りが終わるまで
+        `self._connection` は古いもの（か `None`）のままである。
+        """
         try:
             connection, address = self._listener.accept()
         except OSError:
@@ -249,11 +274,72 @@ class Link:
                 self._connection.close()
             except OSError:
                 pass
+            self._connection = None
+        if not self._greet(connection):
+            # ⚠️ **名乗れない接続は畳む。** 20 バイトを受け取れない回線は、
+            #    姿勢も判定も運べない。⚠️ ここでは `_broken` を立てない——
+            #    この回線はまだ公になっていない。
+            try:
+                connection.close()
+            except OSError:
+                pass
+            return None
         self._connection = connection
         self.peer = f"{address[0]}:{address[1]}"
         # ⚠️ **新しい回線は、頭から始まる。** 前の回線の壊れを持ち越さない。
         self._broken = False
+        self._last_heard = time.monotonic()
+        self._nobody = 0.0
         return self.peer
+
+    def _greet(self, connection: socket.socket) -> bool:
+        """**1行、`loom` を書く。** ⛔ **書けなければ `False`**——呼ぶ側が畳む。"""
+        payload = GREET
+        deadline = time.monotonic() + GREET_WAIT
+        while payload:
+            try:
+                written = connection.send(payload)
+            except BlockingIOError:
+                written = 0
+            except OSError:
+                return False
+            if written:
+                payload = payload[written:]
+                continue
+            left = deadline - time.monotonic()
+            if left <= 0.0:
+                return False
+            try:
+                _, writable, _ = select.select([], [connection], [], left)
+            except (OSError, ValueError):
+                return False
+            if not writable:
+                return False
+        return True
+
+    def silence(self) -> float:
+        """**最後に接続が開いてから、いままでの秒。** ⚠️ 一度も来なければ起動から。"""
+        return time.monotonic() - self._last_heard
+
+    def due(self) -> float | None:
+        """**次の「誰も来ない」の行までの秒。** ⛔ **接続中は `None`。**"""
+        if self._connection is not None:
+            return None
+        return max(0.0, self._every - (self.silence() - self._nobody))
+
+    def nobody(self) -> float | None:
+        """**`NOBODY_EVERY` 秒、誰も dial していないなら、その秒を返す。**
+
+        ⛔ **一度だけではない。** 板は何度でも来なくなりうるので、そのつど言う。
+        ⚠️ **言った時刻を沈黙の長さで覚える**——時計を2つ持たない。
+        """
+        if self._connection is not None:
+            return None
+        waited = self.silence()
+        if waited - self._nobody < self._every:
+            return None
+        self._nobody = waited
+        return waited
 
     @property
     def writing(self) -> threading.Lock:
@@ -1091,6 +1177,12 @@ def serve(room: Room, outbound: Outbound, listener: socket.socket, wake: int,
         deadlines = [d for d in (room.deadline, neck.deadline) if d is not None]
         if deadlines:
             timeout = max(0.0, min(deadlines) - time.monotonic())
+        # ⚠️ **「誰も来ない」も期限である。** 期限が無いと `select` は
+        #    姿勢の気配が来るまで眠り、**その行は何分も遅れて出る**。
+        if link is not None:
+            due = link.due()
+            if due is not None:
+                timeout = due if timeout is None else min(timeout, due)
 
         watch = [listener, wake]
         if link is not None:
@@ -1116,6 +1208,14 @@ def serve(room: Room, outbound: Outbound, listener: socket.socket, wake: int,
             #    ⚠️ **閉じるのはこの糸だけである**（声の糸は `_broken` を立てるだけ）。
             emit({"link": "the song broke mid-block", "peer": link.peer})
             link.drop()
+
+        if link is not None:
+            # ⛔ **黙って待たない。** 2026-10-23: 板は前の Mac の住所を叩き続け、
+            #    この側は何も言わなかった——**来ないことは、来たことと同じだけ
+            #    記録に値する。**
+            waited = link.nobody()
+            if waited is not None:
+                emit({"link": "nobody dialled in", "for": round(waited, 1)})
 
         now = time.monotonic()
         neck.pump(now)

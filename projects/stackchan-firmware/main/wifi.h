@@ -35,6 +35,15 @@ void join(const char* ssid, const char* psk);
 //: associated, and the address if it has one.
 void report();
 
+//: **Whether this station has an address right now.**
+//
+// ⛔ **2026-10-23、掃き出しはこれを訊かずに走った。** 起動直後、`dial::begin()`
+//    は電波が繋がる前に走り、`connect` は **0 ms で `ENETUNREACH`** を返す——
+//    経路が無いのであり、**相手が居ないのではない**。その失敗が掃き出しを
+//    起こし、254 の住所が**経路の無いまま**「試された」。⇒ **住所を疑う前に、
+//    この体に経路があるかを訊く。**
+bool routed();
+
 //: Stops the DHCP client and puts a fixed address on the station, for this boot
 //: only. `spec` is "<ip> <mask> <gateway>". Nothing is written to NVS.
 //

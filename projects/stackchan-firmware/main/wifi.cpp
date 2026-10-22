@@ -424,3 +424,18 @@ void wifi_probe::report() {
            static_cast<unsigned>(uxTaskGetStackHighWaterMark(event_task)));
   }
 }
+
+bool wifi_probe::routed() {
+  // ⚠️ **Associated is not routed.** A station can hold the AP and have no
+  //    address yet — `wifi: associated — waiting for an address` is exactly the
+  //    window the boot dial lands in, and in it `connect` returns
+  //    `ENETUNREACH` in 0 ms against *every* address. An empty list of
+  //    attempted addresses cannot tell a missing host from a missing route.
+  esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+  if (netif == nullptr) {
+    return false;
+  }
+  esp_netif_ip_info_t info;
+  std::memset(&info, 0, sizeof(info));
+  return esp_netif_get_ip_info(netif, &info) == ESP_OK && info.ip.addr != 0;
+}

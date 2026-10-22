@@ -242,6 +242,12 @@ def serve(room: NextRoom, outbound: Outbound, listener: socket.socket, wake: int
         deadlines = [d for d in (room.deadline, neck.deadline) if d is not None]
         if deadlines:
             timeout = max(0.0, min(deadlines) - time.monotonic())
+        # ⚠️ **「誰も来ない」も期限である。** 期限が無いと `select` は姿勢の
+        #    気配が来るまで眠り、その行は何分も遅れて出る。
+        if link is not None:
+            due = link.due()
+            if due is not None:
+                timeout = due if timeout is None else min(timeout, due)
 
         watch = [listener, wake]
         if link is not None:
@@ -273,6 +279,14 @@ def serve(room: NextRoom, outbound: Outbound, listener: socket.socket, wake: int
             #    ⚠️ **閉じるのはこの糸だけである**（声の糸は `_broken` を立てるだけ）。
             emit({"link": "the song broke mid-block", "peer": link.peer})
             link.drop()
+
+        if link is not None:
+            # ⛔ **黙って待たない。** 2026-10-23: 板は前の Mac の住所を叩き続け、
+            #    この側は何も言わなかった——**来ないことは、来たことと同じだけ
+            #    記録に値する。**
+            waited = link.nobody()
+            if waited is not None:
+                emit({"link": "nobody dialled in", "for": round(waited, 1)})
 
         now = time.monotonic()
         neck.pump(now)
