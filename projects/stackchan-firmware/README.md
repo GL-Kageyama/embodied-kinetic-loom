@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.16.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-23 -->
+<!-- i18n-version: 2.17.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-23 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -456,4 +456,4 @@ dial: 0 attempt(s) had no socket to make
 
 **The image** is **934,064 bytes**, descriptor `a465702-dirty`, compiled `Oct 23 2026 05:21:18`, written at **`0x20000`** after reading `otadata` (`seq 1`, `state 0x2`) and read back off the boot banner. ⚠️ **The first flash attempts failed three times with `No serial data received`**, and `esptool.py --before usb_reset` connected where the default reset did not — ⛔ **that is a fact about this board's USB, written here because the next person will meet it too.**
 
-⛔ **No eye saw anything.** No head moved, no light lit, no screen was looked at. **This version moved a search and a sentence, not a body.**
+⛔ **No eye saw anything *while the search was being made*.** **Then two lines were written into the daemon's socket — `SessionStart`, then `Stop` — and the link carried both gestures**: `look_up` streamed 11 poses (`39 applied, 0 refused, 0 clamped`, yaw 478 pitch 758) and `nod` streamed 79 (`107 applied, 0 refused, 0 clamped`, yaw 479 pitch 778), with each frame answered `sent: true, accepted: true`; **10 of the 11 and 72 of the 79 were applied late**, so **the positions land and the schedule does not**, unchanged from 0.19.61. ✅ **The author's word was 「全部OK」**, given to three questions — head, sound, light — ⛔ **and it names none of them**: not the colour, not which of the two sounds, and **the screen was not among the questions.**

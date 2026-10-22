@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.16.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-23 -->
+<!-- i18n-version: 2.17.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-23 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -455,4 +455,4 @@ dial: 0 attempt(s) had no socket to make
 
 **镜像是 934,064 字节**，描述符 `a465702-dirty`，编译于 `Oct 23 2026 05:21:18`，在读过 `otadata`（`seq 1`、`state 0x2`）之后写到 **`0x20000`**，并从启动横幅读回。⚠️ **最初的写入三次以 `No serial data received` 失败**，而在默认复位连不上的地方，`esptool.py --before usb_reset` 连上了——⛔ **这是关于这块基板 USB 的事实，写在这里是因为下一个碰它的人也会遇到。**
 
-⛔ **没有眼睛看见任何东西。** 头没有动，灯没有亮，屏幕没有被看。**这个版本移动的是搜索和一句话，不是身体。**
+⛔ **在搜索进行时，没有眼睛看见任何东西。** **随后往守护进程的套接字写了两行——`SessionStart`，然后是 `Stop`——链路运载了两个手势**: `look_up` 流了 11 个姿势（`39 applied, 0 refused, 0 clamped`，yaw 478 pitch 758），`nod` 流了 79 个（`107 applied, 0 refused, 0 clamped`，yaw 479 pitch 778），两个帧都以 `sent: true, accepted: true` 回来了; **11 个里有 10 个、79 个里有 72 个是延迟应用的**，**位置落了地，时间表没有**——从 0.19.61 起没有改变。✅ **作者的话是「全部OK」**，给的是头、音、灯三个问题，⛔ **而它一个也没有名指**: 没说颜色，也没说是两个声音中的哪一个——**而屏幕不在问题里。**

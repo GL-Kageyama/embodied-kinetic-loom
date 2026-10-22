@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.16.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-23 -->
+<!-- i18n-version: 2.17.0 | canonical: projects/stackchan-firmware/README.md | translated: 2026-10-23 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -455,4 +455,4 @@ dial: 0 attempt(s) had no socket to make
 
 **画像**は **934,064 バイト**、記述子は `a465702-dirty`、コンパイルは `Oct 23 2026 05:21:18`、`otadata`（`seq 1`、`state 0x2`）を読んだうえで **`0x20000`** へ書き、起動バナーから読み戻した。⚠️ **最初の書き込みは `No serial data received` で3度失敗した**、そして既定の reset が繋がらなかったところで `esptool.py --before usb_reset` が繋がった——⛔ **それはこの基板の USB についての事実であり、次に触る者もここで出会うので書いてある。**
 
-⛔ **目は何も見ていない。** 首は動かず、光は点かず、画面は見られていない。**この版が動かしたのは探索と文であり、体ではない。**
+⛔ **探索をしているあいだ、目は何も見ていない。** **そのあとデーモンのソケットへ2行を書き——`SessionStart`、次に `Stop`——リンクは2つのジェスチャーを運んだ**: `look_up` は11姿勢（`39 applied, 0 refused, 0 clamped`、yaw 478 pitch 758）、`nod` は79姿勢（`107 applied, 0 refused, 0 clamped`、yaw 479 pitch 778）を流し、枠はどれも `sent: true, accepted: true` で戻った; **11のうち10、79のうち72 が遅れて適用され**、**位置は着き、時間割は着かない**——0.19.61 から変わっていない。✅ **著者の言葉は「全部OK」**で、首・音・光の3つの問いに与えられ、⛔ **そのどれも名指していない**: 色も、2つの音のどちらかも——そして**画面は問いに含まれていない。**

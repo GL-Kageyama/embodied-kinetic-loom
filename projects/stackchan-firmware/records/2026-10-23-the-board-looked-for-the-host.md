@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.0.0 | canonical: projects/stackchan-firmware/records/2026-10-23-the-board-looked-for-the-host.md | translated: 2026-10-23 -->
+<!-- i18n-version: 1.1.0 | canonical: projects/stackchan-firmware/records/2026-10-23-the-board-looked-for-the-host.md | translated: 2026-10-23 -->
 
 **Language:** [English](2026-10-23-the-board-looked-for-the-host.md) | [日本語](2026-10-23-the-board-looked-for-the-host-ja.md) | [中文](2026-10-23-the-board-looked-for-the-host-zh.md)
 
 # The board that looked for its host — 2026-10-23
 
-⛔ **This page records a lease that moved, a board that kept dialling the address it had been given, and the day the dialer was taught to look.** ⚠️ **What the author did is short and is written first**: the USB cable was plugged in, and the word was 「やろう」. **Everything after that is what the console and the daemon's log said while this session worked** — ⛔ **no eye was asked about the head, the light or the screen, and nothing on this page is a claim about whether anything is there.**
+⛔ **This page records a lease that moved, a board that kept dialling the address it had been given, and the day the dialer was taught to look.** ⚠️ **What the author did is short and is written first**: the USB cable was plugged in, and the word was 「やろう」. **Everything up to the last section is what the console and the daemon's log said while this session worked** — ⛔ **no eye was asked about the head, the light or the screen while the search was being made** — and **the one word the author gave at the end, 「全部OK」, is recorded where it was said and is not turned into a claim about whether anything is there.**
 
 **What was counted.** One unit, one console (`/dev/cu.usbmodem1101` — ⚠️ **not the `.101` device of the 2026-10-21 records**, and **why this Mac named it differently today is not established**), one access point, one Mac whose `en0` carried **two** addresses (`192.168.0.106` as the lease, `192.168.0.103` as an alias added by hand during this session, and still present at the end). **What was not counted:** any packet capture (it needs root), the access point's own log, and ⛔ **the head, the light and the screen — nobody looked at any of them.**
 
@@ -90,6 +90,31 @@ dial: 2 address(es) swept, 1 found by the sweep
 
 ⛔ **The `{"link": "nobody dialled in", "for": N}` row has not printed on this machine.** It is held by tests only, because the board arrived on every boot of the day; ⚠️ **a row that has never printed is a row the machine has not confirmed.**
 
+## After the link came back
+
+✅ **The link then carried two gestures, and the author watched and listened.** Two lines were written to the daemon's own socket — `SessionStart`, then `Stop` — and the room answered `acted` to both:
+
+| the event | the phase | the face | the light | the sound | the body |
+|---|---|---|---|---|---|
+| `SessionStart` | `greeting` | `greeting` | `warm` | `hello` | `look_up` |
+| `Stop` | `closing` | `happy` | `warm` | `chime` | `nod` |
+
+**What the board said about the head** — over the link, in its own line, not the console:
+
+```
+look_up  from [56, 431] to [80, 500], 11 poses, 0.200 s
+         pose: 39 applied, 0 refused, 0 clamped     (yaw 478, pitch 758)
+nod      from [59, 493] to [80, 500], 79 poses, 1.555 s
+         pose: 107 applied, 0 refused, 0 clamped    (yaw 479, pitch 778)
+```
+
+Both frames came back `sent: true, accepted: true` — `{"face":"greeting","gesture":null,"light":"warm","sound":"hello"}` and `{"face":"happy","gesture":null,"light":"warm","sound":"chime"}` — and the room then settled to `breathe` with no event behind it.
+
+- ⚠️ **The schedule is still behind the positions**: **10 of the 11** `look_up` poses and **72 of the 79** `nod` poses were applied late — the split 0.19.61 measured, unchanged by the day's work.
+- ⚠️ **The verdict line was read from its middle** (`tarted — goals on the present positions …`); the counts behind it are whole, and both said **0 refused**.
+
+⛔ **The author's word was 「全部OK」**, given to three questions — whether the head moved, whether the sound rang, whether the light was seen. ⚠️ **It is one word for three questions**: it says all three were well, and ⛔ **it does not say what any of them looked or sounded like** — not the colour, not which of the two sounds — **and the screen was not among the questions, so nothing here is a claim about the face.**
+
 ## What this does not establish
 
 - ⛔ **That a board can find a host that moved.** The address it found was one this session had put there. **A DHCP lease that changes under a running board is the fault, and it was not re-staged.**
@@ -97,4 +122,4 @@ dial: 2 address(es) swept, 1 found by the sweep
 - ⛔ **That the "nobody" line prints after 300 s.** Nothing in this run waited that long with the board away.
 - ⛔ **Why the earlier version's `connect` failures all came back in 0 ms** beyond the `118` the counter printed. ⚠️ **`118` is what `connect` said; when the station got its route is inferred from the `wifi: connected` line that follows.**
 - ⚠️ **Whether a found address survives anything.** It is held in RAM only — `bench dial` over the link is still refused — so this page's found address was gone at the next boot, **and no run measured how long a sweep-found link lasts.**
-- ⛔ **Nothing moved.** No gesture was played, no light was set, and **the screen was not looked at.** This is a record of a search and a sentence, not of a body.
+- ⛔ **Nothing moved *during the search*.** The two gestures above came after it, from two lines written into the daemon's socket — **they are the body's record and not the sweep's** — and **the screen has still not been looked at.** A record of a search and a sentence is what the search part of this page is; the body's part is the section above.
