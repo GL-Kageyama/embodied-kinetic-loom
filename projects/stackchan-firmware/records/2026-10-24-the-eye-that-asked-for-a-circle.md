@@ -98,10 +98,23 @@ At `at 4051.5` the author spoke — `UserPromptSubmit`, `curious`/`dim` — the 
 
 ⛔ **And the glass has still not answered.** `bench face focused` puts the drawing on the panel; **whether the disc with a brow above it reads as *writing* is the author's eye's question**, and silence is not acceptance.
 
+## The first look at the glass
+
+✅ **After `bench face focused`, the author wrote two lines:**
+
+| the words | what they name |
+|---|---|
+| 「丸い目＋緩やかな斜めの眉＋短い口」 | the three parts of the drawing, one by one |
+| 「それが写っている」 | that those three parts are on the panel |
+
+⛔ **This is an observation of the drawing, not a reading of the word.** It closes *the panel carries what the host rendered*; it does not close *the face reads as **writing*** — **the author named the shapes and did not name the meaning** — and it says nothing about colour.
+
+⚠️ **It is one more part than 2026-10-20's 「● が見える」**: three, not one, and **the brow is among them** — so the one shape the vendor never drew has been caught by an eye on the glass. ⛔ **That is a shape seen, not a word judged.**
+
 ## What this record does not say
 
 - ⛔ **That `focused` was judged.** It was asked for, it was shown while tools ran, and **silence about it is not acceptance**. ⚠️ **Amended the same day**: its *drawing* was approved from a host preview (「この見え方でOK」) — ⛔ **and an approved drawing is not a word read off the glass.**
 - ⛔ **That `startled` was judged.** It showed twice, for two seconds each, and no sentence named it.
 - ⛔ **That the new disc has been seen, or the brow.** ~~No USB serial has appeared on this Mac — not `/dev/cu.usb*`, and no ESP32 or serial bridge in the USB tree — so the image that carries both **was built and not written**.~~ ⚠️ **Amended the same day, twice**: first the brow and the disc were seen **as a host rendering** (a sheet of the eight faces, no panel); then a **second** 「もう一回さしなおした」 brought `/dev/cu.usbmodem1101` back, **937,712 bytes were written at `0x20000`**, the descriptor read back **`2a5c49e-dirty`**, and `bench face focused` answered *drawn* — so **a panel is carrying them now**. ⛔ **No eye has said what it sees**, and ⚠️ **「さした」 is not one event: the first changed nothing and the second did.**
-- ⛔ **That the brow reads as `focused`.** It was asked for, drawn, and checked for geometry; **whether it reads as *writing* is the author's eye's question**, and it is unanswered. ⚠️ **Amended the same day**: the shape was approved as a drawing — ⛔ **the question above is about a brow on a face while something is being written; that face is now on the glass and still unread.**
+- ⛔ **That the brow reads as `focused`.** It was asked for, drawn, and checked for geometry; **whether it reads as *writing* is the author's eye's question**, and it is unanswered. ⚠️ **Amended the same day**: the shape was approved as a drawing, and then **three parts were named on the glass** (「丸い目＋緩やかな斜めの眉＋短い口」「それが写っている」) — ⛔ **the question above is about a brow on a face while something is being written; that face is now on the glass, its parts are confirmed, and the word is still unread.**
 - ⛔ **Anything about colour.** The light's hue was never put to the eye in this judging; the faces were asked about as shapes.
