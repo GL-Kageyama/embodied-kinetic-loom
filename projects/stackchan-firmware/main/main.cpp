@@ -46,6 +46,7 @@
 #include "dial.h"
 #include "servo.h"
 #include "net.h"
+#include "sleep_rule.h"
 #include "sound.h"
 #include "wifi.h"
 #include "zeros.h"
@@ -128,6 +129,36 @@ bool g_zeros_from_nvs = false;
 
 bool g_servos_ready = false;
 bool g_sound_ready = false;  // ⚠️ a silent board must not stop the neck
+
+// --- sleep: the body darkens when its host is gone -------------------------
+// ⛔ **Why the body, and not the host.** The Mac is shut down at night, and the
+//    board is on a wall outlet and carries a battery — on 2026-10-20 it ran
+//    **9.5 h unplugged**, screen included. ⇒ Cutting the Mac's power does not
+//    cut the board's, and the only thing that can switch this body off is the
+//    body. Until now the author did it by hand.
+//
+// ⚠️ **Chosen, not measured.** Five minutes is longer than the dial's 30 s
+//    sweep interval and the Wi-Fi retry's 30 s ceiling, so a dropped
+//    association or a restarted daemon never darkens the room — 0.19.74
+//    measured 0.3–4 s to re-dial. ⛔ It is also short enough that a Mac shut
+//    down in the evening leaves the room dark before anyone is in it.
+constexpr int64_t kAsleepAfterUs = 5LL * 60 * 1000 * 1000;
+
+sleep_rule::State g_sleep = sleep_rule::State::kAwake;
+//: The last light the host asked for. ⛔ Sleep writes `kOff`, so without this
+//: the wake would come back dark in a different way than the host left it.
+Light g_light = Light::kOff;
+//: Milliseconds since boot of the last time a host was there — a connection, or
+//: a line on either wire. ⚠️ `uint32_t` on purpose: it wraps after ~49 days, and
+//: unsigned subtraction reads the wrap as an interval rather than as a jump.
+uint32_t g_last_present_ms = 0;
+uint32_t g_slept_ms = 0;
+//: Zero unless `bench sleep` forced a dark body. See `HoldDark`.
+uint32_t g_hold_until_ms = 0;
+
+void NotePresent() {
+  g_last_present_ms = static_cast<uint32_t>(esp_timer_get_time() / 1000);
+}
 
 int RawFromAngle(int zero, int angle_tenths) {
   // The vendor's own formula, in 0.1-degree units.
@@ -222,6 +253,8 @@ void PrintHelp() {
   printf("  bench pmu                 the PMIC's status registers and the battery's volts\n");
   printf("  bench level               pin 0's pad read as an input, then as an output\n");
   printf("  bench leds                read the expander back, then set all twelve full red\n");
+  printf("  bench backlight on|off    the screen's lamp — the AXP2101's DLDO1 bit; the drawing stays\n");
+  printf("  bench sleep               go dark now, as if the host had left; the next line wakes it\n");
   printf("  bench sound <word>        play one of hello|pip|chime|fall\n");
   printf("  bench audio <ms>          play a tone through the link's own path, and say how long it took\n");
   printf("  bench volume <0..100>     set the amplifier's volume and keep it\n");
@@ -785,6 +818,17 @@ void BenchVolume(int percent) {
   }
 }
 
+// ⚠️ Declared here because `bench sleep` is above the sleep clock: the rule,
+//    the state and the functions that change it stay together at the bottom of
+//    this namespace, and the bench reaches them by name.
+//    ⛔ The hold exists for the eye only. A forced dark body with a live host
+//    would otherwise be woken by the main loop in 20 ms, and there would be
+//    nothing to look at. Chosen, not measured: long enough to look, short
+//    enough that a forgotten body is not a body left dark.
+constexpr uint32_t kForcedHoldMs = 20 * 1000;
+void GoDark();
+void HoldDark();
+
 void HandleBench(const char* args) {
   // ⛔ A `bench` command blocks this task for seconds, and every pose that
   //    arrives while it runs is read late. A pose that arrives late is not a
@@ -880,6 +924,40 @@ void HandleBench(const char* args) {
     //    the eye says whether a pixel is lit.
     leds::probe();
     printf("bench: twelve set to full red — if nothing is lit, say so; the registers above still count\n");
+    return;
+  }
+  if (std::strncmp(args, "backlight", 9) == 0) {
+    const char* value = args + 9;
+    while (*value == ' ') {
+      ++value;
+    }
+    // ⚠️ This is the lamp, not the drawing: the panel is told nothing and
+    //    keeps whatever the face last put there. `bench pmu` shows the rail.
+    if (std::strncmp(value, "off", 3) == 0) {
+      const bool wrote = display::backlight(false);
+      printf("bench: backlight OFF — %s\n",
+             wrote ? "the PMIC took the write; the screen should be black"
+                   : "THE PMIC DID NOT TAKE THE WRITE");
+    } else if (std::strncmp(value, "on", 2) == 0) {
+      const bool wrote = display::backlight(true);
+      printf("bench: backlight ON — %s\n",
+             wrote ? "the PMIC took the write; the face should be back"
+                   : "THE PMIC DID NOT TAKE THE WRITE");
+    } else {
+      printf("bench: backlight needs `on` or `off`\n");
+    }
+    return;
+  }
+  if (std::strncmp(args, "sleep", 5) == 0) {
+    // ⚠️ The Mac's switch, forced by hand. It is not a power cut: the battery
+    //    holds the board up and only the lamp, the twelve and the neck stop.
+    //    The hold exists because the host is still connected — without it the
+    //    main loop would see the link and wake the body in 20 ms, and the eye
+    //    would have nothing to look at.
+    GoDark();
+    HoldDark();
+    printf("bench: asleep — screen dark, twelve off; it wakes in %u s or on the next line\n",
+           static_cast<unsigned>(kForcedHoldMs / 1000));
     return;
   }
   if (std::strncmp(args, "pmu", 3) == 0) {
@@ -1276,6 +1354,9 @@ void HandleFrame(const char* line, int length) {
   }
 
   leds::set_light(command.light);
+  // ⚠️ Remembered for the wake: sleep writes the twelve off, and the body has to
+  //    come back wearing what the host last asked for, not a default of ours.
+  g_light = command.light;
   // ⚠️ `face:null` is the host's *"the face has not changed"*, not *"blank the
   //    screen"* — `projects/stackchan/outbound.py` sends it on any frame whose
   //    light changed and whose face did not. ⛔ `face_bitmap::render(kNone)`
@@ -1448,6 +1529,75 @@ void ServoWatchdog() {
   }
 }
 
+// ⛔ This does not cut power — it cannot, the battery holds the board up — so
+//    "asleep" is a dark screen, the twelve off, and the neck limp (torque is
+//    already released at rest). The panel keeps what was drawn: the backlight
+//    is a lamp, and waking raises it over the face the host left.
+void GoDark() {
+  g_sleep = sleep_rule::State::kAsleep;
+  g_slept_ms = static_cast<uint32_t>(esp_timer_get_time() / 1000);
+  display::backlight(false);
+  leds::set_light(Light::kOff);
+}
+
+// ⚠️ `bench sleep`'s window: `SleepWatch` ignores a present host until it ends,
+//    so the dark screen can be looked at. Any line cancels it (`WakeNow`).
+void HoldDark() {
+  g_hold_until_ms = static_cast<uint32_t>(esp_timer_get_time() / 1000) + kForcedHoldMs;
+}
+
+// ⚠️ Idempotent, and called from two places: the main loop (a connection came
+//    back) and `RunLine` (a line arrived). The second matters because a bench
+//    command is a person, and a body that stayed dark while someone typed into
+//    it would be a body that had to be unplugged.
+void WakeNow() {
+  if (g_sleep == sleep_rule::State::kAwake) {
+    return;
+  }
+  g_sleep = sleep_rule::State::kAwake;
+  g_hold_until_ms = 0;
+  const uint32_t now_ms = static_cast<uint32_t>(esp_timer_get_time() / 1000);
+  display::backlight(true);
+  leds::set_light(g_light);
+  // ⚠️ Said on both wires, and the link is the one that can hear it: this is
+  //    the first line a returning host can use to tell that the body was dark.
+  Say("sleep: awake after %lld s — the host is back\n",
+      static_cast<long long>(static_cast<uint32_t>(now_ms - g_slept_ms)) / 1000);
+}
+
+// ⚠️ Called from the main loop, which is the only task that is never blocked.
+void SleepWatch() {
+  const uint32_t now_ms = static_cast<uint32_t>(esp_timer_get_time() / 1000);
+  const bool present = dial::up();
+  if (present) {
+    NotePresent();
+  }
+  // ⚠️ `bench sleep`'s window: the host is still here, and the rule would wake
+  //    the body in 20 ms. The hold is the eye's, and it never outlives a line.
+  if (g_hold_until_ms != 0) {
+    if (static_cast<int32_t>(g_hold_until_ms - now_ms) > 0) {
+      return;
+    }
+    g_hold_until_ms = 0;
+  }
+  const int64_t absent_us =
+      static_cast<int64_t>(static_cast<uint32_t>(now_ms - g_last_present_ms)) * 1000;
+  const sleep_rule::State next =
+      sleep_rule::next(g_sleep, present, absent_us, kAsleepAfterUs);
+  if (next == g_sleep) {
+    return;
+  }
+  if (next == sleep_rule::State::kAsleep) {
+    GoDark();
+    // ⚠️ The console is the only witness here: by construction, the host that
+    //    would have read this line is the one that is gone.
+    printf("sleep: no host for %lld s — the screen is dark\n",
+           static_cast<long long>(absent_us / 1000000));
+  } else {
+    WakeNow();
+  }
+}
+
 // ⚠️ The sixteen values `esp_reset_reason_t` can hold, named. ⛔ The number is
 //    printed beside the word, because the number is what a measurement holds.
 const char* ResetReasonName(esp_reset_reason_t reason) {
@@ -1487,6 +1637,12 @@ void RunLine(const char* line, int length) {
   if (length <= 0) {
     return;
   }
+  // ⚠️ A line on either wire is a host that is there. The sleep clock is reset
+  //    here rather than in `Dispatch`, so that a refused frame or a `bench`
+  //    command counts too — the question is "is anyone talking to this body",
+  //    not "did the last thing work".
+  NotePresent();
+  WakeNow();
   if (g_body != nullptr) {
     xSemaphoreTake(g_body, portMAX_DELAY);
   }
@@ -1665,7 +1821,13 @@ extern "C" void app_main() {
   xTaskCreate(ConsoleTask, "console", 4096, nullptr, 2, nullptr);
   while (true) {
     leds::tick();
-    display::tick();
+    SleepWatch();
+    // ⚠️ A blink is a drawing on a lamp that is off while asleep. Skipping the
+    //    tick leaves the drawn face exactly as the host left it, so waking is a
+    //    lamp coming back on rather than a redraw.
+    if (g_sleep == sleep_rule::State::kAwake) {
+      display::tick();
+    }
     PoseWatchdog();
     ServoWatchdog();
     vTaskDelay(pdMS_TO_TICKS(20));

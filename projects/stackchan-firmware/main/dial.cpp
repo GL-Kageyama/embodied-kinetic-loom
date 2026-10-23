@@ -311,6 +311,28 @@ bool Greet(int fd, char* line, int size) {
   return dial_scan::is_loom(line, length);
 }
 
+// ⛔ **A host that goes away without closing the socket is what this is for.**
+//    On 2026-10-21 a daemon restart left the board's connection in `FIN_WAIT_1`
+//    with no ACK for over a minute: `ping` failed, and `DialTask` has no read
+//    timeout, so the body went on believing it was connected. ⚠️ Now that an
+//    absent host puts the body to sleep, that belief would keep the screen lit
+//    all night. ⇒ keepalive: 10 s idle, 5 s between probes, three probes —
+//    about 25 s to a dead socket. ⛔ **These are chosen, not measured.**
+//    ⛔ Requires `CONFIG_LWIP_TCP_KEEPALIVE` (`sdkconfig.defaults`); without it
+//    lwIP accepts `SO_KEEPALIVE` and applies its own hours-long defaults.
+void KeepAlive(int fd) {
+  int on = 1;
+  setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+#ifdef TCP_KEEPIDLE
+  int idle = 10;
+  int interval = 5;
+  int count = 3;
+  setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle));
+  setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &interval, sizeof(interval));
+  setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &count, sizeof(count));
+#endif
+}
+
 void Take(const char* line, int length) {
   if (dial_policy::console_only(line)) {
     ++g_refused;
@@ -469,6 +491,7 @@ void DialTask(void*) {
     if (fd >= 0) {
       if (Greet(fd, hello, sizeof(hello))) {
         std::memcpy(reached, host, sizeof(reached));
+        KeepAlive(fd);
       } else {
         ++g_greet_failed;
         close(fd);
@@ -539,6 +562,7 @@ void DialTask(void*) {
           fd = -1;
           continue;
         }
+        KeepAlive(fd);
         ++g_found;
         std::memcpy(reached, text, sizeof(reached));
         printf("dial: found the host at %s:%d — %d address(es) past the named one\n",

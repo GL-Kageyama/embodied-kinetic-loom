@@ -1,10 +1,10 @@
-<!-- i18n-version: 1.42.0 | canonical: tests/README.md | translated: 2026-10-23 -->
+<!-- i18n-version: 1.44.0 | canonical: tests/README.md | translated: 2026-10-24 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
 # tests/
 
-**fifty-four files, one thousand one hundred and seventeen tests, all green — measured 2026-10-23.**
+**fifty-five files, one thousand one hundred and thirty-one tests, all green — measured 2026-10-24.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -419,6 +419,24 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 ✅ **The host's side arrived in the same change, and its row shape came with its counter.** `test_stackchan_link.py` grew four claims — **the greeting is written before the connection is made public**, and a silent link says so — and `test_stackchan_day.py` grew three for `link_up` / `link_down` / `link_nobody`; `test_stackchan_next_daemon.py` gained one, that the second room's daemon says `nobody` on its own clock.
 
 ⛔ **What this file does not do.** It builds `dial_scan.cpp` and nothing else: **`dial.cpp` needs lwIP and FreeRTOS and is compiled by no check**, so the sweep's loop, its counters and its abort conditions are read by nothing. ⛔ **And no check here has ever seen the board find a host** — that was watched once, by hand, on 2026-10-23.
+
+## Sleep (0.19.77)
+
+✅ **`tests/test_stackchan_sleep_rule.py` compiles `projects/stackchan-firmware/main/sleep_rule.cpp` with `clang++` or `g++` and runs it** — **fourteen claims**: ten functions, four of them parametrized. ⚠️ **The count is the runner's — parameters one by one** — and it is the same cut the suite's total uses. It skips when no C++ compiler is on the host, and says so rather than passing.
+
+| the check | what it is for |
+|---|---|
+| a host that is there wakes the body, from either state | ⚠️ **the asymmetric half**: presence beats the clock |
+| an absence shorter than the window does not darken the room | ⛔ **a Wi-Fi blip and a daemon restart pass through this window in seconds** — 0.19.74 measured the board re-dialling in **0.3–4 s** |
+| the window ends at `>=`, exactly | the boundary is not *approximately* five minutes — one microsecond before it and the boundary itself are asked separately |
+| an asleep body stays asleep inside the window | ⛔ **only a connection wakes it**, and the sleep clock is not a heartbeat |
+| a negative absence is not forever | the clock may not have been read yet |
+| the backlight is `0x90` bit 7, and `0x99` is never touched | ⛔ **dimming leaves the panel glowing**, and what was asked for is a dark screen |
+| `SleepWatch` is called by the main loop, and `RunLine` resets the absent clock | the rule is **wired**, not merely compiled |
+| `WakeNow` runs **before** `xSemaphoreTake(g_body)`, and `bench sleep` holds the dark | ⛔ **waking after the queue would dispatch a line into a dark room**; ⚠️ **and without a hold the loop wakes the body 20 ms after `bench sleep` returns** |
+| keepalive is set, and `CONFIG_LWIP_TCP_KEEPALIVE=y` is in `sdkconfig.defaults` | ⛔ **lwIP accepts `SO_KEEPALIVE` without that option and applies its own hour-long defaults**, so the option is the difference between 25 s and a night |
+
+⛔ **What it does not do.** It builds `sleep_rule.cpp` and nothing else: **`main.cpp`, `display.cpp` and `dial.cpp` need IDF and are compiled by no check**, and the wiring rows read the source. ⚠️ **Nothing here can see a screen** — whether the glass is dark is the author's eye's question, and on 2026-10-24 **no eye looked.** ⛔ **And the keepalive has never fired on the machine**: the row holds the spelling, not an observation.
 
 ## The link the board opens (0.19.61)
 

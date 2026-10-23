@@ -61,6 +61,15 @@ CONFIG_ESP_COREDUMP_CHECKSUM_CRC32=y
 #    so the ceiling was here, not there.
 #    ⚠️ These are numbers chosen to be measured; the rate after them is the
 #    measurement, and it goes in `projects/stackchan-firmware/README.md`.
+# ⛔ **A host that goes away without closing the socket must be noticed.** On
+#    2026-10-21 a daemon restart left the board's connection in `FIN_WAIT_1`
+#    with no ACK for over a minute, and `DialTask` has no read timeout. Now that
+#    an absent host puts the body to sleep, that half-open connection would keep
+#    the screen lit all night. lwIP accepts `SO_KEEPALIVE` without this option
+#    and applies its own hours-long defaults; with it, `dial.cpp` asks for
+#    10 s idle / 5 s between probes / 3 probes — about 25 s to a dead socket.
+CONFIG_LWIP_TCP_KEEPALIVE=y
+
 CONFIG_LWIP_TCP_WND_DEFAULT=32768
 CONFIG_LWIP_TCP_RECVMBOX_SIZE=32
 CONFIG_LWIP_TCP_OOSEQ_MAX_PBUFS=8

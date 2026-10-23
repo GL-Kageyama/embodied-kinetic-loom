@@ -20,6 +20,21 @@ bool begin();
 // draw a sixth face.
 void show(Face face);
 
+// **The backlight's own switch, and nothing else.**
+//
+// The backlight is DLDO1 on the AXP2101, and its enable is **bit 7 of register
+// `0x90`** (`XPowersLib`: `enableDLDO1` sets that bit). ⚠️ The vendor's boot
+// sequence writes `0xBF` there — bit 7 high, the other six rails as they were —
+// so this clears and sets one bit and leaves every other rail alone.
+//
+// ⛔ The voltage register `0x99` is not touched. Dimming it to the vendor's 0 %
+// (value 20, 2.5 V) leaves the panel glowing, which is not what a dark room
+// asks for; the author's word for the asleep screen is 「真っ暗」.
+//
+// ⚠️ The panel keeps what was drawn: this is a lamp, not a blank. Returning
+// `true` means the PMIC took the write — ⛔ not that the eye saw dark.
+bool backlight(bool on);
+
 // Call often from the main loop, one context only. Closes and reopens the lids
 // by itself — ⚠️ two frames, about 60 ms, every 3.2–6.8 s, and never on `sleepy`
 // (whose lids are already nearly shut). The mouth does not move: a blink is an

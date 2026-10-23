@@ -394,6 +394,29 @@ bool display::begin() {
   return true;
 }
 
+bool display::backlight(bool on) {
+  if (g_axp2101 == nullptr) {
+    return false;
+  }
+  // ⚠️ Register `0x90` is the LDO enable register and **bit 7 is DLDO1**, the
+  //    backlight (`XPowersLib`, `XPOWERS_AXP2101_LDO_ONOFF_CTRL0`). The
+  //    vendor's own `0xBF` leaves that bit high, so the other rails — the
+  //    panel's logic, the expander, the servo rail's supply — are not in this
+  //    write. ⛔ A whole-register constant here would be a second copy of the
+  //    vendor's boot value, and the day it changed the backlight would go with
+  //    the change.
+  uint8_t value = 0;
+  if (!ReadReg(g_axp2101, 0x90, &value)) {
+    return false;
+  }
+  const uint8_t next = on ? static_cast<uint8_t>(value | 0x80)
+                          : static_cast<uint8_t>(value & 0x7F);
+  if (next == value) {
+    return true;
+  }
+  return WriteReg(g_axp2101, 0x90, next);
+}
+
 void display::show(Face face) {
   if (g_io == nullptr) {
     return;
