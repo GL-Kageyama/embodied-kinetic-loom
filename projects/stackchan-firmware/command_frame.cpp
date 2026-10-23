@@ -25,6 +25,11 @@ const char* const kFaceGreeting = "greeting";
 const char* const kFaceHappy = "happy";
 const char* const kFaceAngry = "angry";
 const char* const kFaceSleepy = "sleepy";
+// ⚠️ This body's three words (2026-10-24). ⛔ Not the Pet's: the Pet's `State`
+//    has five members and does not grow.
+const char* const kFaceFocused = "focused";
+const char* const kFaceWatching = "watching";
+const char* const kFaceStartled = "startled";
 
 const char* const kLightOff = "off";
 const char* const kLightDim = "dim";
@@ -112,6 +117,9 @@ ParseResult DecideFace(const char* text, int size, Face* out) {
   if (Equals(text, size, kFaceHappy)) { *out = Face::kHappy; return ParseResult::kOk; }
   if (Equals(text, size, kFaceAngry)) { *out = Face::kAngry; return ParseResult::kOk; }
   if (Equals(text, size, kFaceSleepy)) { *out = Face::kSleepy; return ParseResult::kOk; }
+  if (Equals(text, size, kFaceFocused)) { *out = Face::kFocused; return ParseResult::kOk; }
+  if (Equals(text, size, kFaceWatching)) { *out = Face::kWatching; return ParseResult::kOk; }
+  if (Equals(text, size, kFaceStartled)) { *out = Face::kStartled; return ParseResult::kOk; }
   return ParseResult::kUnknownValue;
 }
 

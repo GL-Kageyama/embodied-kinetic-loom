@@ -67,8 +67,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-from projects.pet.expressions import State
 from projects.stackchan import hooks
+from projects.stackchan.faces import Face
 
 
 class Phase(Enum):
@@ -189,7 +189,7 @@ class Decision:
 
     event: str | None
     phase: Phase
-    face: State | None
+    face: Face | None
     light: Light
     gesture: str | None
     body: str
@@ -229,7 +229,7 @@ class Companion:
     motion: bool = DEFAULT_MOTION
     sound: bool = DEFAULT_SOUND
     _phase: Phase = field(default=Phase.PRESENT, init=False)
-    _face: State | None = field(default=State.CURIOUS, init=False)
+    _face: Face | None = field(default=Face.CURIOUS, init=False)
     _light: Light = field(default=Light.BREATHE, init=False)
     _hold_until: float = field(default=0.0, init=False)
     _idle_until: float | None = field(default=None, init=False)
@@ -284,7 +284,7 @@ class Companion:
         """**期限を過ぎた段階を進める。** 判定は返さず、理由だけを返す。"""
         if self._phase in (Phase.GREETING, Phase.CLOSING) and at >= self._hold_until:
             self._phase = Phase.PRESENT
-            self._face = State.CURIOUS
+            self._face = Face.CURIOUS
             self._light = Light.BREATHE
             return SETTLED
         if (
@@ -293,7 +293,7 @@ class Companion:
             and at >= self._idle_until
         ):
             self._phase = Phase.RESTING
-            self._face = State.SLEEPY
+            self._face = Face.SLEEPY
             self._light = Light.OFF
             return SLEPT
         return None
@@ -356,7 +356,7 @@ class Companion:
 
         if event == "SessionStart":
             self._phase = Phase.GREETING
-            self._face = State.GREETING
+            self._face = Face.GREETING
             self._light = Light.WARM
             self._hold_until = at + EXPRESSION_SECONDS
             gesture, body = self._body("look_up", at)
@@ -364,7 +364,7 @@ class Companion:
 
         elif event == "UserPromptSubmit":
             self._phase = Phase.WORKING
-            self._face = State.CURIOUS
+            self._face = Face.CURIOUS
             self._light = Light.DIM
             self._turn_started = at
             self._failures = 0
@@ -374,7 +374,7 @@ class Companion:
         elif event == "PermissionRequest":
             # ⛔ **唯一の割り込みである。** 体が間に合わなくても、光は必ず出る。
             self._phase = Phase.BLOCKED
-            self._face = State.CURIOUS
+            self._face = Face.CURIOUS
             self._light = Light.ALERT
             gesture, body = self._body("look_side", at)
             sound = "pip"
@@ -385,7 +385,7 @@ class Companion:
                 and at - self._turn_started >= LONG_TURN_SECONDS
             )
             self._phase = Phase.CLOSING
-            self._face = State.HAPPY
+            self._face = Face.HAPPY
             self._light = Light.WARM
             self._hold_until = at + EXPRESSION_SECONDS
             self._turn_started = None
@@ -397,7 +397,7 @@ class Companion:
 
         elif event == "StopFailure":
             self._phase = Phase.CLOSING
-            self._face = State.ANGRY
+            self._face = Face.ANGRY
             self._light = Light.ERROR
             self._hold_until = at + EXPRESSION_SECONDS
             self._turn_started = None
@@ -408,7 +408,7 @@ class Companion:
 
         else:  # SessionEnd
             self._phase = Phase.RESTING
-            self._face = State.SLEEPY
+            self._face = Face.SLEEPY
             self._light = Light.OFF
             self._turn_started = None
             gesture, body = self._body("rest", at)
@@ -418,14 +418,14 @@ class Companion:
             gesture=gesture, body=body, sound=self._sound(sound, quiet), reason=ACTED,
         )
 
-    def _evidence(self, event: str, at: float, woke_face: State | None) -> Decision:
+    def _evidence(self, event: str, at: float, woke_face: Face | None) -> Decision:
         face = woke_face
 
         if event in CLEARS_BLOCKED and self._phase is Phase.BLOCKED:
             self._phase = (
                 Phase.WORKING if self._turn_started is not None else Phase.PRESENT
             )
-            self._face = State.CURIOUS
+            self._face = Face.CURIOUS
             self._light = Light.DIM if self._phase is Phase.WORKING else Light.BREATHE
             face = self._face
 
@@ -463,7 +463,7 @@ class Companion:
         else:
             self._phase = Phase.PRESENT
             self._light = Light.BREATHE
-        self._face = State.CURIOUS
+        self._face = Face.CURIOUS
 
     def _body(self, name: str, at: float) -> tuple[str | None, str]:
         """**身振りを選ぶ。** ⛔ **選ぶだけで、送らない。**
@@ -499,7 +499,7 @@ class Companion:
         self,
         event: str,
         *,
-        face: State | None,
+        face: Face | None,
         light: Light,
         gesture: str | None,
         body: str,

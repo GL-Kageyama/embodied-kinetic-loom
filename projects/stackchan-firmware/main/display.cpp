@@ -14,6 +14,7 @@
 #include "board.h"
 #include "face_bitmap.h"
 #include "i2c_bus.h"
+#include "light_colour.h"
 
 namespace {
 
@@ -59,6 +60,14 @@ constexpr int kBlinkClosedMs = 80;
 //: since 0.19.45 a `face:null` frame does not reach `show` at all, so this is
 //: never cleared by the host saying "do not change".
 Face g_drawn = Face::kNone;
+
+//: **The colour the face is drawn in.** `apply_command` writes it whenever the
+//: light word changes, so the drawing and the twelve carry one hue. ⚠️ It starts
+//: at `off`'s row, because that is what this body holds before a host has said
+//: anything — the twelve dark, the face in the neutral that stays visible in a
+//: dark room (`light_colour::ScreenColour`). ⛔ Not white: white is not a light
+//: this machine has.
+light_colour::Rgb g_tint = light_colour::ScreenColour(Light::kOff);
 int g_next_blink_ms = 0;
 int g_blink_until_ms = -1;
 int g_blink_index = 0;
@@ -296,9 +305,17 @@ bool Push() {
       //    0xFFFF and 0x0000 are the same either way, which is why the first two
       //    faces looked right and every grey edge was invisible: 0x8410 arrived
       //    as 0x1084 — near black — so the anti-aliasing was sent and not shown.
+      // ⚠️ **The coverage is the shape; the tint is the colour.** Until
+      //    2026-10-24 this sent grey and the face was white; the author's word
+      //    was to give the drawing the light's own hue (「光の色に合わせて…」).
+      //    ⛔ The multiply is per channel and the shape does not change: at
+      //    coverage 255 the pixel is the light's colour, at 0 it is the panel's
+      //    black, and the anti-aliased edge is the same fraction of it as before.
       const uint8_t value = g_grey[y * board::kDisplayWidth + x];
       const uint16_t colour = static_cast<uint16_t>(
-          ((value >> 3) << 11) | ((value >> 2) << 5) | (value >> 3));
+          (((value * g_tint.r / 255) >> 3) << 11) |
+          (((value * g_tint.g / 255) >> 2) << 5) |
+          ((value * g_tint.b / 255) >> 3));
       g_line[i] = static_cast<uint16_t>((colour >> 8) | (colour << 8));
     }
     if (esp_lcd_panel_io_tx_color(g_io, -1, g_line,
@@ -430,6 +447,24 @@ void display::show(Face face) {
   if (Push()) {
     ScheduleBlink(NowMs());
   }
+}
+
+void display::tint(Light light) {
+  if (g_io == nullptr) {
+    return;
+  }
+  const light_colour::Rgb colour = light_colour::ScreenColour(light);
+  if (colour == g_tint) {
+    return;
+  }
+  g_tint = colour;
+  // ⚠️ **Repaint what is already drawn.** A frame that moves only the twelve
+  //    carries `face: null` — the host's "the face did not change" — so without
+  //    this the drawing would keep the colour of a light that has gone. ⛔ And
+  //    no frame arrives to fix it later, because a frame is sent when the state
+  //    changes and nothing here would change again.
+  Guard guard;
+  Push();
 }
 
 void display::tick() {

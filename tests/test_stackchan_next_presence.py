@@ -4,6 +4,11 @@
 ⛔ **ここには機械が無い。** `Decision` を受け取って `Decision` を返す関数だけを
 押さえる。⚠️ **光の色そのものは主張しない**——色はファームウェアの選択であり、
 机の上で区別できるかは著者の目が決める。ここで測るのは**どの語を選ぶか**までである。
+
+⚠️ **2026-10-24 に、この層は2つ目のチャンネルを得た**——顔である（著者の
+「3つ（＋失敗）」）。⇒ **光と顔は同じ1つの判断で動く。** 滞留も、章の終わりに
+忘れることも、背後の窓を通さないことも、**2つに共通である**。⛔ 別々に置けば、
+片方だけが遅れた日に「光は `busy`、顔は `focused`」という枠が出る。
 """
 from __future__ import annotations
 
@@ -17,6 +22,7 @@ from projects.stackchan.behaviors import (
     Light,
     Phase,
 )
+from projects.stackchan.faces import Face
 from projects.stackchan_next import presence
 from projects.stackchan_next.presence import (
     FAILURE_FLASH_SECONDS,
@@ -61,6 +67,34 @@ def test_every_work_light_is_a_word_the_wire_can_carry():
 
     for light in (*presence.WORK_LIGHTS.values(), presence.WORK_LIGHT_OTHER):
         assert light.value in wire.LIGHTS
+
+
+def test_two_work_words_have_a_face_of_their_own():
+    """⚠️ **光の写像と同じ形をしている。** ⛔ 語は意味に対して付けた。
+
+    ⚠️ **形がその語に見えるかは、この検査の外である**——`bench face` の前に
+    著者の目があり、**どの形もまだ判定されていない**（2026-10-24）。
+    """
+    assert presence.WORK_FACES == {"write": Face.FOCUSED, "run": Face.WATCHING}
+    assert presence.WORK_FACE_OTHER is Face.CURIOUS
+    assert presence.FAILURE_FACE is Face.STARTLED
+
+
+def test_every_work_face_is_a_word_the_wire_can_carry():
+    """⛔ **`Face` に値を足して codec に語を足し忘れれば、枠は送れない。**
+
+    ⚠️ **2026-10-24 の順序はこれである**——語を codec・schema・ファームの3か所に
+    同じ日に載せ、**基板を焼き、その後にホストを設置する**。⛔ 逆にすれば、
+    基板は語を知らず、**枠ごと拒んで光も身振りも一緒に落とす**（`kUnknownValue`）。
+    """
+    from engine.backend import protocol_stackchan as wire
+
+    for face in (
+        *presence.WORK_FACES.values(),
+        presence.WORK_FACE_OTHER,
+        presence.FAILURE_FACE,
+    ):
+        assert face.value in wire.FACES
 
 
 # ───────────────────────── 作業の光 ─────────────────────────
@@ -200,7 +234,10 @@ def test_one_failure_is_visible_for_two_seconds():
     assert done.reason == FLASHED
     assert done.event is None
     assert done.phase is Phase.WORKING
-    assert done.face is None, "点滅は顔を連れてこない"
+    # ⚠️ **この行は 2026-10-24 まで `face is None` だった**——「点滅は顔を連れて
+    #    こない」。**顔を着せた日から、脱ぐのも点滅の仕事である**——`None` は
+    #    電線の上で「変えない」であり、**基板は `startled` を着たままになる。**
+    assert done.face is Face.CURIOUS, "点滅が、着せた顔を脱がせていない"
     assert done.sound is None
     assert done.light is Light.DIM
 
@@ -298,18 +335,24 @@ def test_a_presence_that_is_not_one_of_the_three_is_refused():
 # ───────────────────────── 触らないこと ─────────────────────────
 
 
-def test_the_layer_changes_no_field_but_the_light():
-    """⛔ **顔・身振り・体・音・`sent` は、この層のものではない。**"""
+def test_the_layer_changes_the_light_and_the_face_and_nothing_else():
+    """⛔ **この層が持つのは、光と顔の2つである。**
+
+    ⚠️ **この検査は 2026-10-24 まで「顔はこの層のものではない」と主張していた**
+    （`test_the_layer_changes_no_field_but_the_light`、`decision.face is None`）。
+    **著者の「表情も自然に連動させたい」が、その主張を反転させた。**
+    ⛔ 身振り・体・音・`sent` は、いまもこの層のものではない。
+    """
     room = _presence()
     _start(room, 0.0)
     decision = room.offer("main", "PreToolUse", 0.5, work="write")
 
-    assert decision.face is None, "「変えない」を、この層は塗り替えない"
+    assert decision.light is Light.WRITING
+    assert decision.face is Face.FOCUSED, "write の顔が focused でない"
     assert decision.gesture is None
     assert decision.sound is None
     assert decision.sent is False
     assert decision.event == "PreToolUse"
-    assert decision.light is Light.WRITING
 
 
 def test_without_a_flash_the_deadline_is_the_rooms():
@@ -317,3 +360,134 @@ def test_without_a_flash_the_deadline_is_the_rooms():
     room = _presence()
     _start(room, 0.0)
     assert room.deadline == pytest.approx(IDLE_SECONDS)
+
+
+# ───────────────────────── 作業の顔（2026-10-24） ─────────────────────────
+
+
+def test_the_face_and_the_light_move_in_one_decision():
+    """⛔ **光と顔は、同じ判定から出る。** 片方だけが先に動く形を作らない。
+
+    ⚠️ **2つの欄を別々に置く日が、この規則の破れである**——`write` の枠に
+    `busy` と `focused` が並ぶような日である。
+    """
+    room = _presence()
+    opened = _start(room, 0.0)
+    assert (opened.light, opened.face) == (Light.DIM, Face.CURIOUS)
+
+    written = room.offer("main", "PreToolUse", 0.5, work="write")
+    assert (written.light, written.face) == (Light.WRITING, Face.FOCUSED)
+
+    # ⚠️ **滞留の内側では、2つとも動かない。**
+    held = room.offer("main", "PreToolUse", 1.2, work="run")
+    assert (held.light, held.face) == (Light.WRITING, Face.FOCUSED)
+
+    # ⚠️ **滞留が明ければ、2つとも動く。**
+    ran = room.offer("main", "PreToolUse", 6.0, work="run")
+    assert (ran.light, ran.face) == (Light.BUSY, Face.WATCHING)
+
+
+def test_an_untold_work_gets_the_rooms_face():
+    """⚠️ **知らされていない作業の顔は `curious` である**——第1層が `working` で出す顔。
+
+    ⛔ **「変えない」ではない。** `write` の後に `read` が来て顔が `focused` のままなら、
+    光は `dim`、顔は `focused` という、**2つが食い違う枠**が出る。
+    """
+    room = _presence()
+    _start(room, 0.0)
+    assert room.offer("main", "PreToolUse", 0.5, work="write").face is Face.FOCUSED
+    decision = room.offer("main", "PreToolUse", 6.0, work="read")
+    assert (decision.light, decision.face) == (Light.DIM, Face.CURIOUS)
+
+
+def test_a_background_window_paints_neither():
+    """⛔ **背後の窓は、光も顔も変えない。**
+
+    ⚠️ **`witness` は第1層の素の顔を運ぶ**——そのまま返せば、背後の道具1つで
+    **見ている窓の `focused` が `curious` へ落ちる**。光と同じ理由である。
+    """
+    room = _presence()
+    _start(room, 0.0)
+    assert room.offer("main", "PreToolUse", 0.5, work="write").face is Face.FOCUSED
+
+    distant = room.offer("other", "PreToolUse", 6.0, work="run")
+    assert distant.reason == DISTANT
+    assert (distant.light, distant.face) == (Light.WRITING, Face.FOCUSED)
+
+
+def test_the_face_is_forgotten_with_the_word():
+    """⚠️ **顔も語に属する。** 前の章の `focused` で、次の章を開かない。"""
+    room = _presence()
+    _start(room, 0.0)
+    assert room.offer("main", "PreToolUse", 0.5, work="write").face is Face.FOCUSED
+    room.offer("main", "Stop", 1.0)
+    room.tick(1.0 + 4.0)                              # 締めの表情が明ける
+
+    decision = room.offer("main", "UserPromptSubmit", 6.0)
+    assert decision.phase is Phase.WORKING
+    assert (decision.light, decision.face) == (Light.DIM, Face.CURIOUS)
+
+
+def test_a_failure_flashes_startled_and_returns_to_the_work_face():
+    """⛔ **2秒の後に戻るのは、この層の顔である。**
+
+    ⚠️ **`None` ではない。** 1回目の `PostToolUseFailure` で第1層が置く顔は
+    第1層の欄では `None` であり、`None` は*変えない*を意味する——それを返せば、
+    **基板は `startled` を着たままになる。**
+    """
+    room = _presence()
+    _start(room, 0.0)
+    assert room.offer("main", "PreToolUse", 0.5, work="write").face is Face.FOCUSED
+
+    failed = room.offer("main", "PostToolUseFailure", 1.0)
+    assert failed.face is Face.STARTLED, "失敗が顔を着ていない"
+    assert failed.light is Light.ALERT
+
+    done = room.tick(1.0 + FAILURE_FLASH_SECONDS)
+    assert done is not None and done.reason == FLASHED
+    assert done.face is Face.FOCUSED, "作業の顔ではなく、別の顔へ戻った"
+    assert done.light is Light.WRITING
+
+
+def test_quiet_paints_no_face_of_its_own():
+    """⚠️ **静かな側は、この層が着せた顔を脱ぐ**——光を `dim` にするのと同じ判断である。
+
+    ⛔ **戻り値の顔は塗り替えない。** 第1層の顔（挨拶・締め・`sleepy`）は
+    この層のものではない——`None` は「変えない」であり、**隠すことではない。**
+    """
+    room = _presence(PRESENCE_QUIET, sound=True)
+    _start(room, 0.0)
+    decision = room.offer("main", "PreToolUse", 0.5, work="write")
+    assert decision.light is Light.DIM
+    assert decision.face is None, "静かな側が、この層の顔を着せている"
+
+
+def test_a_flash_that_spans_a_change_of_work_returns_both_fields_together():
+    """⛔ **点滅の2秒のあいだに作業が変われば、戻る顔もその作業のものである。**
+
+    ⚠️ **この検査は、実機が先に見つけた欠陥のためのものである**（2026-10-24）。
+    最初の実装は「点滅の前に着ていた顔」を覚えて戻していたので、`write` の最中に
+    失敗し、その2秒のあいだに `run` が来た日、点滅の刻みは
+    **`light: "busy"` と `face: "focused"` が並ぶ枠**を書いた——**光と顔は1つの判定で
+    動く**という、この層が同じ日に立てた規則の、ただ1つの破れである。
+    ⇒ **戻すのは「そのとき欲しい顔」であり、滞留は点滅の終わりで振り直される**
+    （光がそうしてきたのと同じである）。
+    """
+    room = _presence()
+    _start(room, 0.0)
+    assert room.offer("main", "PreToolUse", 0.5, work="write").face is Face.FOCUSED
+
+    failed = room.offer("main", "PostToolUseFailure", 1.0)
+    assert (failed.light, failed.face) == (Light.ALERT, Face.STARTLED)
+
+    # ⚠️ **点滅の途中で語が変わった。** ⛔ **滞留は点滅を割らない**——1.5 秒では
+    #    まだ `alert` のままで、顔の欄は `null`（*変えない*）であり、基板は
+    #    `startled` を着続ける。**変わるのは点滅が尽きた刻みである。**
+    moved = room.offer("main", "PreToolUse", 1.5, work="run")
+    assert (moved.light, moved.face) == (Light.ALERT, None)
+
+    done = room.tick(1.0 + FAILURE_FLASH_SECONDS)
+    assert done is not None and done.reason == FLASHED
+    assert (done.light, done.face) == (Light.BUSY, Face.WATCHING), (
+        "点滅が、いま欲しい顔ではない顔へ戻した"
+    )

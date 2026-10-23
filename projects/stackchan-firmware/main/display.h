@@ -1,4 +1,4 @@
-// The screen: a 320 x 240 ILI9342C, and the five faces drawn on it.
+// The screen: a 320 x 240 ILI9342C, and the eight faces drawn on it.
 //
 // ⛔ Not every number here is a measurement. The pins, the panel, the two I2C
 //    devices and the face's shapes are the vendor's record (m5stack/StackChan,
@@ -16,9 +16,19 @@ namespace display {
 // LEDs must keep working either way, so the caller does not abort on false.
 bool begin();
 
-// Draws one of the five faces. `Face::kNone` clears the screen; it does not
-// draw a sixth face.
+// Draws one of the eight faces. `Face::kNone` clears the screen; it does not
+// draw a ninth face.
 void show(Face face);
+
+// **The face takes the light's colour.** Reads the light word through
+// `light_colour::ScreenColour` — one table, two media (`main/light_colour.cpp`)
+// — and repaints what is already drawn, because a frame that moves only the
+// twelve carries `face: null` and no second frame follows it.
+//
+// ⛔ Called with every frame, from `apply_command`, so the drawing can never
+//    wear a light that has gone. ⚠️ `off` is not black: `resting` sends it every
+//    night and the sleeping face stayed lit on the unit (2026-10-24).
+void tint(Light light);
 
 // **The backlight's own switch, and nothing else.**
 //

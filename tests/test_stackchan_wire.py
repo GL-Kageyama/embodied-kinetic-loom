@@ -31,8 +31,12 @@ FIRMWARE = REPO_ROOT / "projects" / "stackchan-firmware"
 
 
 def test_every_symbol_round_trips():
-    """⚠️ **6 × 8 × 6 × 5 ＝ 1,440 の枠**（顔6・光8・身振り6・音5、うち `null` を
-    1つも持たないものが5×8×5×4＝800）。**すべてが戻る。**"""
+    """⚠️ **9 × 8 × 6 × 5 ＝ 2,160 の枠**（顔9＝8語＋`null`・光8・身振り6・音5、
+    うち `null` を1つも持たないものが8×8×5×4＝1,280）。**すべてが戻る。**
+
+    ⚠️ **2026-10-24 に顔が5語から8語になった**ので、枠は 1,440 から 2,160 へ増えた
+    （6→9 × 残りは同じ）。⛔ 数は数えた——`len(FACES)` が動けばこの行も動く。
+    """
     for face in (None, *wire.FACES):
         for light in wire.LIGHTS:
             for gesture in (None, *wire.GESTURES):
@@ -226,8 +230,10 @@ def test_the_firmware_has_a_colour_for_every_light_word():
     names = {name.lower() for name in re.findall(r"\bk([A-Za-z]+),", enum)}
     assert names == set(wire.LIGHTS)
 
-    leds = (FIRMWARE / "main" / "leds.cpp").read_text(encoding="utf-8")
-    body = leds.split("Rgb ColorFor(Light light) {", 1)[1].split("\n}", 1)[0]
+    # ⚠️ **2026-10-24 に表は `light_colour.cpp` へ移った**——画面が同じ色を読む
+    #    ようになったからである（1つの表、2つの媒体）。検査が見る場所も移る。
+    colours_file = (FIRMWARE / "main" / "light_colour.cpp").read_text(encoding="utf-8")
+    body = colours_file.split("light_colour::Rgb light_colour::LedColour(Light light) {", 1)[1].split("\n}", 1)[0]
     colours = {name.lower() for name in re.findall(r"case Light::k([A-Za-z]+):", body)}
     assert colours == set(wire.LIGHTS)
 

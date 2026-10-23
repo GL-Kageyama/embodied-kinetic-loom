@@ -15,11 +15,20 @@
 
 enum class Face : uint8_t {
   kNone,
+  // ⚠️ The first five are the Pet's, and their drawings are the vendor's skin.
   kCurious,
   kGreeting,
   kHappy,
   kAngry,
   kSleepy,
+  // ⚠️ Three words added on 2026-10-24, so that the face can follow the light:
+  //    `focused` while a write is in flight, `watching` while a command runs,
+  //    and `startled` for the two-second failure flash. ⛔ Their shapes are
+  //    choices, not measurements — `face_bitmap.cpp` says where each number
+  //    came from, and only an eye says whether the shape reads as the word.
+  kFocused,
+  kWatching,
+  kStartled,
 };
 
 enum class Light : uint8_t {

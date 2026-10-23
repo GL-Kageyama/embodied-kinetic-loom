@@ -1,9 +1,13 @@
-// The five faces as pixels — pure, no IDF, so a host can draw and check them.
+// The eight faces as pixels — pure, no IDF, so a host can draw and check them.
 //
 // ⛔ The drawing is the vendor's default skin: a black screen, two white eye
 //    discs with a black lid over each, and a white mouth bar. The numbers are
 //    lifted from `skins/default/eyes.cpp` and `mouth.cpp` (M5Stack, MIT) and
 //    named in `face_bitmap.cpp`; this file is the same shapes without LVGL.
+// ⚠️ **Three of the eight words are not the vendor's** (2026-10-24): `focused`,
+//    `watching` and `startled` were added so that the face can follow the light.
+//    Their rows are this repository's choices, and each one moves only the lid's
+//    weight and the mouth's two numbers — ⛔ no new shape was invented.
 // ⚠️ The vendor draws through LVGL, which anti-aliases its circles; a one-bit
 //    renderer reproduced the shapes and not the smoothness. So the buffer is
 //    8-bit grey: the coverage of each pixel, 0..255, and the panel sends it as
@@ -22,8 +26,8 @@ constexpr int kHeight = 240;
 constexpr int kBytes = kWidth * kHeight;  // one byte of grey per pixel: 76,800
 
 //: Fills `grey` (kBytes, one byte per pixel) with the face. `Face::kNone` fills
-//: it with zeroes: the screen goes blank, because "no expression" is not one of
-//: the five.
+//: it with zeroes: the screen goes blank, because "no expression" is one of the
+//: eight words and is the one that draws nothing.
 void render(Face face, uint8_t* grey);
 
 //: Draws the same face with both lids closed — one frame of a blink. ⚠️ Same

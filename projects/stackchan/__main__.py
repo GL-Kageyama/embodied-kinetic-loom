@@ -25,9 +25,9 @@ import os
 import sys
 
 from projects.pet import strings
-from projects.pet.expressions import FACES, State
 
 from . import hooks
+from .faces import Face, art
 from .behaviors import (
     DEFAULT_MOTION,
     DEFAULT_SESSION,
@@ -195,7 +195,7 @@ def trace_lines(rows: list[dict]) -> list[str]:
             f"{row['reason']}"
         )
         if row["face"] is not None:
-            lines.extend(f"  {line}" for line in FACES[State(row["face"])])
+            lines.extend(f"  {line}" for line in art(Face(row["face"])))
     return lines
 
 

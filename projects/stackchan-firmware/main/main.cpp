@@ -179,6 +179,9 @@ const char* FaceName(Face face) {
     case Face::kHappy: return "happy";
     case Face::kAngry: return "angry";
     case Face::kSleepy: return "sleepy";
+    case Face::kFocused: return "focused";
+    case Face::kWatching: return "watching";
+    case Face::kStartled: return "startled";
   }
   return "?";
 }
@@ -254,6 +257,7 @@ void PrintHelp() {
   printf("  bench level               pin 0's pad read as an input, then as an output\n");
   printf("  bench leds                read the expander back, then set all twelve full red\n");
   printf("  bench backlight on|off    the screen's lamp — the AXP2101's DLDO1 bit; the drawing stays\n");
+  printf("  bench face <word> [light] draw one face — curious|greeting|happy|angry|sleepy|focused|watching|startled — and optionally a light, in that light\n");
   printf("  bench sleep               go dark now, as if the host had left; the next line wakes it\n");
   printf("  bench sound <word>        play one of hello|pip|chime|fall\n");
   printf("  bench audio <ms>          play a tone through the link's own path, and say how long it took\n");
@@ -713,6 +717,100 @@ void BenchRelease() {
 // ⚠️ The bench's own spelling, and it is the wire's four words and no others.
 //    ⛔ A word not in this table is refused: a bench that played something for
 //    an unknown word would be a second vocabulary, and the two would drift.
+//: **The eight faces by name, for the bench only.**
+//: ⚠️ `command_frame.cpp` decides a face word on the wire, and this decides one
+//: typed at the console. ⛔ The two are separate on purpose — a bench that ran
+//: the wire's parser would need four fields and a whole frame to draw a shape —
+//: but they must spell the same eight words, and `tests/test_stackchan_faces.py`
+//: reads both.
+bool FaceFromName(const char* name, int length, Face* out) {
+  static const struct {
+    const char* text;
+    Face word;
+  } kWords[] = {
+      {"curious", Face::kCurious},
+      {"greeting", Face::kGreeting},
+      {"happy", Face::kHappy},
+      {"angry", Face::kAngry},
+      {"sleepy", Face::kSleepy},
+      {"focused", Face::kFocused},
+      {"watching", Face::kWatching},
+      {"startled", Face::kStartled},
+  };
+  for (const auto& entry : kWords) {
+    if (static_cast<int>(std::strlen(entry.text)) == length &&
+        std::strncmp(name, entry.text, static_cast<size_t>(length)) == 0) {
+      *out = entry.word;
+      return true;
+    }
+  }
+  return false;
+}
+
+//: **`bench face <word> [light]` — 形を目に見せるための口である。**
+//:
+//: ⚠️ 2026-10-24 に足した3語（`focused` / `watching` / `startled`）は、
+//: **著者の目が1つずつ判定するまで「そう見える」とは書けない**。だから
+//: 語を1つ打てば図が1つ出る口が要る——`bench sound` が音に対してやったのと同じ形である。
+//:
+//: ⚠️ 光の語を添えられるのは、**色と図が同じ枠で変わる**ことを目で見るためである
+//: （`display::tint`）。⛔ 添えなければ光は動かない。
+//: ⛔ **ここが返すのは「描いた」だけである。「見えた」は機械には分からない。**
+void BenchFace(const char* args) {
+  const char* word = args;
+  int length = 0;
+  while (word[length] != '\0' && word[length] != ' ') {
+    ++length;
+  }
+  Face face = Face::kNone;
+  if (!FaceFromName(word, length, &face)) {
+    printf("bench: face needs one of curious|greeting|happy|angry|sleepy|focused|watching|startled\n");
+    return;
+  }
+  const char* rest = word + length;
+  while (*rest == ' ') {
+    ++rest;
+  }
+  Light light = Light::kOff;
+  bool has_light = false;
+  if (*rest != '\0' && *rest != '\r' && *rest != '\n') {
+    int light_length = 0;
+    while (rest[light_length] != '\0' && rest[light_length] != ' ' &&
+           rest[light_length] != '\r' && rest[light_length] != '\n') {
+      ++light_length;
+    }
+    static const struct {
+      const char* text;
+      Light word;
+    } kLights[] = {
+        {"off", Light::kOff},         {"dim", Light::kDim},
+        {"writing", Light::kWriting}, {"busy", Light::kBusy},
+        {"breathe", Light::kBreathe}, {"warm", Light::kWarm},
+        {"alert", Light::kAlert},     {"error", Light::kError},
+    };
+    bool found = false;
+    for (const auto& entry : kLights) {
+      if (static_cast<int>(std::strlen(entry.text)) == light_length &&
+          std::strncmp(rest, entry.text, static_cast<size_t>(light_length)) == 0) {
+        light = entry.word;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      printf("bench: the second word is a light — off|dim|writing|busy|breathe|warm|alert|error\n");
+      return;
+    }
+    has_light = true;
+    display::tint(light);
+    leds::set_light(light);
+    g_light = light;
+  }
+  display::show(face);
+  printf("bench: face %s drawn%s — the eye says whether it reads as that word\n",
+         FaceName(face), has_light ? " in that light" : "");
+}
+
 bool SoundFromName(const char* name, int length, Sound* out) {
   static const struct {
     const char* text;
@@ -946,6 +1044,14 @@ void HandleBench(const char* args) {
     } else {
       printf("bench: backlight needs `on` or `off`\n");
     }
+    return;
+  }
+  if (std::strncmp(args, "face", 4) == 0) {
+    const char* word = args + 4;
+    while (*word == ' ') {
+      ++word;
+    }
+    BenchFace(word);
     return;
   }
   if (std::strncmp(args, "sleep", 5) == 0) {
@@ -1366,6 +1472,12 @@ void HandleFrame(const char* line, int length) {
   //    frames over 25 hours carried `face:null` (81 of them on `light:dim`).
   //    The schema has always read null as "unchanged"; this line is where the
   //    firmware disagreed with it.
+  // ⚠️ **The face wears the light's colour, and the colour is set first** —
+  //    `show()` below pushes the drawing, so it must already know the hue.
+  //    ⛔ A frame that moves only the twelve carries `face: null`, and `tint()`
+  //    repaints what is drawn; without it the drawing would keep a colour the
+  //    twelve have left, and no later frame would arrive to fix it.
+  display::tint(command.light);
   if (command.face != Face::kNone) {
     display::show(command.face);
   }

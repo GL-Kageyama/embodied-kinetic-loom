@@ -7,9 +7,9 @@
   "required": ["face", "light", "gesture", "sound"],
   "properties": {
     "face": {
-      "description": "The expression to show, or null for 'do not change the face'. ⚠️ These five names are the Pet's, and they were drawn once (`projects/pet/expressions.py`); this schema repeats them so that the device end has a contract to read, and `tests/test_stackchan_wire.py` refuses the day the two lists disagree.",
+      "description": "The expression to show, or null for 'do not change the face'. ⚠️ The first five names are the Pet's, drawn once (`projects/pet/expressions.py`); the last three belong to this body and were added on 2026-10-24 so that the face can follow the light (`projects/stackchan/faces.py`). This schema repeats them so that the device end has a contract to read, and `tests/test_stackchan_faces.py` refuses the day the lists disagree — ⛔ which nothing did until 2026-10-24, although this description claimed a check since 0.19.13.",
       "type": ["string", "null"],
-      "enum": ["curious", "greeting", "happy", "angry", "sleepy", null]
+      "enum": ["curious", "greeting", "happy", "angry", "sleepy", "focused", "watching", "startled", null]
     },
     "light": {
       "description": "The meaning the twelve RGB LEDs carry. ⛔ Always present and never null: the light is the one channel that is always on, so its state is sent with every frame rather than left for the device to infer. The mapping from this word to twelve pixels is firmware's job, and the LED order and colour order of the unit in hand are in no record.",

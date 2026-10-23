@@ -4,7 +4,7 @@
 
 # tests/
 
-**fifty-five files, one thousand one hundred and thirty-one tests, all green — measured 2026-10-24.**
+**fifty-seven files, one thousand one hundred and fifty-seven tests, all green — measured 2026-10-24.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -272,6 +272,10 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | a background failure does not flash | `test_stackchan_next_presence.py` | ⛔ **the two-second `alert` had no owner** — a failure in a window nobody is watching is not shown on the one that is |
 | a new chapter does not inherit the last word | `test_stackchan_next_presence.py` | ⚠️ **the word belongs to the chapter**; forgetting it is what lets the first tool show immediately |
 | a blocked pause keeps the word | `test_stackchan_next_presence.py` | ⚠️ **a permission wait is inside the chapter, not its end** — clearing it would show `dim` until the next tool |
+| **the light and the face move in one decision** (0.19.80) | `test_stackchan_next_presence.py` | ⛔ **two fields set apart is a frame that can carry `busy` beside `focused`** — the dwell, the forgetting and the background rule are one rule over both |
+| **one failure wears `startled` for the same 2 s, then returns to the work face** | `test_stackchan_next_presence.py` | ⛔ **the restore is this layer's face, not the base layer's field** — on a first failure that field is `null`, and `null` means *do not change*, which leaves the board wearing `startled` |
+| **a flash that spans a change of work returns both fields together** (0.19.80) | `test_stackchan_next_presence.py` | ✅ **written after the machine found the defect** — a failure during `write`, then `run` inside the two seconds, produced `{"face":"focused","light":"busy"}`; ⇒ the tick returns **the face the current work wants**, not the one the flash was wearing |
+| quiet paints no face of its own | `test_stackchan_next_presence.py` | ⚠️ **it takes off what this layer put on, and does not repaint the base layer's** — `null` is *do not change*, not *hide* |
 
 **Five more hold the day instrument's new column — the work words a day carried (0.19.52):**
 
@@ -300,7 +304,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 | the check | where | what it is for |
 |---|---|---|
-| every symbol round-trips — the six face values (five and `null`) × six lights × the six gesture values × the five sound values (four and `null`) | `test_stackchan_wire.py` | ⚠️ **1,080 frames counted, 125 of them carrying no `null`**, and not one carries a number |
+| every symbol round-trips — the nine face values (eight and `null`) × eight lights × the six gesture values × the five sound values (four and `null`) | `test_stackchan_wire.py` | ⚠️ **2,160 frames counted, 1,280 of them carrying no `null`** (the count moved from 1,080 / 125 when the faces went from five to eight, 2026-10-24), and not one carries a number |
 | a frame is one ASCII line, and the two nullable fields are present as `null` | `test_stackchan_wire.py` | ⛔ **a missing field is filled by the receiver's memory**; `null` is a value |
 | an unknown key is refused — a `prompt` cannot ride along | `test_stackchan_wire.py` | the same rule the socket holds, asserted on the wire |
 | an unknown value is refused in each field | `test_stackchan_wire.py` | ⛔ **a word outside the table is outside the vocabulary** |
@@ -495,16 +499,45 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 
 | the check | where | what it is for |
 |---|---|---|
-| none of the five faces is blank, and `kNone` draws nothing | `test_stackchan_face.py` | ⚠️ **a blank screen is not one of the five faces**; `none` is what the wire calls *no expression* |
-| the mouth is 90 × 6, in the same place for every emotion | `test_stackchan_face.py` | ⛔ **the vendor's `DefaultMouth` has no `setEmotion`** — a mouth that moved per emotion would be an invention, not a copy |
+| no face is blank, and `kNone` draws nothing | `test_stackchan_face.py` | ⚠️ **a blank screen is not one of the eight faces**; `none` is what the wire calls *no expression* |
+| the mouth is one solid rectangle, in the same place for every emotion | `test_stackchan_face.py` | ⛔ **the vendor's `DefaultMouth` has no `setEmotion`** — a mouth that moved per emotion would be an invention, not a copy. ⚠️ **Since 0.19.80 the mouth has two numbers of its own** (`mouth_width`, `mouth_height`), so the check measures the rectangle instead of assuming 90 × 6 |
+| **the Pet's five keep the vendor's bar** — 90 × 6 at the same place, 540 pixels | `test_stackchan_face.py` | ⛔ **a new face must not be paid for by moving an old one** |
+| **the three new mouths are their own** (0.19.80) | `test_stackchan_face.py` | `focused` 60 × 6, `watching` 132 × 6, `startled` 36 × 20 — ⚠️ **chosen numbers, and no eye has judged them** |
 | the two eyes are mirror images about `x = 160` | `test_stackchan_face.py` | the vendor negates the right eye's rotation; and ⚠️ **the mirror of pixel `x` is `319 - x`, not `320 - x`** — the off-by-one that put the eyes half a pixel off the mouth |
 | nothing is lit outside the eyes and the mouth | `test_stackchan_face.py` | the background is the vendor's `secondaryColor` |
 | **the edges carry intermediate values** | `test_stackchan_face.py` | ⛔ **this is the anti-aliasing, asserted**, because a 1-bit circle is a staircase and the author saw it |
 | the sleepy eyes are the most closed, and the lid follows the vendor's integer weights | `test_stackchan_face.py` | `-map_range(weight, 0, 100, 0, 20)` in `int` arithmetic: weight 72 lifts the lid by 14, not 14.4 |
-| `happy` and `greeting` are one drawing, and the other four are distinct | `test_stackchan_face.py` | the host decided two words share a face; the screen does not quietly disagree |
+| `happy` and `greeting` are one drawing, and the rest are distinct | `test_stackchan_face.py` | the host decided two words share a face; the screen does not quietly disagree |
+| **eight words make eight distinct drawings** (0.19.80) | `test_stackchan_face.py` | ⛔ **the five Pet faces were five drawings; the three new words must not arrive as a sixth copy of one of them** |
 | **the normal eye is a plain disc** (0.19.53) | `test_stackchan_face.py` | ⛔ **the one row where the drawing is not the vendor's** — the author asked for 「通常時の目の形は、単純な⚫︎がいいな」, and 100 is `DefaultEyes::setWeight`'s other end: the lid touches the disc's top and covers none of it. **A blink still closes it whole**, and the shape is all that is measured |
 
 ⛔ **What it cannot see is where the defect was.** `display.cpp` — the SPI driver, the panel's init sequence, the two I2C rails, and the DMA — **is compiled by no check.** `idf.py build` is run by hand, and on 2026-10-18 a tear lived in it for four rounds of reporting while this directory stayed green: the eight-row chunk buffer was refilled before the DMA had finished reading it, so *every shape on the screen had a thinner copy of itself below it*, and the copy sat further below the lower the shape was. **The drawing was right the whole time; what was wrong was the wire underneath it.** ⇒ **A `-2` row shift was briefly written into `face_bitmap.cpp` on the strength of the symptom, and removed again** — the comment where it stood records why it must not come back. ⛔ **And these tests did not catch it, because they were moved with it**: the row boxes were re-pinned to the shifted drawing and the suite stayed green. **A test written from the same belief as the code cannot be the check on that belief** — what caught it was one photograph, on the glass.
+
+## The face and the light — two media, one table (0.19.80)
+
+✅ **The author asked for the expressions to follow the light, and for the drawing to take the light's colour** (「光の色に合わせて、今の白抜きの表情を、その光の色と同じにしよう」). ⇒ **the colour table moved out of `leds.cpp`'s anonymous namespace into `main/light_colour.cpp`**, where the twelve LEDs and the screen both read it. **Six tests compile that file on the host and ask it two questions.**
+
+| the check | where | what it is for |
+|---|---|---|
+| every light word has a colour in both media | `test_stackchan_light_colour.py` | ⛔ **a word with a lamp colour and no screen colour would be a face that keeps the last tint** |
+| the screen keeps the LED's hue — the three ratios equal, within rounding | `test_stackchan_light_colour.py` | ⚠️ **a different brightness is not a different hue**, and the tolerance is what two integer truncations can move |
+| the screen's brightest channel is **232** | `test_stackchan_light_colour.py` | ⚠️ **chosen, not measured** — the row binds *eight words at one brightness*, not that the number is good |
+| **`off` is black on the LEDs and not on the screen** | `test_stackchan_light_colour.py` | ⛔ **`resting` sends `off` every night**, and an eye watched the sleeping face stay lit; **a screen that followed `off` to black erased it.** The named exception — a neutral grey |
+| **the frame sets the colour before it draws** | `test_stackchan_light_colour.py` | ⛔ `show()` pushes immediately, so a colour set afterwards leaves one frame in the old tint; and a `face: null` frame (the light moved alone) is repainted by `tint()` — **without these two lines the face wears the light that has left** |
+
+✅ **And the eight words are held together in five places** — Pet's `State` (five), `projects/stackchan/faces.py` (eight; **the five take their values from `State`, so a misspelling is structurally impossible**), the wire's `FACES`, the contract's `enum`, and the firmware's literals with `FaceName` and `FaceFromName`.
+
+| the check | where | what it is for |
+|---|---|---|
+| the body has eight words, and no spelling twice | `test_stackchan_faces.py` | ⚠️ the count and the uniqueness, which no other file asks |
+| the Pet's five are the first five, and are the Pet's | `test_stackchan_faces.py` | ⛔ **the same five words and the same order are two claims** — `State` begins at `happy` and the wire begins at `curious` (this test was written wrong once, and the docstring says so) |
+| the three words this body added are its own | `test_stackchan_faces.py` | ⛔ **`State` does not grow**; the body's words are not the Pet's |
+| the wire, the contract and the firmware name the same eight | `test_stackchan_faces.py` | ⛔ **two comments claimed a check covered this and no check did** — this is that check |
+| `FaceName` can print every word | `test_stackchan_faces.py` | ⚠️ **since 0.19.41 that line is the frame's acceptance**, and a missing name prints `?` |
+| the Pet's faces have an ASCII figure and the body's three do not | `test_stackchan_faces.py` | ⛔ **returning an empty figure is right** — inventing one would put a drawing in the day log that no firmware has |
+| a row from a day can name a body face | `test_stackchan_faces.py` | ⚠️ a wire word missing from `Face` makes the day's rows unreadable |
+
+⛔ **None of these look at the screen.** They read strings and tables; **whether `focused` looks like focus is the author's eye's question**, and `bench face <word> [light]` exists so that an eye can ask it.
 
 ## The voice — a word that leaves the board (0.19.13)
 

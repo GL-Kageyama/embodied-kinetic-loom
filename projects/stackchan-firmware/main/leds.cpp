@@ -10,6 +10,7 @@
 
 #include "board.h"
 #include "i2c_bus.h"
+#include "light_colour.h"
 
 namespace {
 
@@ -132,50 +133,11 @@ bool RefreshLeds() {
   return WriteRegister8(kRegLedCfg, static_cast<unsigned char>(cfg | (1u << 6)));
 }
 
-struct Rgb {
-  unsigned char r;
-  unsigned char g;
-  unsigned char b;
-};
-
-// ⚠️ These are choices, not measurements. They are deliberately dim: twelve
-//    pixels at full brightness in a dark room is a lamp, not a face.
-//
-// ⚠️ Multiplied by four on 2026-10-18. The first values were written before any
-//    LED on this unit had been looked at, and the first frame a host ever sent
-//    produced 「無点灯」 in a lit room — at r=28/255 a warm light is below what
-//    daylight shows. The ratio between the words is unchanged; only the scale.
-Rgb ColorFor(Light light) {
-  switch (light) {
-    case Light::kOff:
-      return {0, 0, 0};
-    // ⚠️ What the unit shows is (24, 24, 40): `SetLedColor` keeps the top five
-    //    bits of each channel for RGB565, and 28 & 0xF8 == 24 & 0xF8 == 24,
-    //    44 & 0xF8 == 40. ⛔ The three values are written one band higher than
-    //    they look, so that the swell below crosses a band edge halfway through
-    //    its cycle — at 24 the light would sit on the bottom edge of its band,
-    //    and the first percent of every dip would drop a whole step at once.
-    case Light::kDim:
-      return {28, 28, 44};
-    // ⚠️ Added on 2026-10-20 with the two words. Both are choices, not
-    //    measurements, and neither has been looked at on the unit yet: the
-    //    question they answer is whether an eye can tell them apart on a desk,
-    //    and only an eye answers it.
-    case Light::kWriting:
-      return {104, 40, 76};
-    case Light::kBusy:
-      return {24, 104, 88};
-    case Light::kBreathe:
-      return {40, 48, 72};
-    case Light::kWarm:
-      return {112, 64, 24};
-    case Light::kAlert:
-      return {160, 104, 0};
-    case Light::kError:
-      return {144, 0, 0};
-  }
-  return {0, 0, 0};
-}
+// ⚠️ **The colours moved out on 2026-10-24** — `ColorFor` is now
+//    `light_colour::LedColour`, and it sits beside `ScreenColour` in
+//    `main/light_colour.cpp`, because the face takes the same hue as the
+//    twelve. ⛔ One table, two readings: a second copy here is what would let
+//    the room and the face drift apart.
 
 // A triangle wave between 20% and 100% over three seconds.
 int BreathScalePercent() {
@@ -190,7 +152,7 @@ int BreathScalePercent() {
 // A triangle wave between 72% and 100% over seven seconds — a swell, not a
 // breath. ⚠️ `breathe` is 20–100% over three seconds, so this is a quarter of
 // its depth and more than twice as slow. ⛔ The panel shows only one step of it
-// (see `ColorFor`'s note on the bands), so what reaches the eye is a slow swell
+// (see `light_colour.cpp`'s note on the bands), so what reaches the eye is a slow swell
 // between two neighbouring brightnesses rather than a fade. ⚠️ Whether that
 // reads as alive or as a flicker is the author's eye's question; nothing here
 // has been looked at on the unit.
@@ -223,7 +185,7 @@ int ScaleFor(Light light) {
 int g_written_scale = -1;
 
 bool Render(Light light) {
-  Rgb color = ColorFor(light);
+  light_colour::Rgb color = light_colour::LedColour(light);
   const int scale = ScaleFor(light);
   if (scale != 100) {
     color.r = static_cast<unsigned char>(color.r * scale / 100);

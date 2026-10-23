@@ -48,11 +48,27 @@ __all__ = [
     "decode",
 ]
 
-#: ⚠️ **Pet の5つの顔である**（`projects/pet/expressions.py`）。
-#: ⛔ **この一覧は写しである**——正典は Pet の `State` であり、`tests/test_stackchan_wire.py`
-#: が、2つが食い違った日に赤くなる。**写しを持つのは、両端がそれを読むからである**:
+#: ⚠️ **8つの顔である。** 先頭5つは Pet のもので（`projects/pet/expressions.py`）、
+#: 後ろ3つはこの機体が 2026-10-24 に足した（`projects/stackchan/faces.py`）。
+#: ⛔ **この一覧は写しである**——正典は `projects/stackchan/faces.py` の `Face` であり、
+#: `tests/test_stackchan_faces.py` が、3つが食い違った日に赤くなる。
+#: **写しを持つのは、両端がそれを読むからである**:
 #: ここはホスト側、契約は `schemas/stackchan-command.schema.json`、ファームは C++ の綴り。
-FACES: tuple[str, ...] = ("curious", "greeting", "happy", "angry", "sleepy")
+#: ⚠️ **2026-10-24 まで、この一覧の註は「`tests/test_stackchan_wire.py` が食い違いを
+#: 見る」と書いていたが、その検査は存在しなかった**——Pet を輸入する試験は1つも無く、
+#: 綴りを比べていたのは**電線・契約・ファームの3つだけ**であった。**規則は書かれ、
+#: 検査は無く、緑のままだった。** 足したのは `tests/test_stackchan_faces.py` である。
+FACES: tuple[str, ...] = (
+    "curious",
+    "greeting",
+    "happy",
+    "angry",
+    "sleepy",
+    # ⚠️ この機体の3語。⛔ 語は意味に対して付けた——形は目が決める。
+    "focused",
+    "watching",
+    "startled",
+)
 
 #: ⚠️ **8つの意味である**（`projects/stackchan/behaviors.py` の `Light`）。
 #: ⛔ **色ではない。** 12個の LED への対応はファームの仕事であり、並びも色順も記録に無い。

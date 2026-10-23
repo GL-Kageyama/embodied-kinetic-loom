@@ -18,7 +18,7 @@ import pathlib
 import pytest
 
 from projects.pet import strings
-from projects.pet.expressions import State
+from projects.stackchan.faces import PET_FACES, Face
 from projects.stackchan import hooks
 from engine.backend import protocol_stackchan as wire
 from projects.stackchan.__main__ import build_parser, trace
@@ -119,8 +119,14 @@ def test_the_six_phases_are_all_reachable():
 
 
 def test_the_five_faces_are_all_reached():
+    """⚠️ **第1層が使うのは Pet の5つだけである。**
+
+    ⛔ この体の3語（`focused` / `watching` / `startled`）はここには出ない——
+    選ぶのは第2層（`projects/stackchan_next/presence.py`）であり、
+    **段階だけを見ている層に仕事の語を混ぜない**（0.19.79）。
+    """
     faces = {row["face"] for row in trace(SCRIPT, True, False) if row["face"]}
-    assert faces == {state.value for state in State}
+    assert faces == {face.value for face in PET_FACES}
 
 
 def test_the_base_layer_uses_every_light_but_the_two_work_lights():
@@ -184,10 +190,10 @@ def test_anger_is_reserved_for_a_failed_turn():
     companion = Companion()
     companion.offer("UserPromptSubmit", 0.0)
     for at in (1.0, 2.0, 3.0, 4.0):
-        assert companion.offer("PostToolUseFailure", at).face is not State.ANGRY
+        assert companion.offer("PostToolUseFailure", at).face is not Face.ANGRY
 
     failed = companion.offer("StopFailure", 5.0)
-    assert failed.face is State.ANGRY
+    assert failed.face is Face.ANGRY
     assert failed.light is Light.ERROR
 
 
@@ -378,7 +384,7 @@ def test_an_evidence_event_resets_the_idle_timer():
     assert slept is not None
     assert slept.reason == SLEPT
     assert (slept.phase, slept.face, slept.light) == (
-        Phase.RESTING, State.SLEEPY, Light.OFF
+        Phase.RESTING, Face.SLEEPY, Light.OFF
     )
 
 
@@ -392,7 +398,7 @@ def test_an_expression_expires_and_returns_to_the_baseline():
     assert settled is not None
     assert settled.reason == SETTLED
     assert (settled.phase, settled.face, settled.light) == (
-        Phase.PRESENT, State.CURIOUS, Light.BREATHE
+        Phase.PRESENT, Face.CURIOUS, Light.BREATHE
     )
 
 
@@ -430,7 +436,7 @@ def test_motion_off_keeps_the_face_and_the_light():
     greeting = companion.offer("SessionStart", 0.0)
     assert greeting.body == BODY_STILL
     assert greeting.gesture is None
-    assert greeting.face is State.GREETING
+    assert greeting.face is Face.GREETING
     assert greeting.light is Light.WARM
 
 

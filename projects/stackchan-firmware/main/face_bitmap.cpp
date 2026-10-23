@@ -59,9 +59,19 @@ constexpr int kSamples = 8;
 // The eyelid is a square of the eye's own size, aligned centre and pushed up by
 // `weight` percent of that size. Weight 100 lifts it clear; weight 0 covers the
 // eye completely. ⚠️ The vendor computes this in `DefaultEyes::setWeight`.
+//
+// ⚠️ **The mouth is two more numbers, and they were added on 2026-10-24** so that
+//    a face can carry something an eye reads without a new renderer. ⛔ The five
+//    Pet faces keep the vendor's `setWeight(0)` bar — 90 x 6 — and the three
+//    words this body added each get their own rectangle. **A mouth is a
+//    rectangle and stays one**: no curve, no speech motion, no radius. That is
+//    the vendor's own default at weight 0, and it is the one shape this file
+//    draws without supersampling because LVGL draws no edge on it either.
 struct Style {
-  int weight;      // 0..100 — how much of the eye the lid leaves open
-  int rotation;    // tenths of a degree, as LVGL takes it
+  int weight;        // 0..100 — how much of the eye the lid leaves open
+  int rotation;      // tenths of a degree, as LVGL takes it
+  int mouth_width;   // px, centred on the panel's centre line
+  int mouth_height;  // px
 };
 
 // `DefaultEyes::setEmotion`, verbatim: Neutral (100, 0), Happy (72, 1550),
@@ -69,13 +79,20 @@ struct Style {
 // ⚠️ The five words of this repository map onto those six as below. `greeting`
 //    and `happy` are the same drawing on purpose — that is the host's decision,
 //    and this file does not split it.
+//
+// ⛔ **The last three rows are not the vendor's, and they are not measurements.**
+//    They are this body's words (2026-10-24), and each one is a guess at what an
+//    eye will read as that word — ⚠️ **the entries in `startled` and `watching`
+//    are a widened or deepened mouth, not a new shape**, because a new shape is
+//    a thing only the author's eye can approve. Which word a drawing is, is
+//    asked one at a time by `bench face`.
 Style StyleFor(Face face) {
   switch (face) {
     case Face::kHappy:
     case Face::kGreeting:
-      return {72, 1550};
+      return {72, 1550, kMouthWidth, kMouthHeight};
     case Face::kAngry:
-      return {70, 450};
+      return {70, 450, kMouthWidth, kMouthHeight};
     case Face::kCurious:
       // ⛔ **This row is no longer the vendor's.** `Doubt` is (75, 0): a disc
       //    with its top five rows cut flat by the lid. On 2026-10-20 the author
@@ -85,13 +102,28 @@ Style StyleFor(Face face) {
       //    disc. ⚠️ **The other faces keep the vendor's numbers**, and this is
       //    the one row where the drawing differs from the skin — by a word.
       //    ⚠️ A blink is still weight 0, which covers this disc completely.
-      return {100, 0};
+      return {100, 0, kMouthWidth, kMouthHeight};
     case Face::kSleepy:
-      return {35, -50};
+      return {35, -50, kMouthWidth, kMouthHeight};
+    // ——— この機体の3語（2026-10-24）。
+    //
+    // `focused` — 書き物の最中。**目を半分閉じ、口を小さく結ぶ。** 重さ55は
+    //   `sleepy` の35より開いていて、`curious` の100より閉じている——**眠りでは
+    //   なく集中**を狙った位置である。口は既定の3分の2。
+    case Face::kFocused:
+      return {55, 0, 60, 6};
+    // `watching` — コマンドが走っている最中。**目はほぼ開いたまま、口が広い。**
+    //   重さ88は「少し細めた」であって、眠りにも驚きにも寄らない。
+    case Face::kWatching:
+      return {88, 0, 132, 6};
+    // `startled` — 失敗の2秒。**目は丸く、口は開いている。** 口の高さ20は
+    //   `setWeight` の 6..50 の内側であり、動かすのは幅と高さの2つだけである。
+    case Face::kStartled:
+      return {100, 0, 36, 20};
     case Face::kNone:
       break;
   }
-  return {100, 0};
+  return {100, 0, kMouthWidth, kMouthHeight};
 }
 
 constexpr float kDegreesToRadians = 3.14159265f / 180.0f;
@@ -156,17 +188,22 @@ void DrawEye(uint8_t* grey, int cx, int cy, const Style& style, int sign) {
 
 // ⚠️ The vendor's mouth is a container with radius 0 at weight 0: a crisp
 //    rectangle, where LVGL itself draws no anti-aliased edge. Its corners and
-//    sides land on pixel boundaries, so it is filled solid.
-void DrawMouth(uint8_t* grey) {
+//    sides land on pixel boundaries, so it is filled solid. ⚠️ **Since
+//    2026-10-24 the size comes from the face's `Style`** — a rectangle is still
+//    a rectangle, and only its two numbers move.
+void DrawMouth(uint8_t* grey, const Style& style) {
   const int cx = face_bitmap::kWidth / 2;
   const int cy = face_bitmap::kHeight / 2 + kMouthOffsetY;
-  const int left = cx - kMouthWidth / 2;
-  const int top = cy - kMouthHeight / 2;
-  for (int y = top; y < top + kMouthHeight; ++y) {
+  const int left = cx - style.mouth_width / 2;
+  const int top = cy - style.mouth_height / 2;
+  for (int y = top; y < top + style.mouth_height; ++y) {
     if (y < 0 || y >= face_bitmap::kHeight) {
       continue;
     }
-    std::memset(grey + y * face_bitmap::kWidth + left, 255, kMouthWidth);
+    if (left < 0 || left + style.mouth_width > face_bitmap::kWidth) {
+      continue;
+    }
+    std::memset(grey + y * face_bitmap::kWidth + left, 255, style.mouth_width);
   }
 }
 
@@ -193,7 +230,7 @@ void RenderWith(Face face, uint8_t* grey, int weight) {
   //    `_is_left_eye ? rotation : -rotation`.
   DrawEye(grey, cx - kEyeOffsetX, cy, style, +1);
   DrawEye(grey, cx + kEyeOffsetX, cy, style, -1);
-  DrawMouth(grey);
+  DrawMouth(grey, style);
 }
 
 }  // namespace

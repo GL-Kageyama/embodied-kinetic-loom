@@ -24,9 +24,10 @@
 
 ### The screen
 
-✅ **An ILI9342C at 320 × 240 on SPI3**, drawing the vendor's own skin: an 8-bit coverage buffer, 8 × 8 supersampled, so the edges carry intermediate values rather than a staircase. The drawing is `face_bitmap.cpp`, and thirteen tests compile it on the host and ask the pixels.
+✅ **An ILI9342C at 320 × 240 on SPI3**, drawing the vendor's own skin: an 8-bit coverage buffer, 8 × 8 supersampled, so the edges carry intermediate values rather than a staircase. The drawing is `face_bitmap.cpp`, and **fifteen** tests compile it on the host and ask the pixels — **six more** ask that the eight words be spelled the same in five places, and that the colour table keep the hue it gives the LEDs.
 
-- **Five faces, and `null`** — a frame may leave the `face` field `null`, which means *this frame says nothing about the face*.
+- **Eight faces, and `null`** — a frame may leave the `face` field `null`, which means *this frame says nothing about the face*. **Five are the Pet's** (`curious` `greeting` `happy` `angry` `sleepy`); **three are this body's own**, added on 2026-10-24 by the author's word 「3つ（＋失敗）」: `focused` (the eyes narrowed, the mouth a short line), `watching` (a wide bar), `startled` (a small mouth, tall). ⛔ **Not one of the three shapes has been judged by an eye** — `bench face <word> [light]` exists so that an eye can.
+- ✅ **The drawing takes the light's colour** — one table, `main/light_colour.cpp`, read by the twelve LEDs and by the screen. ⛔ **A copy in each medium would drift in silence.** `off` is the exception and it is named: **black on the LEDs, a neutral grey on the screen**, because `resting` sends `off` every night and a face tinted black would erase the sleeping face the author watched stay lit. ⚠️ **The hue is the firmware's; the word is the host's** — no byte of colour crosses the wire.
 - ✅ **`curious` is a plain disc** (`{100, 0}`), the one drawing here that is not the vendor's — the author's word of 2026-10-20 (「通常時の目の形は、単純な⚫︎がいいな」).
 - ✅ **It blinks by itself**: both lids shut for **80 ms**, every **3.2–6.8 s**, from a list of seven gaps with no random number — a schedule that cannot be read out of the source cannot be checked. `sleepy` and *no face* do not blink.
 - ✅ **`dim` undulates between 72 % and 100 % over 7 s**, inside the firmware, at no cost in frames or bytes.
@@ -115,7 +116,8 @@ a hook event (33 of them)
 
 ✅ **Six words, read from `tool_name` and nothing else**, on `PreToolUse` and `PostToolUse` only: `read`, `write`, `run`, `search`, `plan`, `other`. ⛔ **A row that carries no word is not counted as `other`** — absent is not the same as a fourth kind of work.
 
-- ✅ **`write` → `writing`, `run` → `busy`**, everything else and *not told* → `dim`.
+- ✅ **`write` → `writing` and `focused`; `run` → `busy` and `watching`; everything else and *not told* → `dim` and `curious`.** ⚠️ **The light and the face move in one decision** — the dwell, the forgetting at the end of a chapter and the refusal to follow a background window are one rule over two fields, so a frame cannot carry `busy` beside `focused`.
+- ✅ **One failure wears `startled` for the same 2 s its light is `alert`**, and then returns to **the face this layer was showing** — ⛔ not to the base layer's field, which is `null` on a first failure and would leave the board wearing `startled`.
 - ✅ **The light never changes faster than once per `WORK_DWELL` (5 s)**; `lively` shortens it to 2 s, and `quiet` pins it to `dim`. ⚠️ **A light that changed on every tool would be a mirror, not a companion.**
 - ✅ **The word belongs to the chapter** and is dropped at `closing`, `present`, `resting` and `greeting` — ⛔ **not at `blocked`**, because a permission wait is inside the chapter.
 - ✅ **One failure is `alert` for 2 s; three in a row are the room's `concern`** — the word is not increased, the length is. **Waking after 90 s adds one `pip`** and no gesture, because a second body floor is not this layer's to hold.
@@ -164,7 +166,7 @@ a hook event (33 of them)
 
 | field | words | `null` means |
 |---|---|---|
-| `face` | `curious` `greeting` `happy` `angry` `sleepy` | this frame says nothing about the face |
+| `face` | `curious` `greeting` `happy` `angry` `sleepy` `focused` `watching` `startled` | this frame says nothing about the face |
 | `light` | `off` `dim` `writing` `busy` `breathe` `warm` `alert` `error` | — (a light is always a word) |
 | `gesture` | `look_up` `nod` `look_side` `rest` `recoil` | this frame does not move the neck |
 | `sound` | `hello` `pip` `chime` `fall` | this frame is silent |
@@ -179,7 +181,7 @@ a hook event (33 of them)
 
 **The mouth** — six answers: `queued` `night` `no-board` `busy` `refused:<code>` `no-daemon`.
 
-**The console** — four line types (`{…}`, `pose …`, `bench …`, `help`), `alive` every 3 s, and **23 words after `bench`**: `pos` `zeros` `scan` `read` `raw` `state` `hold` `release` `sound` `audio` `volume` `leds` `backlight` `sleep` `pmu` `level` `power` `timed` `wifi` `dial` `net` `set` `move`. ⚠️ **`help` prints 29 lines, not 23, because three of the words take a sub-verb** — `wifi` ×3 (`scan` / `join` / `addr`), `net` ×2 (`send` / `call`) and `dial` ×1 (`dial <ip> <port>`) — **six extra lines over three words, and 23 + 6 = 29 is the whole arithmetic** (counted in `main.cpp` on 2026-10-24, not recalled).
+**The console** — four line types (`{…}`, `pose …`, `bench …`, `help`), `alive` every 3 s, and **24 words after `bench`**: `pos` `zeros` `scan` `read` `raw` `state` `hold` `release` `sound` `audio` `volume` `leds` `backlight` `face` `sleep` `pmu` `level` `power` `timed` `wifi` `dial` `net` `set` `move`. ⚠️ **`help` prints 30 lines, not 24, because three of the words take a sub-verb** — `wifi` ×3 (`scan` / `join` / `addr`), `net` ×2 (`send` / `call`) and `dial` ×1 (`dial <ip> <port>`) — **six extra lines over three words, and 24 + 6 = 30 is the whole arithmetic** (counted in `main.cpp` on 2026-10-24, not recalled; the count moved from 23 to 24 when `face` arrived the same day).
 
 ## What it cannot do
 
@@ -189,7 +191,7 @@ a hook event (33 of them)
 4. ⛔ **The link is plaintext and unauthenticated.** Anything that reaches port 3333 and says `loom` can move the body.
 5. ⛔ **The keepalive has never fired on the machine**, so *a half-open socket is noticed in about 25 s* is a reading of the source and not a measurement.
 6. ⛔ **The twelve LEDs' return from sleep has no eye on record.**
-7. ⛔ **The USB console is gone as of 2026-10-24**, so the next flash needs a physical replug.
+7. ⚠️ **The USB console was gone on 2026-10-24 morning and is back** — `/dev/cu.usbmodem1101`, ⛔ **not the `.101` every record before it names**, because the port number moves with the port it is plugged into. **The rule stands: a flash is written only after `otadata` is read**, and the board can answer `bench pos` from an image that is not the one just written.
 8. ⛔ **No day has been measured with the mouth open**, and whether a delivered meta sentence was worth saying is not recorded.
 9. ⛔ **The goal is not verified.** One person in one room said 「そこに何かが居る」, at N=1, and ⚠️ **the session had offered that sentence a moment before** (`docs/verification-boundary.md`).
 10. ⛔ **Nothing on this page says the body is alive.** Every ✅ above says a mechanism ran on the unit; ⛔ **not one of them is a judgement that anything is there.**
@@ -202,6 +204,6 @@ a hook event (33 of them)
 
 ⛔ **What does not ring**: the content of this page. **Nothing compares these tables with the tuples** — a word added to the code and not to this page leaves this page **green and wrong**, which is the shape this repository calls a defect. ⚠️ **The check that would catch it would have to parse prose**, and a checker that reads a copy is a checker that rings on the copy; so the cost is named here instead of paid.
 
-**What was counted for this page.** The 23 dispatch words in `HandleBench` (and the 29 `help` lines, named above with their cut); the eight light words, five faces, five gestures, four sounds, six phases, six work words, three meta words and six mouth answers, each read out of the source named beside it; the flags of the installed job, read from `ps`; and the three sockets, read from `ls`. **What was not counted**: any day of natural use, the room while the body works, and anything about whether it is alive.
+**What was counted for this page.** The 24 dispatch words in `HandleBench` (and the 30 `help` lines, named above with their cut); the eight light words, eight faces, five gestures, four sounds, six phases, six work words, three meta words and six mouth answers, each read out of the source named beside it; the flags of the installed job, read from `ps`; and the three sockets, read from `ls`. **What was not counted**: any day of natural use, the room while the body works, and anything about whether it is alive.
 
 ⚠️ **This page holds no count of lines, rows or documents** — a count that nothing recomputes is a count that drifts, and the ones that must be re-counted already live in `CLAUDE.md`, `README.md` and `tests/README.md`.

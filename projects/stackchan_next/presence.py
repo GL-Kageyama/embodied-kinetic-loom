@@ -5,13 +5,24 @@
 静かな時間は、すべて `projects.stackchan` のものである。この層が足すのは
 **光の選び方と、失敗の長さと、起きたときの1語だけ**である。
 
-## 1. 作業の光（`working` のあいだだけ）
+## 1. 作業の光と顔（`working` のあいだだけ）
 
-| work | 光 |
-|---|---|
-| `write` | `writing` |
-| `run` | `busy` |
-| `read` / `search` / `plan` / `other` / 知らされていない | `dim` |
+| work | 光 | 顔 |
+|---|---|---|
+| `write` | `writing` | `focused` |
+| `run` | `busy` | `watching` |
+| `read` / `search` / `plan` / `other` / 知らされていない | `dim` | `curious`（第1層のまま） |
+
+⚠️ **光と顔は、同じ1つの判断で動く。** 滞留も、章の終わりに忘れることも、
+背後の窓を通さないことも、**2つに共通である**——別々に数えれば、片方だけが
+遅れた日に「光は動いたのに顔は前の作業」という枠が出る。
+⛔ **顔の語はこの層が初めて増やしたものである**（2026-10-24、著者の
+「3つ（＋失敗）」）。⇒ **語は codec・schema・ファームの3か所に同じ日に載せた**——
+**語だけ先に送れば、基板は枠ごと拒み、光も身振りも一緒に落ちる。**
+
+⚠️ **色はこの層のものではない。** 顔は光の色を着るが、その色を決めるのは
+ファームの `main/light_colour.cpp` である——**1つの表を灯と画面が読む。**
+⇒ ホストが送るのは語だけで、色は1バイトも渡らない。
 
 ⚠️ **滞留 `WORK_DWELL` 秒。** 光は5秒に1回より速く変わらない——
 **道具のたびに色が変われば、それは鏡であり、相棒ではない**（`behaviors.py` の決定）。
@@ -84,6 +95,7 @@ from projects.stackchan.behaviors import (
     Light,
     Phase,
 )
+from projects.stackchan.faces import Face
 
 from . import work as work_words
 
@@ -125,6 +137,22 @@ WORK_LIGHTS: dict[str, Light] = {
 #: ⚠️ **知らされていない作業の光である。**
 WORK_LIGHT_OTHER = Light.DIM
 
+#: ⚠️ **作業の語から顔への写像である**（2026-10-24）。光の写像と同じ形をしている。
+#: ⛔ **語は意味に対して付けた**——`focused` は「書いている最中」、`watching` は
+#: 「何かが走っている」。⚠️ **形がその語に見えるかは著者の目が決める**（`bench face`）。
+WORK_FACES: dict[str, Face] = {
+    "write": Face.FOCUSED,
+    "run": Face.WATCHING,
+}
+
+#: ⚠️ **知らされていない作業の顔である。** 第1層が `working` で出す顔と同じである——
+#: ⛔ **「変えない」ではない。** 知らされていない作業に移ったとき、顔が前の作業の
+#: まま残れば、**光は `dim` なのに顔は `focused`** という枠が出る。
+WORK_FACE_OTHER = Face.CURIOUS
+
+#: ⚠️ **1回の失敗の顔である。** 光（`alert`）と同じ2秒だけ出る。
+FAILURE_FACE = Face.STARTLED
+
 #: ⚠️ **起きたときの1語である。**
 WAKE_SOUND = "pip"
 
@@ -141,6 +169,8 @@ class Presence:
     room: Focus = field(default_factory=Focus)
     _work: str | None = field(default=None, init=False)
     _showing: Light | None = field(default=None, init=False)
+    #: ⚠️ **いま見えている顔である。** ⛔ 光と同じ1つの判断で動く（`_show`）。
+    _showing_face: Face | None = field(default=None, init=False)
     _changed_at: float = field(default=0.0, init=False)
     _flash_until: float | None = field(default=None, init=False)
     #: ⚠️ **直前の判定が `resting` だったか。** 起きたことを言うための1ビットである。
@@ -227,14 +257,16 @@ class Presence:
             #    **枠が1つ出て、見えている光が `dim` へ落ちる。**
             #    ⇒ **いま見えている光を返す**——**状態は1つも動かさない。**
             if decision.phase is Phase.WORKING and self._showing is not None:
-                return replace(decision, light=self._showing)
+                # ⚠️ **顔も同じである。** `witness` は `Companion` の素の顔を運ぶので、
+                #    そのまま返せば**顔だけが `curious` へ落ちる**——光と同じ理由である。
+                return replace(decision, light=self._showing, face=self._showing_face)
             return decision
 
         if self._woke(decision):
             decision = self._greet(decision, quiet)
 
         if decision.phase is not Phase.WORKING:
-            self._showing = None
+            self._show(None, None)
             self._flash_until = None
             if decision.phase is not Phase.BLOCKED:
                 # ⚠️ **章が終わったら語を忘れる。** 忘れなければ、次の章は
@@ -249,35 +281,49 @@ class Presence:
             # ⚠️ **前の点滅の期限も捨てる**——捨てなければ、2回目の失敗が置いた
             #    2秒後の刻みが、**持続している `alert` を `dim` へ戻してしまう。**
             self._flash_until = None
-            self._showing = Light.ALERT
+            # ⚠️ **顔は塗り替えない。** 第1層の言い方と同じである——「怒らない。
+            #    光だけが『引っかかっている』と言う」。⇒ 顔は作業の顔のまま、
+            #    光だけが `alert` になる。**2つを同じ判断で置く**（`_show`）。
+            self._show(Light.ALERT, self._wanted_face())
             return decision
 
         if decision.event == "PostToolUseFailure":
             if self.presence == PRESENCE_QUIET:
-                self._showing = Light.DIM
+                self._show(Light.DIM, None)
                 return replace(decision, light=Light.DIM)
-            self._showing = Light.ALERT
+            self._show(Light.ALERT, None)
             self._flash_until = at + FAILURE_FLASH_SECONDS
-            return replace(decision, light=Light.ALERT)
+            return replace(decision, light=Light.ALERT, face=FAILURE_FACE)
 
         if self.presence == PRESENCE_QUIET:
-            self._showing = Light.DIM
+            # ⛔ **静かな側は、この層が足したチャンネルを閉じる。** 光は `dim` に、
+            #    この層が着せた顔は脱ぐ。⚠️ **しかし戻り値の顔は塗り替えない**——
+            #    第1層の顔（挨拶・締め・`angry`・`sleepy`）はこの層のものではない。
+            self._show(Light.DIM, None)
             return replace(decision, light=Light.DIM)
 
         wanted = self._wanted()
         if self._showing is None:
             # ⚠️ **章の出入りは滞留に数えない。** 入った時刻を「滞留の1つ前」に置く——
             #    そうすれば、最初の write はすぐ見える。
-            self._showing = wanted
+            self._show(wanted, self._wanted_face())
             self._changed_at = at - self.dwell
         elif wanted is not self._showing and at - self._changed_at >= self.dwell:
-            self._showing = wanted
+            self._show(wanted, self._wanted_face())
             self._changed_at = at
 
-        return replace(decision, light=self._showing)
+        return replace(decision, light=self._showing, face=self._showing_face)
 
     def _wanted(self) -> Light:
         return WORK_LIGHTS.get(self._work, WORK_LIGHT_OTHER)
+
+    def _wanted_face(self) -> Face:
+        return WORK_FACES.get(self._work, WORK_FACE_OTHER)
+
+    def _show(self, light: Light | None, face: Face | None) -> None:
+        """**光と顔を、1つの判断で置く。** ⛔ 別々に置けば、片方だけが古い枠が出る。"""
+        self._showing = light
+        self._showing_face = face
 
     def _woke(self, decision: Decision) -> bool:
         """**休息から起きたか。** ⚠️ **この層が覚えている1ビットである。**
@@ -311,12 +357,18 @@ class Presence:
             return None
         self._flash_until = None
         light = self._wanted()
-        self._showing = light
+        # ⚠️ **光と同じ側へ戻す**——点滅のあいだに作業が変わっていれば、`run` である。
+        #    ⛔ **「点滅の前に着ていた顔」を戻すと、2秒のあいだに語が動いた日に
+        #    `light: busy` と `face: focused` が並ぶ枠が出る**（2026-10-24、実機で
+        #    その枠が1つ出た——`write` → 失敗 → その2秒の間に `run`）。⇒ 戻すのは
+        #    **そのとき欲しい顔**であり、この層のものである（`null` ではない）。
+        face = self._wanted_face()
+        self._show(light, face)
         self._changed_at = at
         return Decision(
             event=None,
             phase=Phase.WORKING,
-            face=None,
+            face=face,
             light=light,
             gesture=None,
             body=BODY_NONE,
@@ -338,6 +390,9 @@ __all__ = [
     "FLASHED",
     "WORK_LIGHTS",
     "WORK_LIGHT_OTHER",
+    "WORK_FACES",
+    "WORK_FACE_OTHER",
+    "FAILURE_FACE",
     "WAKE_SOUND",
     "Presence",
 ]

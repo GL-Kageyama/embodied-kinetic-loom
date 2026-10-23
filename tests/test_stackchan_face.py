@@ -6,19 +6,20 @@
 ⚠️ **写しは、黙ってずれる**——ずれたことを、画面を見るまで誰も言わない。
 ⇒ **このファイルが C++ をコンパイルして走らせ、描かれた画素そのものを訊く。**
 
-訊くのは5つの性質:
+訊くのは次の性質:
 
-- **口は、vendor の既定の棒である**——90 x 6、どの感情でも同じ場所に 540 画素、隙間なし。
+- **口は、矩形である**——どの顔でも、塗られた画素は1つの矩形を隙間なく埋める。
+  ⚠️ **Pet の5つは vendor の既定の棒である**——90 x 6、同じ場所に 540 画素。
+  ⛔ **この機体の3語（2026-10-24）は、幅と高さがそれぞれ違う**——ただし矩形のままである。
 - **2つの目は、鏡像である**——vendor は右目に回転の符号を反転させる。
 - ⚠️ **通常時の目だけは、vendor の形ではない**（0.19.53）——著者の要望
   「通常時の目の形は、単純な⚫︎がいいな」で、重み 75 のまぶたを払った円盤になり、
-  **上下が釣り合う**ことを測る。⛔ **残る5つの顔は vendor の数値のままである。**
+  **上下が釣り合う**ことを測る。⛔ **残る4つの Pet の顔は vendor の数値のままである。**
 - **目と口の外は、黒である**（`secondaryColor`）。
 - **眠い顔の目は、最も閉じている**——重み 35 は 75 より覆われる。
 - **縁は滑らかである**——0 でも 255 でもない中間の値を持つ画素が、円の縁に在る。
   ⛔ **これが無ければ、20 px の円は階段である**——一度そうなって、著者が見つけた。
-- **まばたきは目だけを閉じる**——口は 540 画素のまま同じ場所にあり、両目とも
-  同時に覆われる（片目だけ閉じるのは、まばたきではなく瞬きそこないである）。
+- **まばたきは目だけを閉じる**——口は1バイトも動かず、両目とも同時に覆われる。
 - **眠い顔は、まばたきしない**——`can_blink` が `sleepy` と `kNone` に偽を返す。
 
 ## ⛔ このファイルが確かめないこと
@@ -27,6 +28,11 @@
 - **LVGL を走らせて比べてもいない。** 比べているのは vendor の**数値**と、
   この描画器が出す形である。⛔ 数値を写し間違えれば、この検査は緑のまま
   vendor と違う顔を描く——だから数値の出典を `face_bitmap.cpp` に書いてある。
+- **色は測っていない。** ここが読むのは被覆（0..255）であり、光の色を掛けるのは
+  `display::Push` である（`tests/test_stackchan_light_colour.py` がその表を見る）。
+- **3つの新しい語が、その語に見えるか。** ⛔ それは著者の目の判定であり、
+  `bench face` が1つずつ出す。ここが言えるのは**8つが8つの違う絵である**ことまでである
+  （`happy` と `greeting` を除けば7つ）。
 """
 from __future__ import annotations
 
@@ -45,11 +51,15 @@ COMPILER = shutil.which("clang++") or shutil.which("g++")
 
 pytestmark = pytest.mark.skipif(
     COMPILER is None,
-    reason="この環境に C++ のコンパイラが無い——描画器は走らせられない",
+    reason="この環境に C++ のコンパイラが無い——描画器は走らせない",
 )
 
-#: **各顔について: 明るい画素・中間の画素・指紋・口の画素・左右の目の画素・
+#: **各顔について: 明るい画素・中間の画素・指紋・口の矩形・左右の目の画素・
 #: 鏡像のずれ・決め打ちの画素。** 判定は Python 側で行う。
+#:
+#: ⚠️ **口の矩形は、目を除いた画素から測る。** 2026-10-24 まで口は90 x 6と決め打ち
+#: だったが、その日この機体の3語が幅と高さを動かすようになった——**決め打ちをやめ、
+#: 矩形そのものを訊く**（塗られた画素が矩形を隙間なく埋めること、外に何も無いこと）。
 HARNESS = r"""
 #include "command_frame.h"
 #include "face_bitmap.h"
@@ -62,6 +72,12 @@ namespace {
 
 int At(const std::vector<uint8_t>& grey, int x, int y) {
   return grey[y * face_bitmap::kWidth + x];
+}
+
+bool InEye(int x, int y) {
+  const bool in_left = x >= 78 && x <= 102 && y >= 92 && y <= 116;
+  const bool in_right = x >= 218 && x <= 242 && y >= 92 && y <= 116;
+  return in_left || in_right;
 }
 
 int Bright(const std::vector<uint8_t>& grey, int x0, int y0, int x1, int y1) {
@@ -85,16 +101,70 @@ int Dim(const std::vector<uint8_t>& grey, int x0, int y0, int x1, int y1) {
   return n;
 }
 
+// The mouth, measured rather than assumed: the bounding box of everything lit
+// outside the eyes.
+struct Mouth {
+  int left = 0;
+  int right = -1;
+  int top = 0;
+  int bottom = -1;
+  bool present() const { return right >= left && bottom >= top; }
+  int area() const {
+    return present() ? (right - left + 1) * (bottom - top + 1) : 0;
+  }
+  bool holds(int x, int y) const {
+    return present() && x >= left && x <= right && y >= top && y <= bottom;
+  }
+};
+
+Mouth MeasureMouth(const std::vector<uint8_t>& grey) {
+  Mouth mouth;
+  bool any = false;
+  for (int y = 0; y < face_bitmap::kHeight; ++y) {
+    for (int x = 0; x < face_bitmap::kWidth; ++x) {
+      if (InEye(x, y) || At(grey, x, y) == 0) {
+        continue;
+      }
+      if (!any) {
+        mouth.left = x;
+        mouth.right = x;
+        mouth.top = y;
+        mouth.bottom = y;
+        any = true;
+        continue;
+      }
+      if (x < mouth.left) mouth.left = x;
+      if (x > mouth.right) mouth.right = x;
+      if (y < mouth.top) mouth.top = y;
+      if (y > mouth.bottom) mouth.bottom = y;
+    }
+  }
+  return mouth;
+}
+
+int Solid(const std::vector<uint8_t>& grey, const Mouth& mouth) {
+  int n = 0;
+  for (int y = mouth.top; y <= mouth.bottom; ++y) {
+    for (int x = mouth.left; x <= mouth.right; ++x) {
+      n += At(grey, x, y) == 255;
+    }
+  }
+  return n;
+}
+
 }  // namespace
 
 int main() {
-  const Face faces[6] = {Face::kNone,   Face::kCurious, Face::kGreeting,
-                         Face::kHappy,  Face::kAngry,   Face::kSleepy};
-  const char* const names[6] = {"none", "curious", "greeting",
-                                "happy", "angry", "sleepy"};
+  const Face faces[9] = {Face::kNone,    Face::kCurious,  Face::kGreeting,
+                         Face::kHappy,   Face::kAngry,    Face::kSleepy,
+                         Face::kFocused, Face::kWatching, Face::kStartled};
+  const char* const names[9] = {"none",    "curious",  "greeting",
+                                "happy",   "angry",    "sleepy",
+                                "focused", "watching", "startled"};
   std::vector<uint8_t> grey(face_bitmap::kBytes);
-  for (int i = 0; i < 6; ++i) {
+  for (int i = 0; i < 9; ++i) {
     face_bitmap::render(faces[i], grey.data());
+    const Mouth mouth = MeasureMouth(grey);
 
     int bright = 0;
     int partial = 0;
@@ -105,13 +175,6 @@ int main() {
       hash = (hash ^ grey[b]) * 16777619u;
     }
 
-    // The mouth: 90 wide, 6 high, centred at (160, 146). Every pixel is solid.
-    int mouth = 0;
-    for (int y = 143; y <= 148; ++y) {
-      for (int x = 115; x <= 204; ++x) {
-        mouth += At(grey, x, y) == 255;
-      }
-    }
     const int left = Bright(grey, 78, 92, 102, 116);
     const int right = Bright(grey, 218, 92, 242, 116);
     const int eye_edge = Dim(grey, 78, 92, 102, 116) + Dim(grey, 218, 92, 242, 116);
@@ -130,36 +193,26 @@ int main() {
       }
     }
 
-    // Everything outside the eyes and the mouth must stay black.
+    // Everything outside the eyes and the mouth's own box must stay black.
     int outside = 0;
     for (int y = 0; y < face_bitmap::kHeight; ++y) {
       for (int x = 0; x < face_bitmap::kWidth; ++x) {
-        const bool in_left = x >= 78 && x <= 102 && y >= 92 && y <= 116;
-        const bool in_right = x >= 218 && x <= 242 && y >= 92 && y <= 116;
-        const bool in_mouth = x >= 115 && x <= 204 && y >= 143 && y <= 148;
-        if (!in_left && !in_right && !in_mouth) {
+        if (!InEye(x, y) && !mouth.holds(x, y)) {
           outside += At(grey, x, y) != 0;
         }
       }
-    }
-
-    // The mouth, byte for byte, so that the blink below can be compared to it.
-    std::vector<uint8_t> mouth_before;
-    for (int y = 143; y <= 148; ++y) {
-      for (int x = 115; x <= 204; ++x) {
-        mouth_before.push_back(static_cast<uint8_t>(At(grey, x, y)));
-      }
-    }
-    int face_sum = 0;
-    for (int b = 0; b < face_bitmap::kBytes; ++b) {
-      face_sum += grey[b];
     }
 
     std::printf("FACE %s\n", names[i]);
     std::printf("BRIGHT %d\n", bright);
     std::printf("PARTIAL %d\n", partial);
     std::printf("HASH %08x\n", hash);
-    std::printf("MOUTH %d\n", mouth);
+    std::printf("MOUTHLEFT %d\n", mouth.left);
+    std::printf("MOUTHRIGHT %d\n", mouth.right);
+    std::printf("MOUTHTOP %d\n", mouth.top);
+    std::printf("MOUTHBOTTOM %d\n", mouth.bottom);
+    std::printf("MOUTHAREA %d\n", mouth.area());
+    std::printf("MOUTHSOLID %d\n", Solid(grey, mouth));
     std::printf("LEFT %d\n", left);
     std::printf("RIGHT %d\n", right);
     std::printf("EYE_EDGE %d\n", eye_edge);
@@ -177,17 +230,33 @@ int main() {
     face_bitmap::render_blink(faces[i], grey.data());
     int blink_sum = 0;
     int blink_bright = 0;
-    for (int b = 0; b < face_bitmap::kBytes; ++b) {
-      blink_sum += grey[b];
-      blink_bright += grey[b] >= 128;
-    }
     int blink_mouth = 0;
     int mouth_moved = 0;
-    int k = 0;
-    for (int y = 143; y <= 148; ++y) {
-      for (int x = 115; x <= 204; ++x) {
+    for (int y = mouth.top; y <= mouth.bottom; ++y) {
+      for (int x = mouth.left; x <= mouth.right; ++x) {
         blink_mouth += At(grey, x, y) == 255;
-        mouth_moved += At(grey, x, y) != mouth_before[static_cast<std::size_t>(k)];
+      }
+    }
+    for (int y = 0; y < face_bitmap::kHeight; ++y) {
+      for (int x = 0; x < face_bitmap::kWidth; ++x) {
+        blink_sum += At(grey, x, y);
+        blink_bright += At(grey, x, y) >= 128;
+      }
+    }
+    // Compare the mouth's box against the open drawing: the blink must not move
+    // one byte of it. Re-rendered from scratch here so the comparison is exact.
+    face_bitmap::render(faces[i], grey.data());
+    std::vector<uint8_t> open_box;
+    for (int y = mouth.top; y <= mouth.bottom; ++y) {
+      for (int x = mouth.left; x <= mouth.right; ++x) {
+        open_box.push_back(static_cast<uint8_t>(At(grey, x, y)));
+      }
+    }
+    face_bitmap::render_blink(faces[i], grey.data());
+    std::size_t k = 0;
+    for (int y = mouth.top; y <= mouth.bottom; ++y) {
+      for (int x = mouth.left; x <= mouth.right; ++x) {
+        mouth_moved += At(grey, x, y) != open_box[k] ? 1 : 0;
         ++k;
       }
     }
@@ -197,17 +266,21 @@ int main() {
     std::printf("MOUTHMOVED %d\n", mouth_moved);
     std::printf("BLINKLEFT %d\n", Bright(grey, 78, 92, 102, 116));
     std::printf("BLINKRIGHT %d\n", Bright(grey, 218, 92, 242, 116));
-    std::printf("FACESUM %d\n", face_sum);
     std::printf("CANBLINK %d\n", face_bitmap::can_blink(faces[i]) ? 1 : 0);
   }
   return 0;
 }
 """
 
+#: ⚠️ **vendor の口。** この5つは `setWeight(0)` の棒である。
+VENDOR_MOUTH = (115, 204, 143, 148)
 MOUTH_PIXELS = 90 * 6
-DRAWN = ["curious", "greeting", "happy", "angry", "sleepy"]
+
+DRAWN = ["curious", "greeting", "happy", "angry", "sleepy", "focused", "watching", "startled"]
+PET = ["curious", "greeting", "happy", "angry", "sleepy"]
+BODY = ["focused", "watching", "startled"]
 #: ⚠️ `sleepy` はこのリストに入らない——`can_blink` が偽を返す。
-BLINKABLE = ["curious", "greeting", "happy", "angry"]
+BLINKABLE = ["curious", "greeting", "happy", "angry", "focused", "watching", "startled"]
 
 
 @pytest.fixture(scope="module")
@@ -239,15 +312,16 @@ def drawn(tmp_path_factory) -> dict[str, dict]:
         else:
             key, value = line.split()
             current[key.lower()] = int(value)
-    assert set(result) == {"none", *DRAWN}, f"6つの顔が出なかった: {sorted(result)}"
+    assert set(result) == {"none", *DRAWN}, f"9つの顔が出なかった: {sorted(result)}"
     return result
 
 
 def test_none_is_blank(drawn):
-    """⚠️ 空の画面は5つの顔のどれでもない——`none` は6つ目の顔ではない。"""
+    """⚠️ 空の画面は8つの顔のどれでもない——`none` は9つ目の顔ではない。"""
     assert drawn["none"]["bright"] == 0
     assert drawn["none"]["partial"] == 0
-    assert drawn["none"]["mouth"] == 0
+    assert drawn["none"]["mouthsolid"] == 0
+    assert drawn["none"]["moutharea"] == 0
 
 
 def test_every_face_has_pixels(drawn):
@@ -255,15 +329,52 @@ def test_every_face_has_pixels(drawn):
         assert drawn[name]["bright"] > 0, f"{name} は明るい画素を持たない"
 
 
-def test_the_mouth_is_the_vendors_bar(drawn):
-    """⛔ 口は 90 x 6 の棒で、どの感情でも同じ場所に、隙間なくある。
+def test_every_mouth_is_one_solid_rectangle(drawn):
+    """⛔ **口は矩形であり、隙間も飛び出しも無い**——8つの顔すべてで。
+
+    ⚠️ ここが矩形そのものを訊くのは、2026-10-24 に口の幅と高さが顔ごとに
+    動くようになったからである（`StyleFor`）。**決め打ちの90 x 6をやめ、
+    「塗られた画素が矩形を埋め尽くす」という性質を測る。**
+    """
+    for name in DRAWN:
+        row = drawn[name]
+        assert row["moutharea"] > 0, f"{name} に口が無い"
+        assert row["mouthsolid"] == row["moutharea"], (
+            f"{name}: 口の矩形 {row['moutharea']} 画素のうち "
+            f"{row['mouthsolid']} しか塗られていない"
+        )
+
+
+def test_the_pets_five_keep_the_vendors_bar(drawn):
+    """⛔ **Pet の5つの口は、vendor の既定の棒である**——90 x 6、同じ場所に 540 画素。
 
     ⚠️ **vendor の既定では、感情は目だけを変える**——`DefaultEyes::setEmotion` は
     あっても `DefaultMouth::setEmotion` は無い。口が感情ごとに動いたら、それは
-    写しではなく創作である。
+    写しではなく創作である。**この機体の3語はそこから外れる。**
     """
-    for name in DRAWN:
-        assert drawn[name]["mouth"] == MOUTH_PIXELS, f"{name} の口が {drawn[name]['mouth']} 画素"
+    left, right, top, bottom = VENDOR_MOUTH
+    for name in PET:
+        row = drawn[name]
+        assert (row["mouthleft"], row["mouthright"], row["mouthtop"], row["mouthbottom"]) == (
+            left, right, top, bottom,
+        ), f"{name} の口が vendor の位置に無い"
+        assert row["mouthsolid"] == MOUTH_PIXELS, f"{name} の口が {row['mouthsolid']} 画素"
+
+
+def test_the_three_new_mouths_are_their_own(drawn):
+    """⚠️ **この機体の3語は、幅か高さが vendor の棒と違う**——でなければ語を足した意味がない。
+
+    ⛔ **これは「その語に見える」ことの検査ではない。** 測っているのは
+    **3つが3つとも違う矩形である**ことまでであり、良し悪しは著者の目が決める。
+    """
+    shapes = {
+        name: (drawn[name]["mouthright"] - drawn[name]["mouthleft"] + 1,
+               drawn[name]["mouthbottom"] - drawn[name]["mouthtop"] + 1)
+        for name in BODY
+    }
+    assert len(set(shapes.values())) == 3, f"3つの口が重なっている: {shapes}"
+    for name, shape in shapes.items():
+        assert shape != (90, 6), f"{name} の口が vendor の棒のままである"
 
 
 def test_the_two_eyes_are_mirror_images(drawn):
@@ -334,35 +445,31 @@ def test_the_normal_eye_is_a_plain_disc(drawn):
 
 
 def test_a_blink_closes_both_eyes_and_leaves_the_mouth_alone(drawn):
-    """⛔ **まばたきは目であり、6つ目の表情ではない。**
+    """⛔ **まばたきは目であり、9つ目の表情ではない。**
 
     - 両目とも覆われる——片方だけ閉じたら、それはまばたきではなく不具合である。
-    - 口は 540 画素のまま、1バイトも動かない——vendor の口は `setWeight` を
-      持たない、目のためのつまみである（`face_bitmap.cpp` の注記）。
+    - 口は1バイトも動かない——口は `setWeight` を持たない、目のためのつまみである。
     - 閉じた画面に残るのは口だけである——目以外が動けば、それは別の絵である。
     - 閉じた絵は開いた絵と違う——重みを無視する描画器なら、ここで落ちる。
     """
     for name in BLINKABLE:
-        assert drawn[name]["blinkleft"] == 0, f"{name}: 左目が閉じていない"
-        assert drawn[name]["blinkright"] == 0, f"{name}: 右目が閉じていない"
-        assert drawn[name]["blinkmouth"] == MOUTH_PIXELS, (
-            f"{name}: まばたきの口が {drawn[name]['blinkmouth']} 画素"
+        row = drawn[name]
+        assert row["blinkleft"] == 0, f"{name}: 左目が閉じていない"
+        assert row["blinkright"] == 0, f"{name}: 右目が閉じていない"
+        assert row["blinkmouth"] == row["mouthsolid"], (
+            f"{name}: まばたきの口が {row['blinkmouth']} 画素"
         )
-        assert drawn[name]["mouthmoved"] == 0, (
-            f"{name}: まばたきで口が {drawn[name]['mouthmoved']} 画素動いた"
-        )
-        assert drawn[name]["blinkbright"] == MOUTH_PIXELS, (
+        assert row["mouthmoved"] == 0, f"{name}: まばたきで口が {row['mouthmoved']} 画素動いた"
+        assert row["blinkbright"] == row["mouthsolid"], (
             f"{name}: 閉じた画面に口以外の明るい画素が "
-            f"{drawn[name]['blinkbright'] - MOUTH_PIXELS} 個ある"
-        )
-        assert drawn[name]["blinksummed"] != drawn[name]["facesum"], (
-            f"{name}: まばたきが開いた顔と同じ絵になっている——重みが効いていない"
+            f"{row['blinkbright'] - row['mouthsolid']} 個ある"
         )
 
 
 def test_the_shared_figure_blinks_as_one(drawn):
     """⚠️ `happy` と `greeting` が同じ顔なら、閉じた絵も同じである。"""
-    assert drawn["happy"]["blinksummed"] == drawn["greeting"]["blinksummed"]
+    assert drawn["happy"]["blinkbright"] == drawn["greeting"]["blinkbright"]
+    assert drawn["happy"]["mouthsolid"] == drawn["greeting"]["mouthsolid"]
 
 
 def test_sleepy_and_none_do_not_blink(drawn):
@@ -380,10 +487,11 @@ def test_sleepy_and_none_do_not_blink(drawn):
 
 def test_the_shared_figure_is_shared_on_screen_too(drawn):
     """⚠️ **`happy` と `greeting` は同じ顔である**——ホストが決めたことであり、
-    画面はそれを勝手に2つに分けない。⛔ 残る4つは、どの2つも違う絵である。
+    画面はそれを勝手に2つに分けない。⛔ 残る7つは、どの2つも違う絵である。
     """
     key = lambda name: f"{drawn[name]['hash']}:{drawn[name]['bright']}"
     assert key("happy") == key("greeting"), "同じ顔が画面では別の絵になっている"
 
-    distinct = {key(name) for name in ("happy", "curious", "angry", "sleepy")}
-    assert len(distinct) == 4, "4つの異なる絵になるはずである"
+    others = ("curious", "angry", "sleepy", "focused", "watching", "startled")
+    distinct = {key(name) for name in others}
+    assert len(distinct) == len(others), "8つの語が8つの違う絵になっていない"
