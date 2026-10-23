@@ -50,7 +50,7 @@ At `at 4051.5` the author spoke — `UserPromptSubmit`, `curious`/`dim` — the 
 
 ## What changed
 
-`main/face_bitmap.cpp` — `kWatching` went from `{88, 0, 132, 6}` to `{100, 0, 132, 6}`. **The eyes are now the same disc `curious` wears** (weight 100, the author's number of 2026-10-20), and **the only thing this face says is the width of its mouth**. ⛔ **88 was "a little narrowed", and narrowing is `focused`'s job** (weight 55) — a face that narrows a little is a face saying something between two words. **One test holds it** — `test_the_watching_face_also_wears_the_disc`, in `tests/test_stackchan_face.py`, comparing the eye fields with `curious`'s pixel for pixel.
+`main/face_bitmap.cpp` — `kWatching` went from `{88, 0, 132, 6}` to `{100, 0, 132, 6}`. **The eyes are now the same disc `curious` wears** (weight 100, the author's number of 2026-10-20), and **the only thing this face says is the width of its mouth**. ⛔ **88 was "a little narrowed", and narrowing is `focused`'s job** (weight 55) — a face that narrows a little is a face saying something between two words. ⚠️ **Amended the same day**: the parenthetical stopped being true within the hour — `focused` took the disc too, and **no face this body added narrows an eye** (see *The preview, and the second judgment*). ⛔ **The reason 88 was wrong does not depend on that clause**: a lid between two words says something between two words, whoever else is using it. **One test holds it** — `test_the_watching_face_also_wears_the_disc`, in `tests/test_stackchan_face.py`, comparing the eye fields with `curious`'s pixel for pixel.
 
 ## The brow the same session asked for
 
@@ -62,10 +62,46 @@ At `at 4051.5` the author spoke — `UserPromptSubmit`, `curious`/`dim` — the 
 
 **One test holds it** — `test_only_the_focused_face_wears_a_brow`: exactly one face wears it, the tilt runs outer-high to inner-low on both sides, and the two brows sit at the same height. ⚠️ **The mirror check had to grow a row** (76 → 92) to cover it, and the harness had to learn a brow box, because until then **it measured the brows as part of the mouth** — the same shape of defect as the day a whole row of lit pixels sat outside every box the check knew.
 
+## The preview, and the second judgment
+
+⚠️ **The glass was still unavailable when the second judgment came.** The author wrote 「さした」 — the cable was re-seated — and the Mac listed no change: `/dev/cu.*` and `/dev/tty.*` held the Bluetooth port and the debug console and nothing else, and `ioreg -p IOUSB` showed three hubs with a LAN adapter, a REALFORCE keyboard and a Bluetooth dongle under them, **no ESP32 and no serial bridge**. ⛔ **The body was alive the whole time**: the daemon's port 3333 held `ESTABLISHED` to `192.168.0.100:63327`, so the board was running, dialled in, and running the image from before this day's change.
+
+**So the session drew the faces on the host instead.** `face_bitmap.cpp` and `command_frame.cpp` were compiled with `clang++` against a small dumper, `render()` was called for all eight words, and each 320 × 240 grey buffer was written out as a PNG; a contact sheet (four by two) was opened, with a 3× crop of `focused`'s eyes beneath it. ⛔ **This is not a photograph of the panel**: it is the same drawing function the firmware calls, printed to a file — the RGB565 conversion and the panel's coarseness are not in it, and **nothing about the glass is measured by it**.
+
+**The author's two sentences:**
+
+| the words | what they did |
+|---|---|
+| 「この見え方でOK」 | the brow, as drawn, at the slope it was drawn at — 24 px long, 3 px thick, 6 px rise, 5 px gap |
+| 「眉毛ある時も丸目がいいな」 | `focused`'s eyes: weight 55 → **100**, the disc `curious` and `watching` wear |
+
+⚠️ **The first sentence names no shape.** It followed a message whose subject was the brow's four numbers and the sentence that whether the shape reads as *writing* is the author's to decide, and the session reads it as approval of the brow as drawn — ⛔ **that reading is not in the sentence**, and this page keeps the sentence and the reading apart. ⚠️ **It also does not repeat the 2026-10-20 verdict** — 「● が見える」 closed *a circle is visible*, and this closes *this brow, drawn this way, is what was wanted*.
+
+**What changed:** `main/face_bitmap.cpp` — `kFocused` went from `{55, 0, 60, 6, true}` to `{100, 0, 60, 6, true}`. **The brow stays and the mouth does not move**; what left the face is the narrowed lid. ⇒ **none of the three words this body added narrows an eye now**, and the sentence written on 0.19.81 — *narrowing is `focused`'s job* — is false from this hour; ⛔ **it was true when it was written, and the page it was written on says what it used to say.**
+
+**One test holds it** — `test_the_focused_face_wears_the_disc_under_its_brow`: the eye is `curious`'s disc field for field, the brow count is still above zero, and the mouth is still 60 wide. ⛔ **A second test was rewritten rather than kept**: `test_the_watching_face_also_wears_the_disc` still holds its own row, and its docstring now carries the sentence it used to assert and the hour that undid it.
+
+## The cable, the second time
+
+✅ **The author wrote 「もう一回さしなおした」, and this time the Mac moved**: `/dev/cu.usbmodem1101`, `/dev/tty.usbmodem1101`, and `USB JTAG/serial debug unit@01100000` in `ioreg`. ⚠️ **The first re-seat changed nothing and this one did** — ⛔ **whether that is the cable, the port, or how the chip's USB comes back is not separated here**, and one re-seat failing is not a board that cannot come back.
+
+**Nothing was written before the slot was known.** `otadata` at `0xd000` read **`ota_seq = 1`, `state = 0x2`** ⇒ `ota_0` at **`0x20000`**; the descriptor at `0x20020` was read **before** the write and named **`7f27191-dirty`, `Oct 24 2026 05:16:43`** — 0.19.80's image, the one the body had been running all day.
+
+| step | the number |
+|---|---|
+| written | **937,712 bytes** (577,384 compressed) at `0x20000`, 5.2 s |
+| esptool | **`Hash of data verified.`** |
+| descriptor after | **`2a5c49e-dirty`, `Oct 24 2026 06:05:06`** |
+| console | `bench: face focused drawn — the eye says whether it reads as that word` |
+
+⛔ **`--verify` is not a boot check** — 0.19.53 wrote a verified image to a slot nothing boots and the screen did not change — and that is why the descriptor is read on both sides. ⚠️ **The boot banner was not captured**; the running image is established by the descriptor, not by a line the board printed.
+
+⛔ **And the glass has still not answered.** `bench face focused` puts the drawing on the panel; **whether the disc with a brow above it reads as *writing* is the author's eye's question**, and silence is not acceptance.
+
 ## What this record does not say
 
-- ⛔ **That `focused` was judged.** It was asked for, it was shown while tools ran, and **silence about it is not acceptance**.
+- ⛔ **That `focused` was judged.** It was asked for, it was shown while tools ran, and **silence about it is not acceptance**. ⚠️ **Amended the same day**: its *drawing* was approved from a host preview (「この見え方でOK」) — ⛔ **and an approved drawing is not a word read off the glass.**
 - ⛔ **That `startled` was judged.** It showed twice, for two seconds each, and no sentence named it.
-- ⛔ **That the new disc has been seen, or the brow.** No USB serial has appeared on this Mac — not `/dev/cu.usb*`, and no ESP32 or serial bridge in the USB tree — so the image that carries both **was built and not written** — ⚠️ **the change is source and two host tests, and the glass has not been asked**.
-- ⛔ **That the brow reads as `focused`.** It was asked for, drawn, and checked for geometry; **whether it reads as *writing* is the author's eye's question**, and it is unanswered.
+- ⛔ **That the new disc has been seen, or the brow.** ~~No USB serial has appeared on this Mac — not `/dev/cu.usb*`, and no ESP32 or serial bridge in the USB tree — so the image that carries both **was built and not written**.~~ ⚠️ **Amended the same day, twice**: first the brow and the disc were seen **as a host rendering** (a sheet of the eight faces, no panel); then a **second** 「もう一回さしなおした」 brought `/dev/cu.usbmodem1101` back, **937,712 bytes were written at `0x20000`**, the descriptor read back **`2a5c49e-dirty`**, and `bench face focused` answered *drawn* — so **a panel is carrying them now**. ⛔ **No eye has said what it sees**, and ⚠️ **「さした」 is not one event: the first changed nothing and the second did.**
+- ⛔ **That the brow reads as `focused`.** It was asked for, drawn, and checked for geometry; **whether it reads as *writing* is the author's eye's question**, and it is unanswered. ⚠️ **Amended the same day**: the shape was approved as a drawing — ⛔ **the question above is about a brow on a face while something is being written; that face is now on the glass and still unread.**
 - ⛔ **Anything about colour.** The light's hue was never put to the eye in this judging; the faces were asked about as shapes.

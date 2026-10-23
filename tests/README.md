@@ -4,7 +4,7 @@
 
 # tests/
 
-**fifty-seven files, one thousand one hundred and fifty-nine tests, all green — measured 2026-10-24.**
+**fifty-seven files, one thousand one hundred and sixty tests, all green — measured 2026-10-24.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -503,7 +503,8 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | the mouth is one solid rectangle, in the same place for every emotion | `test_stackchan_face.py` | ⛔ **the vendor's `DefaultMouth` has no `setEmotion`** — a mouth that moved per emotion would be an invention, not a copy. ⚠️ **Since 0.19.80 the mouth has two numbers of its own** (`mouth_width`, `mouth_height`), so the check measures the rectangle instead of assuming 90 × 6 |
 | **the Pet's five keep the vendor's bar** — 90 × 6 at the same place, 540 pixels | `test_stackchan_face.py` | ⛔ **a new face must not be paid for by moving an old one** |
 | **the three new mouths are their own** (0.19.80) | `test_stackchan_face.py` | `focused` 60 × 6, `watching` 132 × 6, `startled` 36 × 20 — ⚠️ **chosen numbers, and no eye has judged them** |
-| **`watching` wears the same disc as `curious`** (0.19.81) | `test_stackchan_face.py` | ✅ **written after the author judged the face it was showing** — 「処理中も目は丸がいい」 moved the weight 88 → 100; ⛔ **the two faces now differ in the mouth alone**, because narrowing is `focused`'s job and a face that narrows a little says something between two words |
+| **`watching` wears the same disc as `curious`** (0.19.81) | `test_stackchan_face.py` | ✅ **written after the author judged the face it was showing** — 「処理中も目は丸がいい」 moved the weight 88 → 100; ⛔ **the two faces now differ in the mouth alone**. ⚠️ **This row said *narrowing is `focused`'s job* — that premise fell the same day**, when `focused` also took the disc; **no face this body added narrows an eye now** |
+| **`focused` wears the disc under its brow** (0.19.82) | `test_stackchan_face.py` | ✅ **the second judgment of the same day** — 「眉毛ある時も丸目がいいな」 moved the weight 55 → 100; the eye is `curious`'s disc field for field, the brow is still there, and ⛔ **the mouth did not move** (60 × 6) |
 | **only `focused` wears a brow, and it slants inward-down** (0.19.81) | `test_stackchan_face.py` | ✅ **the one shape here the vendor never drew** — 「書いている時は、目の上に眉毛（緩やか斜め）をつけよう」, `＼　／`; ⛔ **four chosen numbers** (24 px long, 3 px thick, 6 px rise, 5 px gap), and **a brow does not blink** |
 | the two eyes are mirror images about `x = 160` | `test_stackchan_face.py` | the vendor negates the right eye's rotation; and ⚠️ **the mirror of pixel `x` is `319 - x`, not `320 - x`** — the off-by-one that put the eyes half a pixel off the mouth |
 | nothing is lit outside the eyes and the mouth | `test_stackchan_face.py` | the background is the vendor's `secondaryColor` |

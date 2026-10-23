@@ -477,9 +477,13 @@ def test_the_watching_face_also_wears_the_disc(drawn):
     `curious` と同じ円盤であり、違うのは**口の広さだけ**である。
 
     ⛔ この顔は 0.19.80 では重み88で描かれていた——「少し細めた」目である。
-    88は `focused`（55）と `curious`（100）の中間であり、**どの語の言い分でもない**。
-    著者の目はそれを細めた目と読まず、丸を求めた。⇒ **細めるのは `focused` の仕事**で
-    あり、この顔が言うのは口の広さだけになった。
+    88は `focused`（当時55）と `curious`（100）の中間であり、**どの語の言い分でもない**。
+    著者の目はそれを細めた目と読まず、丸を求めた。⇒ この顔が言うのは口の広さだけに
+    なった。
+
+    ⛔ **0.19.81 はここに「細めるのは `focused` の仕事」と書いた——その前提は同日の
+    うちに崩れた**（著者の「眉毛ある時も丸目がいいな」で `focused` も丸になった）。
+    ⇒ いまは**この機体が足した3語のどれも、目を細めない。**
     """
     watched = drawn["watching"]
     assert watched["probes"][(90, 96)] > 0, "watching の上端がまぶたで覆われている"
@@ -490,6 +494,27 @@ def test_the_watching_face_also_wears_the_disc(drawn):
     assert tuple(watched[key] for key in disc) == tuple(
         drawn["curious"][key] for key in disc
     ), "watching の目が curious の円盤と同じでない"
+
+
+def test_the_focused_face_wears_the_disc_under_its_brow(drawn):
+    """✅ **2026-10-24、著者の「眉毛ある時も丸目がいいな」**——眉を着けたまま、
+    目は `curious` と同じ円盤である。
+
+    ⛔ 0.19.81 までの `focused` は重み55、「半分閉じた目」だった。眉が付いても
+    それは残っていたが、著者の目は**眉があるときも丸**を選んだ。⇒ この顔が言うのは
+    **眉と口の2つだけ**になる。⚠️ 丸めたのは目だけであり、口（60 x 6）は動いていない。
+    """
+    row = drawn["focused"]
+    assert row["probes"][(90, 96)] > 0, "focused の上端がまぶたで覆われている"
+    assert row["top"] == row["bottom"], (
+        f"focused の目が上下で釣り合っていない: {row['top']} / {row['bottom']}"
+    )
+    disc = ("left", "right", "top", "bottom", "eye_edge")
+    assert tuple(row[key] for key in disc) == tuple(
+        drawn["curious"][key] for key in disc
+    ), "focused の目が curious の円盤と同じでない"
+    assert row["brow"] > 0, "focused が眉を落としている"
+    assert row["mouthright"] - row["mouthleft"] + 1 == 60, "focused の口が動いている"
 
 
 def test_only_the_focused_face_wears_a_brow(drawn):
