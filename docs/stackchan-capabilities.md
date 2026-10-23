@@ -32,13 +32,14 @@
 - ✅ **It blinks by itself**: both lids shut for **80 ms**, every **3.2–6.8 s**, from a list of seven gaps with no random number — a schedule that cannot be read out of the source cannot be checked. `sleepy` and *no face* do not blink.
 - ✅ **`dim` undulates between 72 % and 100 % over 7 s**, inside the firmware, at no cost in frames or bytes.
 - ⚠️ **An eye has reported the blink, the undulation and two work colours as visible** (「まばたきしてるよ」「見えた」「揺れていた」「青、紫」, 2026-10-20) — ⛔ **not one of those says the thing is alive**, and the questions were put in halves where the first half came back each time.
+- ✅ **An eye has also said the face and the light move together** — 「書いている（紫）も顔が連動して動いていたよ」 (2026-10-24) — and the daemon's log beside it holds **38 frames** in one 900 s window, **every one `sent: true, accepted: true`**, alternating `writing`+`focused` (6) with `busy`+`watching` (14). ⇒ **this is the first eye evidence for the coupling**; ⛔ **not a judgment of any face's word**, and ⛔ **the face blinks on its own, so the "moved" in that sentence has two possible subjects.** `records/2026-10-24-the-face-that-moved-with-the-light.md`
 
 ### The twelve LEDs
 
 ✅ **Eight words reach twelve pixels**, through the AW9523 expander. **The words are the host's; the colours are the firmware's** — ⛔ **not one colour was chosen by measurement.**
 
 - ✅ **`warm` is orange, `alert` is yellow, `breathe` is a breath**, and all three have been seen on the unit, including from the installed daemon through the transport.
-- ✅ **`writing` and `busy`** were added on 2026-10-20 and shown to an eye: two colours came back, 「青、紫」. ⚠️ **Which colour is which word was not established** — the sequence was sent without saying what was coming.
+- ✅ **`writing` and `busy`** were added on 2026-10-20 and shown to an eye: two colours came back, 「青、紫」. ⚠️ **Which colour is which word was not established** — the sequence was sent without saying what was coming. ✅ **On 2026-10-24 the author tied one of them to a name**: 「書いている（紫）」 ⇒ **`writing` is the purple one** (the table's `{104, 40, 76}`, though ⛔ **the panel's purple has not been compared with that number**). ⛔ **`busy` has no name yet** — nobody has said which colour it is.
 - ⛔ **Nobody has named the twelve coming back from sleep.** The switch turns them off; the return has no eye on record.
 
 ### The neck
