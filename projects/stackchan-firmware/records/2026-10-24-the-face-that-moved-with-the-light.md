@@ -48,6 +48,23 @@
 
 ⚠️ **It is also not a measurement of the colour**: the author named 紫 to identify the state, ⛔ **not to judge the hue**, and **no one has compared the panel's purple with `{104, 40, 76}`** — the table's three numbers are choices, and the screen's are the same numbers scaled so the largest lands on the peak.
 
+## The look between the looks
+
+**Two more sentences, minutes later, from the same eye**: 「今は連動して動いていないんだけど、想定通り？」 — *it isn't moving together right now, is that expected?* — and then, once the turn had started, 「今は連動した」 — *now it did*.
+
+⛔ **Both are right, and the second is the part the first was missing.** The layer writes a frame **only when the visible state changes** — `projects/stackchan/outbound.py`, whose own rule reads ⛔ **変わらない判定は、枠にならない**; an unchanged decision is logged `reason: "observed"` and **writes nothing**. ⇒ **while the work word does not change, nothing goes on the wire, and the panel keeps the drawing it already has.**
+
+**Measured in the same log:**
+
+| what | value |
+|---|---|
+| the stretch the eye was looking at | **271.7 s** with no frame — `06:19:16` → `06:23:47` |
+| the longest such stretch of that day | **637.8 s** — `05:09:46` → `05:20:24` |
+| the rows inside that longest stretch | **332**, every one `sent: false`, `reason: "observed"` |
+| what ended the 271.7 s stretch | `light: dim` at `06:23:47`, then `watching`+`busy` — both `sent: true, accepted: true` |
+
+⚠️ **So the coupling is an event, not an animation.** The face's own blink (80 ms every 3.2–6.8 s) and `dim`'s 7 s undulation keep running the whole time — **both inside the firmware, neither one a frame.** ⇒ **an eye watching a quiet stretch sees a light that breathes and a face that blinks, and does not see the coupling at all**; it appears the moment the work changes and not before. ⛔ **That is also what makes 「動いていた」 a statement about a transition** — and this page still does not say which transition.
+
 ## What this record does not say
 
 - ⛔ **Which transition the eye caught**, or whether it saw one at all — **it may have watched a face that was only blinking.**
