@@ -8,6 +8,11 @@
 //    `watching` and `startled` were added so that the face can follow the light.
 //    Their rows are this repository's choices, and each one moves only the lid's
 //    weight and the mouth's two numbers — ⛔ no new shape was invented.
+// ⚠️ **That last sentence stopped being true on 2026-10-24**: the author asked
+//    for a brow above the eyes while writing (「書いている時は、目の上に眉毛
+//    （緩やか斜め）をつけよう」), and `focused` now wears one — **the one shape
+//    in this file the vendor never drew.** ⚠️ Its four numbers are chosen, not
+//    measured; `bench face focused` is how an eye judges them.
 // ⚠️ The vendor draws through LVGL, which anti-aliases its circles; a one-bit
 //    renderer reproduced the shapes and not the smoothness. So the buffer is
 //    8-bit grey: the coverage of each pixel, 0..255, and the panel sends it as

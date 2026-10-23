@@ -5,9 +5,13 @@
 
 namespace {
 
-// ⛔ The drawing is the vendor's default skin, not one of ours — **with one
-//    exception, written where it happens**: the normal face's eye is a plain
-//    disc since 2026-10-20, by the author's word (`StyleFor`). Every other
+// ⛔ The drawing is the vendor's default skin, not one of ours — **with two
+//    exceptions, both written where they happen**: the normal face's eye is a
+//    plain disc since 2026-10-20, by the author's word (`StyleFor`), and
+//    `watching` wears the same disc since 2026-10-24 (「処理中も目は丸がいい」);
+//    and `focused` wears a brow since the same day (「書いている時は、目の上に
+//    眉毛（緩やか斜め）をつけよう」), which is **the one shape here the vendor
+//    never drew** — `DrawBrow`. Every other
 //    number below is lifted from `vendor-src/StackChan/firmware/main/stackchan/
 //    avatar/skins/default/` (M5Stack, MIT, git 1b57655): `eyes.cpp` and
 //    `mouth.cpp`. The vendor draws it with LVGL containers; this file draws the
@@ -72,7 +76,20 @@ struct Style {
   int rotation;      // tenths of a degree, as LVGL takes it
   int mouth_width;   // px, centred on the panel's centre line
   int mouth_height;  // px
+  bool brow;         // a gently slanted brow above each eye
 };
+
+// 眉 — **このファイルが描く唯一、vendor が描いていない形**（2026-10-24）。
+//   著者の言葉は「書いている時は、目の上に眉毛（緩やか斜め）をつけよう」で、
+//   形は `＼　／` と書かれた——**外側の端が高く、内側の端が低い**。
+//   ⚠️ **この4つの数はすべて選んだ数であり、測った数ではない**（`bench face` が
+//   出す1枚を著者の目が判定する）。⇒ 長さ24px・太さ3px・外端が6px高い・
+//   目の上端から5px——傾きは atan(6/24) ≈ 14.0°で、`＼` の記号より緩い。
+//   ⛔ 太さ3pxは口の6pxの半分であり、**眉が口より重くならない**ための数である。
+constexpr int kBrowLength = 24;
+constexpr int kBrowThickness = 3;
+constexpr int kBrowRise = 6;
+constexpr int kBrowGap = 5;
 
 // `DefaultEyes::setEmotion`, verbatim: Neutral (100, 0), Happy (72, 1550),
 // Angry (70, 450), Sad (70, -400), Doubt (75, 0), Sleepy (35, -50).
@@ -90,9 +107,9 @@ Style StyleFor(Face face) {
   switch (face) {
     case Face::kHappy:
     case Face::kGreeting:
-      return {72, 1550, kMouthWidth, kMouthHeight};
+      return {72, 1550, kMouthWidth, kMouthHeight, false};
     case Face::kAngry:
-      return {70, 450, kMouthWidth, kMouthHeight};
+      return {70, 450, kMouthWidth, kMouthHeight, false};
     case Face::kCurious:
       // ⛔ **This row is no longer the vendor's.** `Doubt` is (75, 0): a disc
       //    with its top five rows cut flat by the lid. On 2026-10-20 the author
@@ -102,28 +119,33 @@ Style StyleFor(Face face) {
       //    disc. ⚠️ **The other faces keep the vendor's numbers**, and this is
       //    the one row where the drawing differs from the skin — by a word.
       //    ⚠️ A blink is still weight 0, which covers this disc completely.
-      return {100, 0, kMouthWidth, kMouthHeight};
+      return {100, 0, kMouthWidth, kMouthHeight, false};
     case Face::kSleepy:
-      return {35, -50, kMouthWidth, kMouthHeight};
+      return {35, -50, kMouthWidth, kMouthHeight, false};
     // ——— この機体の3語（2026-10-24）。
     //
-    // `focused` — 書き物の最中。**目を半分閉じ、口を小さく結ぶ。** 重さ55は
-    //   `sleepy` の35より開いていて、`curious` の100より閉じている——**眠りでは
-    //   なく集中**を狙った位置である。口は既定の3分の2。
+    // `focused` — 書き物の最中。**目を半分閉じ、口を小さく結び、眉を傾ける。**
+    //   重さ55は `sleepy` の35より開いていて、`curious` の100より閉じている
+    //   ——**眠りではなく集中**を狙った位置である。口は既定の3分の2。
+    //   ✅ **眉は2026-10-24、著者の「書いている時は、目の上に眉毛（緩やか斜め）
+    //   をつけよう」で入った**（`＼　／`）——この機体で唯一、vendor が描いて
+    //   いない形であり、**8つの顔のうち `focused` だけが着る**。
     case Face::kFocused:
-      return {55, 0, 60, 6};
-    // `watching` — コマンドが走っている最中。**目はほぼ開いたまま、口が広い。**
-    //   重さ88は「少し細めた」であって、眠りにも驚きにも寄らない。
+      return {55, 0, 60, 6, true};
+    // `watching` — コマンドが走っている最中。**目は丸、口が広い。**
+    //   ⛔ 重さ88は2026-10-24に100へ動いた——著者の「処理中も目は丸がいい」。
+    //   88は「少し細めた」であり、**細めるのは `focused` の仕事**である。
+    //   ⇒ この顔が言うのは**口の広さだけ**であり、目は `curious` と同じ丸である。
     case Face::kWatching:
-      return {88, 0, 132, 6};
+      return {100, 0, 132, 6, false};
     // `startled` — 失敗の2秒。**目は丸く、口は開いている。** 口の高さ20は
     //   `setWeight` の 6..50 の内側であり、動かすのは幅と高さの2つだけである。
     case Face::kStartled:
-      return {100, 0, 36, 20};
+      return {100, 0, 36, 20, false};
     case Face::kNone:
       break;
   }
-  return {100, 0, kMouthWidth, kMouthHeight};
+  return {100, 0, kMouthWidth, kMouthHeight, false};
 }
 
 constexpr float kDegreesToRadians = 3.14159265f / 180.0f;
@@ -186,6 +208,67 @@ void DrawEye(uint8_t* grey, int cx, int cy, const Style& style, int sign) {
   }
 }
 
+// One brow: a slanted bar above one eye. ⚠️ `sign` is the same one the eye
+//    takes, so the two brows are mirror images about the panel's centre line
+//    without a second number being written down: on the left eye the bar
+//    descends to the right (`＼`), on the right eye it ascends (`／`), and
+//    both inner ends sit lower than their outer ones — the author's drawing.
+//    ⚠️ Supersampled for the same reason the discs are: a 14° bar drawn at 1
+//    bit is a staircase, and the author has already seen one of those.
+void DrawBrow(uint8_t* grey, int cx, int cy_eye, int sign) {
+  const float angle =
+      static_cast<float>(sign) *
+      std::atan2(static_cast<float>(kBrowRise), static_cast<float>(kBrowLength));
+  const float c = std::cos(angle);
+  const float s = std::sin(angle);
+
+  const float half_len = kBrowLength / 2.0f;
+  const float half_th = kBrowThickness / 2.0f;
+  // The eye's top is `cy_eye - kEyeSize/2`; the brow's *lowest* edge (its inner
+  // end) sits `kBrowGap` above that, so the centre is raised by half the rise
+  // and half the thickness.
+  const float cy = static_cast<float>(cy_eye - kEyeSize / 2 - kBrowGap) -
+                   kBrowRise / 2.0f - half_th;
+
+  const int reach_x = kBrowLength / 2 + 2;
+  const int reach_y = kBrowRise / 2 + kBrowThickness / 2 + 2;
+  constexpr float kStep = 1.0f / kSamples;
+
+  for (int y = static_cast<int>(cy) - reach_y; y <= static_cast<int>(cy) + reach_y;
+       ++y) {
+    if (y < 0 || y >= face_bitmap::kHeight) {
+      continue;
+    }
+    for (int x = cx - reach_x; x <= cx + reach_x; ++x) {
+      if (x < 0 || x >= face_bitmap::kWidth) {
+        continue;
+      }
+      int covered = 0;
+      for (int sy = 0; sy < kSamples; ++sy) {
+        const float fy = static_cast<float>(y) + (sy + 0.5f) * kStep;
+        for (int sx = 0; sx < kSamples; ++sx) {
+          const float fx = static_cast<float>(x) + (sx + 0.5f) * kStep;
+          const float dx = fx - static_cast<float>(cx);
+          const float dy = fy - cy;
+          const float qx = c * dx + s * dy;
+          const float qy = -s * dx + c * dy;
+          if (qx >= -half_len && qx <= half_len && qy >= -half_th &&
+              qy <= half_th) {
+            ++covered;
+          }
+        }
+      }
+      // ⚠️ `max`, not assignment: the brow's box does not reach the eye today,
+      //    and a brow drawn over an eye must not erase it if that changes.
+      const int value = covered * 255 / (kSamples * kSamples);
+      uint8_t& cell = grey[y * face_bitmap::kWidth + x];
+      if (value > cell) {
+        cell = static_cast<uint8_t>(value);
+      }
+    }
+  }
+}
+
 // ⚠️ The vendor's mouth is a container with radius 0 at weight 0: a crisp
 //    rectangle, where LVGL itself draws no anti-aliased edge. Its corners and
 //    sides land on pixel boundaries, so it is filled solid. ⚠️ **Since
@@ -230,6 +313,13 @@ void RenderWith(Face face, uint8_t* grey, int weight) {
   //    `_is_left_eye ? rotation : -rotation`.
   DrawEye(grey, cx - kEyeOffsetX, cy, style, +1);
   DrawEye(grey, cx + kEyeOffsetX, cy, style, -1);
+  // ⚠️ Drawn after the eyes and **not** keyed to the lid's weight: a brow does
+  //    not close when the eye does, and `render_blink` is that same call with
+  //    one integer moved.
+  if (style.brow) {
+    DrawBrow(grey, cx - kEyeOffsetX, cy, +1);
+    DrawBrow(grey, cx + kEyeOffsetX, cy, -1);
+  }
   DrawMouth(grey, style);
 }
 

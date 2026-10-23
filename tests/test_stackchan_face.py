@@ -80,6 +80,26 @@ bool InEye(int x, int y) {
   return in_left || in_right;
 }
 
+// 眉の箱——2026-10-24 に `focused` が着けた。⛔ 目より上に在るので、目とは別に
+// 名指さないと「口」の測定が眉を飲み込む（実際に最初は飲み込んだ）。
+bool InBrow(int x, int y) {
+  const bool in_left = x >= 75 && x <= 105 && y >= 76 && y <= 92;
+  const bool in_right = x >= 215 && x <= 245 && y >= 76 && y <= 92;
+  return in_left || in_right;
+}
+
+// 明るい画素が最初に現れる行。⛔ 眉の傾きを、数ではなく**端の高さ**で測るため。
+int TopRow(const std::vector<uint8_t>& grey, int x0, int x1, int y0, int y1) {
+  for (int y = y0; y <= y1; ++y) {
+    for (int x = x0; x <= x1; ++x) {
+      if (At(grey, x, y) >= 128) {
+        return y;
+      }
+    }
+  }
+  return -1;
+}
+
 int Bright(const std::vector<uint8_t>& grey, int x0, int y0, int x1, int y1) {
   int n = 0;
   for (int y = y0; y <= y1; ++y) {
@@ -122,7 +142,7 @@ Mouth MeasureMouth(const std::vector<uint8_t>& grey) {
   bool any = false;
   for (int y = 0; y < face_bitmap::kHeight; ++y) {
     for (int x = 0; x < face_bitmap::kWidth; ++x) {
-      if (InEye(x, y) || At(grey, x, y) == 0) {
+      if (InEye(x, y) || InBrow(x, y) || At(grey, x, y) == 0) {
         continue;
       }
       if (!any) {
@@ -187,7 +207,7 @@ int main() {
     // [x, x+1), so its mirror is `319 - x`, not `320 - x` — the off-by-one
     // that put the eyes half a pixel away from the mouth.
     int mismatched = 0;
-    for (int y = 92; y <= 116; ++y) {
+    for (int y = 76; y <= 116; ++y) {
       for (int x = 78; x <= 102; ++x) {
         mismatched += At(grey, x, y) != At(grey, 319 - x, y);
       }
@@ -197,7 +217,7 @@ int main() {
     int outside = 0;
     for (int y = 0; y < face_bitmap::kHeight; ++y) {
       for (int x = 0; x < face_bitmap::kWidth; ++x) {
-        if (!InEye(x, y) && !mouth.holds(x, y)) {
+        if (!InEye(x, y) && !InBrow(x, y) && !mouth.holds(x, y)) {
           outside += At(grey, x, y) != 0;
         }
       }
@@ -220,6 +240,14 @@ int main() {
     std::printf("BOTTOM %d\n", bottom);
     std::printf("MIRROR_MISMATCH %d\n", mismatched);
     std::printf("OUTSIDE %d\n", outside);
+    const int brow = Bright(grey, 75, 76, 105, 92) + Bright(grey, 215, 76, 245, 92);
+    std::printf("BROW %d\n", brow);
+    std::printf("BROW_LEFT_OUTER %d\n", TopRow(grey, 78, 84, 74, 93));
+    std::printf("BROW_LEFT_INNER %d\n", TopRow(grey, 96, 102, 74, 93));
+    // ⚠️ 右の窓は左の鏡である——`x` の鏡は `319 - x` なので、左の 78..84 は
+    //    235..241、96..102 は 217..223。ずれた窓で測ると、鏡像が1行ずれて見える。
+    std::printf("BROW_RIGHT_INNER %d\n", TopRow(grey, 217, 223, 74, 93));
+    std::printf("BROW_RIGHT_OUTER %d\n", TopRow(grey, 235, 241, 74, 93));
 
     // Pinned pixels: the lid's weight, read where it shows.
     std::printf("P %d %d %d\n", 90, 96, At(grey, 90, 96));
@@ -444,12 +472,68 @@ def test_the_normal_eye_is_a_plain_disc(drawn):
     assert drawn["curious"]["top"] > 0
 
 
+def test_the_watching_face_also_wears_the_disc(drawn):
+    """✅ **2026-10-24、著者の「処理中も目は丸がいい」**——`watching` の目は
+    `curious` と同じ円盤であり、違うのは**口の広さだけ**である。
+
+    ⛔ この顔は 0.19.80 では重み88で描かれていた——「少し細めた」目である。
+    88は `focused`（55）と `curious`（100）の中間であり、**どの語の言い分でもない**。
+    著者の目はそれを細めた目と読まず、丸を求めた。⇒ **細めるのは `focused` の仕事**で
+    あり、この顔が言うのは口の広さだけになった。
+    """
+    watched = drawn["watching"]
+    assert watched["probes"][(90, 96)] > 0, "watching の上端がまぶたで覆われている"
+    assert watched["top"] == watched["bottom"], (
+        f"watching の目が上下で釣り合っていない: {watched['top']} / {watched['bottom']}"
+    )
+    disc = ("left", "right", "top", "bottom", "eye_edge")
+    assert tuple(watched[key] for key in disc) == tuple(
+        drawn["curious"][key] for key in disc
+    ), "watching の目が curious の円盤と同じでない"
+
+
+def test_only_the_focused_face_wears_a_brow(drawn):
+    """✅ **2026-10-24、著者の「書いている時は、目の上に眉毛（緩やか斜め）をつけよう」**
+    ——`focused` だけが眉を着け、形は `＼　／` である。
+
+    ⚠️ **これは「その語に見える」ことの検査ではない。** 測っているのは
+    **着けているのが1つの顔だけ**であることと、**傾きの向き**（外側が高く、
+    内側が低い）までである。⛔ 太さ・長さ・間隔の良し悪しは著者の目が決める
+    ——`bench face focused` がそれを出す。⛔ 4つの数は選んだ数であり、測った数ではない。
+    """
+    assert drawn["focused"]["brow"] > 0, "focused に眉が無い"
+    for name in DRAWN:
+        if name == "focused":
+            continue
+        assert drawn[name]["brow"] == 0, f"{name} が眉を着けている"
+
+    row = drawn["focused"]
+    # `＼` — 左の眉は、外側（左）の端が高く、内側（右）の端が低い。
+    assert row["brow_left_outer"] >= 0 and row["brow_left_inner"] >= 0, (
+        f"眉が見つからない: outer={row['brow_left_outer']} inner={row['brow_left_inner']}"
+    )
+    assert row["brow_left_inner"] - row["brow_left_outer"] >= 4, (
+        f"左の眉が内側へ下っていない: outer={row['brow_left_outer']} "
+        f"inner={row['brow_left_inner']}"
+    )
+    # `／` — 右の眉はその鏡像であり、内側の端が同じだけ低い。
+    assert row["brow_right_inner"] - row["brow_right_outer"] >= 4, (
+        f"右の眉が内側へ下っていない: inner={row['brow_right_inner']} "
+        f"outer={row['brow_right_outer']}"
+    )
+    # ⚠️ 2本の眉は同じ高さに在る——片方だけ高いのは鏡像ではない。
+    assert row["brow_left_outer"] == row["brow_right_outer"], (
+        f"2本の眉の高さが違う: {row['brow_left_outer']} / {row['brow_right_outer']}"
+    )
+
+
 def test_a_blink_closes_both_eyes_and_leaves_the_mouth_alone(drawn):
     """⛔ **まばたきは目であり、9つ目の表情ではない。**
 
     - 両目とも覆われる——片方だけ閉じたら、それはまばたきではなく不具合である。
     - 口は1バイトも動かない——口は `setWeight` を持たない、目のためのつまみである。
-    - 閉じた画面に残るのは口だけである——目以外が動けば、それは別の絵である。
+    - 閉じた画面に残るのは口と眉だけである——⚠️ **眉はまばたきしない**（2026-10-24）:
+      まぶたが下りるのは目であり、眉は表情のまま残る。
     - 閉じた絵は開いた絵と違う——重みを無視する描画器なら、ここで落ちる。
     """
     for name in BLINKABLE:
@@ -460,9 +544,9 @@ def test_a_blink_closes_both_eyes_and_leaves_the_mouth_alone(drawn):
             f"{name}: まばたきの口が {row['blinkmouth']} 画素"
         )
         assert row["mouthmoved"] == 0, f"{name}: まばたきで口が {row['mouthmoved']} 画素動いた"
-        assert row["blinkbright"] == row["mouthsolid"], (
-            f"{name}: 閉じた画面に口以外の明るい画素が "
-            f"{row['blinkbright'] - row['mouthsolid']} 個ある"
+        assert row["blinkbright"] == row["mouthsolid"] + row["brow"], (
+            f"{name}: 閉じた画面に口と眉以外の明るい画素が "
+            f"{row['blinkbright'] - row['mouthsolid'] - row['brow']} 個ある"
         )
 
 
