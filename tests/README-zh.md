@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.44.0 | canonical: tests/README.md | translated: 2026-10-24 -->
+<!-- i18n-version: 1.45.0 | canonical: tests/README.md | translated: 2026-10-24 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -458,7 +458,7 @@
 | `WakeNow` 在 `xSemaphoreTake(g_body)` **之前**运行，`bench sleep` 保持黑暗 | ⛔ **在派发之后叫醒，就是把一行派进一个黑房间**; ⚠️ **没有保持的话，`bench sleep` 返回后 20 ms 主循环就会把它叫醒** |
 | keepalive 被设置，且 `sdkconfig.defaults` 里有 `CONFIG_LWIP_TCP_KEEPALIVE=y` | ⛔ **没有这一项 lwIP 也接受 `SO_KEEPALIVE`，却套用自己的以小时计的默认值**——25 秒与一整夜的差别就在这一行 |
 
-⛔ **这个文件不做什么。** 它只构建 `sleep_rule.cpp`，别的什么都不构建: **`main.cpp`、`display.cpp` 和 `dial.cpp` 需要 IDF，没有任何检查编译它们**——接线的那几行只是在读源。⚠️ **从这里看不见屏幕**——玻璃是否暗，是作者的眼睛的问题，而在 2026-10-24 **没有一双眼睛看过。** ⛔ **而且 keepalive 从未在机器上触发过**: 这一行守的是拼写，不是观测。
+⛔ **这个文件不做什么。** 它只构建 `sleep_rule.cpp`，别的什么都不构建: **`main.cpp`、`display.cpp` 和 `dial.cpp` 需要 IDF，没有任何检查编译它们**——接线的那几行只是在读源。⚠️ **从这里看不见屏幕**——玻璃是否暗，是作者的眼睛的问题，而在 2026-10-24 **没有一双眼睛看过**: ✅ **那天夜里有一双看了**（「5分後、お休みの顔すら暗くなった：OK」、`records/2026-10-24-the-body-that-slept-itself.md`）——⛔ **答案来自眼睛，不是来自这个文件，而这里什么都没有改变。** ⛔ **而且 keepalive 从未在机器上触发过**: 这一行守的是拼写，不是观测。
 
 ## 基板打开的链路 (0.19.61)
 

@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.44.0 | canonical: tests/README.md | translated: 2026-10-24 -->
+<!-- i18n-version: 1.45.0 | canonical: tests/README.md | translated: 2026-10-24 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -436,7 +436,7 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | `WakeNow` runs **before** `xSemaphoreTake(g_body)`, and `bench sleep` holds the dark | ⛔ **waking after the queue would dispatch a line into a dark room**; ⚠️ **and without a hold the loop wakes the body 20 ms after `bench sleep` returns** |
 | keepalive is set, and `CONFIG_LWIP_TCP_KEEPALIVE=y` is in `sdkconfig.defaults` | ⛔ **lwIP accepts `SO_KEEPALIVE` without that option and applies its own hour-long defaults**, so the option is the difference between 25 s and a night |
 
-⛔ **What it does not do.** It builds `sleep_rule.cpp` and nothing else: **`main.cpp`, `display.cpp` and `dial.cpp` need IDF and are compiled by no check**, and the wiring rows read the source. ⚠️ **Nothing here can see a screen** — whether the glass is dark is the author's eye's question, and on 2026-10-24 **no eye looked.** ⛔ **And the keepalive has never fired on the machine**: the row holds the spelling, not an observation.
+⛔ **What it does not do.** It builds `sleep_rule.cpp` and nothing else: **`main.cpp`, `display.cpp` and `dial.cpp` need IDF and are compiled by no check**, and the wiring rows read the source. ⚠️ **Nothing here can see a screen** — whether the glass is dark is the author's eye's question, and on 2026-10-24 **no eye looked**: ✅ **that night one did** (「5分後、お休みの顔すら暗くなった：OK」, `records/2026-10-24-the-body-that-slept-itself.md`) — ⛔ **the answer came from an eye and not from this file, and nothing here has changed.** ⛔ **And the keepalive has never fired on the machine**: the row holds the spelling, not an observation.
 
 ## The link the board opens (0.19.61)
 

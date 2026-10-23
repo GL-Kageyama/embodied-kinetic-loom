@@ -1,4 +1,4 @@
-<!-- i18n-version: 1.44.0 | canonical: tests/README.md | translated: 2026-10-24 -->
+<!-- i18n-version: 1.45.0 | canonical: tests/README.md | translated: 2026-10-24 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -458,7 +458,7 @@
 | `WakeNow` が `xSemaphoreTake(g_body)` の**前**に走り、`bench sleep` が暗さを保持する | ⛔ **払い出しの後に起こしたら、暗い部屋へ1行を捌くことになる**; ⚠️ **保持が無ければ、`bench sleep` が戻って20 msで主ループが起こす** |
 | keepalive が立ち、`CONFIG_LWIP_TCP_KEEPALIVE=y` が `sdkconfig.defaults` にある | ⛔ **lwIP はこの設定が無くても `SO_KEEPALIVE` を受け取り、自前の時間単位の既定を当てる**——25秒と一晩の違いがこの行である |
 
-⛔ **このファイルがしないこと。** `sleep_rule.cpp` だけをビルドし、他は何もビルドしない: **`main.cpp`・`display.cpp`・`dial.cpp` は IDF を要求し、どの検査もコンパイルしない**——配線の行は源を読んでいるだけである。⚠️ **ここから画面は見えない**——ガラスが暗いかは著者の目の問いであり、2026-10-24 には**目が1つも見ていない。** ⛔ **そして keepalive は機械の上で一度も発火していない**: この行が持つのは綴りであって、観測ではない。
+⛔ **このファイルがしないこと。** `sleep_rule.cpp` だけをビルドし、他は何もビルドしない: **`main.cpp`・`display.cpp`・`dial.cpp` は IDF を要求し、どの検査もコンパイルしない**——配線の行は源を読んでいるだけである。⚠️ **ここから画面は見えない**——ガラスが暗いかは著者の目の問いであり、2026-10-24 には**目が1つも見ていない**: ✅ **その夜、1つ見た**（「5分後、お休みの顔すら暗くなった：OK」、`records/2026-10-24-the-body-that-slept-itself.md`）——⛔ **答えは目から来たのであって、このファイルからではない。そしてここは何も変わっていない。** ⛔ **そして keepalive は機械の上で一度も発火していない**: この行が持つのは綴りであって、観測ではない。
 
 ## 基板が開くリンク (0.19.61)
 
