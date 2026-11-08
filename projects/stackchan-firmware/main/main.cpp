@@ -262,9 +262,11 @@ void PrintHelp() {
   printf("  bench sound <word>        play one of hello|pip|chime|fall\n");
   printf("  bench audio <ms>          play a tone through the link's own path, and say how long it took\n");
   printf("  bench volume <0..100>     set the amplifier's volume and keep it\n");
-  printf("  bench wifi                does nvs hold a network, is the station on one, has it an address\n");
+  printf("  bench wifi                the networks it holds, which one the radio is on, and whether it has an address\n");
   printf("  bench wifi scan           what the radio can hear; blocks for seconds\n");
-  printf("  bench wifi join <ssid> [psk]   store a network in nvs and connect; the psk is not echoed\n");
+  printf("  bench wifi join <ssid> [psk]   store a network and connect now; the psk is not echoed\n");
+  printf("  bench wifi add <ssid> [psk]    store a network without switching; up to four are kept\n");
+  printf("  bench wifi forget <ssid>       remove one from the list; the others keep their order\n");
   printf("  bench wifi addr <ip> <mask> <gw>  a fixed address for this boot only\n");
   printf("  bench net                 is the listening port up, and how many connections has it served\n");
   printf("  bench net send <ip> <port> <text>   one datagram out, and anything that comes back\n");
@@ -1134,17 +1136,22 @@ void HandleBench(const char* args) {
       wifi_probe::scan();
       return;
     }
-    if (std::strncmp(rest, "join", 4) == 0) {
-      const char* cursor = rest + 4;
+    if (std::strncmp(rest, "join", 4) == 0 ||
+        (std::strncmp(rest, "add", 3) == 0 &&
+         (rest[3] == ' ' || rest[3] == '\0'))) {
+      const bool joining = std::strncmp(rest, "join", 4) == 0;
+      const char* cursor = rest + (joining ? 4 : 3);
       while (*cursor == ' ') {
         ++cursor;
       }
       if (*cursor == '\0') {
-        printf("bench: wifi join needs an ssid\n");
+        printf("bench: wifi %s needs an ssid\n", joining ? "join" : "add");
         return;
       }
       // ⚠️ The first space ends the ssid, so an ssid that contains one cannot
       //    be written this way — said here rather than failing as a wrong psk.
+      //    ⚠️ The psk's own length is checked where the table checks the ssid,
+      //    so a 64-character password is refused instead of truncated here.
       char ssid[33] = {0};
       int n = 0;
       while (cursor[n] != '\0' && cursor[n] != ' ' && n < 32) {
@@ -1159,7 +1166,30 @@ void HandleBench(const char* args) {
       if (*after != '\0') {
         std::strncpy(psk, after, sizeof(psk) - 1);
       }
-      wifi_probe::join(ssid, psk);
+      if (joining) {
+        wifi_probe::join(ssid, psk);
+      } else {
+        wifi_probe::add(ssid, psk);
+      }
+      return;
+    }
+    if (std::strncmp(rest, "forget", 6) == 0 &&
+        (rest[6] == ' ' || rest[6] == '\0')) {
+      const char* cursor = rest + 6;
+      while (*cursor == ' ') {
+        ++cursor;
+      }
+      if (*cursor == '\0') {
+        printf("bench: wifi forget needs an ssid\n");
+        return;
+      }
+      char ssid[33] = {0};
+      int n = 0;
+      while (cursor[n] != '\0' && cursor[n] != ' ' && n < 32) {
+        ssid[n] = cursor[n];
+        ++n;
+      }
+      wifi_probe::forget(ssid);
       return;
     }
     if (std::strncmp(rest, "addr", 4) == 0 &&
@@ -1167,7 +1197,7 @@ void HandleBench(const char* args) {
       wifi_probe::set_address(rest + 4);
       return;
     }
-    printf("bench: wifi [scan | join <ssid> [psk] | addr <ip> <mask> <gw>]\n");
+    printf("bench: wifi [scan | join <ssid> [psk] | add <ssid> [psk] | forget <ssid> | addr <ip> <mask> <gw>]\n");
     return;
   }
   if (std::strncmp(args, "dial", 4) == 0 && (args[4] == '\0' || args[4] == ' ')) {

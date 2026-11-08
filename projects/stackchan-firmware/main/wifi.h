@@ -27,9 +27,17 @@ void begin();
 //: seconds, like every other `bench` command that asks the machine something.
 void scan();
 
-//: Stores an SSID and PSK in NVS and connects. ⛔ The PSK is not printed, and
-//: an empty PSK means an open network rather than an empty password.
+//: Adds or updates a network in the list and connects to it now. ⛔ The PSK is
+//: not printed, and an empty PSK means an open network rather than an empty
+//: password. ⚠️ The other rows stay: since 0.19.86 this is not an overwrite.
 void join(const char* ssid, const char* psk);
+
+//: Adds or updates a network in the list **without connecting**. ⚠️ Storing is
+//: not switching — `join` is the verb that moves the radio.
+void add(const char* ssid, const char* psk);
+
+//: Removes a network by exact SSID. The other rows keep their order.
+void forget(const char* ssid);
 
 //: One line: whether NVS holds a configuration, whether the station is
 //: associated, and the address if it has one.

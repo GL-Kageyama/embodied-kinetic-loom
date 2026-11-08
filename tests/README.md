@@ -4,7 +4,7 @@
 
 # tests/
 
-**fifty-seven files, one thousand one hundred and sixty tests, all green — measured 2026-10-24.**
+**fifty-eight files, one thousand one hundred and ninety-two tests, all green — measured 2026-11-08.**
 
 **This file used to say there were none.** It changed in the same commit as the first test, which is the rule that section of `CLAUDE.md` states and this directory exists to hold.
 
@@ -402,6 +402,28 @@ Plan time holds the whole trajectory and no clock. The gate holds one frame and 
 | the comment *one attempt, and no retry loop* is gone | `test_stackchan_wifi_retry.py` (source) | ⛔ **the comment named the defect as a rule** — that sentence was the 2026-10-21 fault written down |
 
 ⛔ **It does not build `wifi.cpp`, and nothing here watches a reconnection.** The wiring rows read the source; the rule rows compile a file with no IDF in it. **Whether this body rejoins a network after a drop is still nothing a check can say** — on 2026-10-21 it was observed **by hand**: the author carried the unit about 50 m away and brought it back, and the console recorded `reason 200 (beacon timeout)`, five attempts at **2,000 / 4,000 / 8,000 / 16,000 / 30,000 ms**, and **`wifi: associated after 5 attempt(s)`**. ⛔ **Only three of those five printed** — the rule silences the fourth and the fifth, so a reader counting `asking again` lines undercounts. The record is `projects/stackchan-firmware/records/2026-10-21-the-body-that-asked-again.md`; **no test here holds any of it.**
+
+## The body carries its networks (0.19.86)
+
+✅ **`tests/test_stackchan_wifi_profiles.py` compiles `projects/stackchan-firmware/main/wifi_profiles.cpp` with `clang++` or `g++` and runs it** — thirty-two checks, **twelve on the table, seven on the rotation, seven on the blob and six reading the source**. It skips the compiled half when no C++ compiler is on the host, and says so rather than passing.
+
+| the check | where | what it is for |
+|---|---|---|
+| the bounds are the header's own numbers | `test_stackchan_wifi_profiles.py` | ⛔ **a second copy of 4 / 32 / 63 in the test would let the header change and the test stay green** |
+| a new network goes to the end, and the same SSID is updated in place | `test_stackchan_wifi_profiles.py` | ⚠️ **teaching a body a network it already knows must not fill a row** |
+| a fifth network is refused, and an update still works when full | `test_stackchan_wifi_profiles.py` | ⛔ **full means no new row, not no edit** |
+| an SSID of 32 is taken and 33 is not; a PSK of 63 is taken and 64 is not | `test_stackchan_wifi_profiles.py` | ⛔ **the driver's field is 33 bytes including the NUL** — a 64-character PSK used to be shortened in silence |
+| a `null` PSK is an open network | `test_stackchan_wifi_profiles.py` | ⚠️ **an absent secret and an empty one are one thing here, and it is not "16 zero bytes"** |
+| removing keeps the order of the rest | `test_stackchan_wifi_profiles.py` | ⛔ **a row's index is what the rotation and the `*` are read from** |
+| two tries per row, then the next; the turn wraps; one row is never left | `test_stackchan_wifi_profiles.py` | ⚠️ **both the 2 and the ladder are chosen, not measured** |
+| attempt zero is the starting row, and no tries means stay put | `test_stackchan_wifi_profiles.py` | a guard for a caller that has not counted an attempt yet |
+| a round trip returns the same table, and an empty table round trips | `test_stackchan_wifi_profiles.py` | ⚠️ **the blob is the only thing that crosses NVS**, so a shape that only works in RAM is a table that vanishes at boot |
+| a truncated blob, an unknown version, a count past the maximum, a slot with no NUL and a short buffer are all refused | `test_stackchan_wifi_profiles.py` | ⛔ **a refused decode leaves the table alone** — half a table read over a good one is worse than nothing read |
+| the table has a namespace of its own, and the driver's one network is seeded rather than asked for again | `test_stackchan_wifi_profiles.py` (source) | ⚠️ **the vendor's wizard already stored one**, and a body that forgot it would lose the room it lives in |
+| the retry task rotates by the table's rule and the console can add and forget | `test_stackchan_wifi_profiles.py` (source) | the rule is the header's, not a second `%` in the task |
+| the module is in the build, and no PSK is printed | `test_stackchan_wifi_profiles.py` (source) | ⛔ **a row that prints its secret puts it on a wire the console shares** |
+
+⛔ **It does not build `wifi.cpp`, and nothing here drives an association.** The wiring rows read the source; the rule rows compile a file with no IDF in it. **Whether this body joins the right network at the right time is nothing a check can say** — on 2026-11-08 it was observed **by hand**: after a hard reset the board tried the home network twice (waits **2,000 / 4,000 ms**, reason **201, no ap found**), printed `wifi: trying "Cokoga-5F" (2 of 2)`, associated on attempt **3** (8,000 ms) and took `ip=10.5.0.136` at **20.2 s**, and a second boot still answered `list 2 of 4` from NVS. ⛔ **That boot also panicked**, `A stack overflow in task wifi_retry`, because the first version copied the whole 390-byte table onto a 3,072-byte stack — **`RowAt` and a 4,096-byte stack fixed it, and 4,096 is margin, not a measurement.** The record is `projects/stackchan-firmware/records/2026-11-08-the-body-that-carried-its-networks.md`; **no test here holds any of it.**
 
 ## The board looks for its host (0.19.75)
 

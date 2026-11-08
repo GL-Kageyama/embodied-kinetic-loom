@@ -4,7 +4,7 @@
 
 # tests/
 
-**57 个文件、1,160 项测试，全部通过——实测 2026-10-24。**
+**58 个文件、1,192 项测试，全部通过——实测 2026-11-08。**
 
 **本文件曾经写着「一项也没有」。** **它与第一个测试在同一次提交里改变**——**那正是 `CLAUDE.md` 那一节所规定、而这个目录所维护的规则。**
 
@@ -424,6 +424,28 @@
 | 「一次尝试，没有重试循环」这条注已经不在 | `test_stackchan_wifi_retry.py`（源码） | ⛔ **那条注把缺陷写成了规则**——2026-10-21 的故障，早就被写在那里 |
 
 ⛔ **它不构建 `wifi.cpp`，这里也没有任何东西在看一次重连。** 接线的行读源码，规则的行编译一个不含 IDF 的文件。**这个机体在掉线后会不会回到网络，仍然不是检查能说的话**——2026-10-21，它是**用手**观测到的：著者把机体搬到约50 m 之外再带回来，控制台记录了 `reason 200 (beacon timeout)`、**2,000 / 4,000 / 8,000 / 16,000 / 30,000 ms** 的五次尝试，以及 **`wifi: associated after 5 attempt(s)`**。⛔ **那五次里只打印了三次**——规则让第四次和第五次沉默，所以数 `asking again` 行的人会把尝试数少。记录是 `projects/stackchan-firmware/records/2026-10-21-the-body-that-asked-again.md`，**这里的测试没有一条按住它。**
+
+## 身体带着自己的网络出门（0.19.86）
+
+✅ **`tests/test_stackchan_wifi_profiles.py` 用 `clang++` 或 `g++` 编译 `projects/stackchan-firmware/main/wifi_profiles.cpp` 并运行**——32 项检查，**12 项针对表，7 项针对轮转，7 项针对块，6 项读源码**。主机上没有 C++ 编译器时它只跳过编译的那一半，并说出来，而不是当作通过。
+
+| 检查 | 在哪里 | 为什么 |
+|---|---|---|
+| 边界是头文件自己的数字 | `test_stackchan_wifi_profiles.py` | ⛔ **在测试里放第二份 4 / 32 / 63，头文件改了测试也照样绿** |
+| 新网络追加到末尾，相同的 SSID 就地更新 | `test_stackchan_wifi_profiles.py` | ⚠️ **重新教会身体一个它已经知道的网络，不能占掉一行** |
+| 第五个网络被拒绝，而满了的时候更新仍然可行 | `test_stackchan_wifi_profiles.py` | ⛔ **满意味着没有新行，不是不能编辑** |
+| SSID 32 接受、33 拒绝；PSK 63 接受、64 拒绝 | `test_stackchan_wifi_profiles.py` | ⛔ **驱动的字段含 NUL 是 33 字节**——64 个字符的 PSK 过去会被无声缩短 |
+| `null` 的 PSK 是开放网络 | `test_stackchan_wifi_profiles.py` | ⚠️ **没有秘密和空秘密在这里是一件事，而它不是「十六个零」** |
+| 删掉一行，其余的顺序保持 | `test_stackchan_wifi_profiles.py` | ⛔ **轮转和 `*` 读的正是行的下标** |
+| 每行两次，然后下一行；轮次从末行回绕；一行永不落下 | `test_stackchan_wifi_profiles.py` | ⚠️ **2 和阶梯都是选择的数，不是测量的数** |
+| 第 0 次尝试是起始行，0 次则不动 | `test_stackchan_wifi_profiles.py` | 给还没有数过尝试的调用者的护栏 |
+| 往返返回同一张表，空表也往返 | `test_stackchan_wifi_profiles.py` | ⚠️ **穿过 NVS 的只有这个块**——只在 RAM 里成立的形状，是一张启动就消失的表 |
+| 截断的块、未知的版本、超过上限的条数、没有 NUL 的槽、太小的缓冲区，全部被拒绝 | `test_stackchan_wifi_profiles.py` | ⛔ **被拒绝的解码不碰表**——在一张好表上读到半张表，比什么都没读更糟 |
+| 表有自己的命名空间，驱动的那个网络是被取种而不是重新询问 | `test_stackchan_wifi_profiles.py`（源码） | ⚠️ **厂商向导已经存了一个**——忘了它的身体会失去它住的房间 |
+| 重试任务按表的规则轮转，控制台能加也能忘 | `test_stackchan_wifi_profiles.py`（源码） | 规则在头文件里，不是任务里的第二个 `%` |
+| 模块在构建里，且没有任何 PSK 被打印 | `test_stackchan_wifi_profiles.py`（源码） | ⛔ **打印自己秘密的行，把秘密放上控制台共享的那根线** |
+
+⛔ **它不构建 `wifi.cpp`，这里也没有任何东西驱动关联。** 接线的行读源码；规则的行编译一个不含 IDF 的文件。**这具身体是否在正确的时间连上正确的网络，是检查说不出的事**——2026-11-08 它是**用手**观测到的: 硬复位之后板子试了家里的网络两次（等待 **2,000 / 4,000 ms**，原因 **201, no ap found**），打印 `wifi: trying "Cokoga-5F" (2 of 2)`，在第 **3** 次尝试（8,000 ms）关联，并在 **20.2 秒**取得 `ip=10.5.0.136`；第二次启动仍从 NVS 回答 `list 2 of 4`。⛔ **那次启动也 panic 了**——`A stack overflow in task wifi_retry`，因为第一个版本把 390 字节的整张表压到了 3,072 字节的栈上——**`RowAt` 与 4,096 字节的栈修好了它，而 4,096 是余量，不是测量。** 记录是 `projects/stackchan-firmware/records/2026-11-08-the-body-that-carried-its-networks.md`，**其中没有任何一项被这里的测试持有。**
 
 ## 基板寻找自己的主机（0.19.75）
 

@@ -8,7 +8,7 @@
 
 ⚠️ **Where a row's number belongs to another page, that page is the source and this row is the copy** — the rule `docs/construction-memo.md` states for itself, applied here for the same reason. **If the two disagree, the source is right.**
 
-**Checked 2026-10-24** against `projects/stackchan-firmware/` (image **935,488 bytes**, written at `0x20000`) and the job that is actually installed (`--listen 0.0.0.0:3333 --sound on --presence normal --meta quiet --voice on`, read from `ps`).
+**Checked 2026-11-08** against `projects/stackchan-firmware/` (image **942,000 bytes**, ⚠️ **built that day, and its write to `0x20000` is not recorded**) and the job that is actually installed (`--listen 0.0.0.0:3333 --sound on --presence normal --meta quiet --voice on`, read from `ps`).
 
 ## How to read a row
 
@@ -81,6 +81,8 @@
 ✅ **On 2026-10-24 the console went away and came back twice**: the first re-seat changed nothing, and the second brought **`/dev/cu.usbmodem1101`** — ⛔ **not the `.101` the earlier records name**, because the number moves with the port. ⚠️ **Whether the first failure was the cable, the port, or the chip's USB not re-enumerating is not established**; the same shape was recorded on 2026-10-21. ⛔ **A board can be alive with no console**: that morning port 3333 held `ESTABLISHED` and the body answered over the link while `/dev/cu.usb*` did not exist, so *no serial* is not *no board*. **The next flash still needs the cable, and it is written only after `otadata` is read.**
 
 **The network.** ✅ **The station comes up from whatever the vendor's wizard left in NVS**, with WPA2-PSK; a dropped association is re-made after **2,000 ms, doubling to a 30,000 ms ceiling**, printing the first three attempts and then every tenth, and the drop's reason is printed once, on the first line. ✅ **Measured 2026-10-21**: carried about 50 m out of reach and back, `reason 200 (beacon timeout)` at 17:59:31.360, five attempts at 2 / 4 / 8 / 16 / 30 s, connected at 18:00:32.844, and the dial link back **6.24 s** after the address.
+
+✅ **Since 0.19.86 the body holds up to four networks at once** — the vendor's one is seeded into row 1 at boot, `bench wifi add` / `forget` / `join` change the table, and the radio turns to the next row every **2 attempts** while the ladder keeps its own rule, so a network that is out of reach costs two attempts and not the day. ⚠️ **The two numbers are chosen, not measured.** ✅ **Measured 2026-11-08**: after a hard reset, the home network twice (waits 2,000 / 4,000 ms, reason **201**), then `wifi: trying "Cokoga-5F" (2 of 2)`, associated on attempt **3**, `ip=10.5.0.136` at **20.2 s** — and the table survived the boot after that, answering `list 2 of 4`. ⛔ **A network whose access point isolates its clients is out of the body's reach whatever it holds**: on 2026-11-08 the body and the Mac could not reach each other in either direction (**976** failed connections, **934** addresses swept, **0** found) while the body reached the gateway in **19 ms**.
 
 ✅ **The board finds its host instead of assuming where it is**: the named address first, then its `/24` **nearest-first**, `.0` and `.255` skipped, **254 at most**, **30 s** between sweeps — and ⛔ **a missing route and a missing host are one failure to a socket**, so `kNoRoute` is answered first. **The host writes `loom\n` as the first line on every connection, and a candidate is accepted only if it greets** — because **the link is unauthenticated and an address is not an identity**.
 
@@ -182,7 +184,7 @@ a hook event (33 of them)
 
 **The mouth** — six answers: `queued` `night` `no-board` `busy` `refused:<code>` `no-daemon`.
 
-**The console** — four line types (`{…}`, `pose …`, `bench …`, `help`), `alive` every 3 s, and **24 words after `bench`**: `pos` `zeros` `scan` `read` `raw` `state` `hold` `release` `sound` `audio` `volume` `leds` `backlight` `face` `sleep` `pmu` `level` `power` `timed` `wifi` `dial` `net` `set` `move`. ⚠️ **`help` prints 30 lines, not 24, because three of the words take a sub-verb** — `wifi` ×3 (`scan` / `join` / `addr`), `net` ×2 (`send` / `call`) and `dial` ×1 (`dial <ip> <port>`) — **six extra lines over three words, and 24 + 6 = 30 is the whole arithmetic** (counted in `main.cpp` on 2026-10-24, not recalled; the count moved from 23 to 24 when `face` arrived the same day).
+**The console** — four line types (`{…}`, `pose …`, `bench …`, `help`), `alive` every 3 s, and **24 words after `bench`**: `pos` `zeros` `scan` `read` `raw` `state` `hold` `release` `sound` `audio` `volume` `leds` `backlight` `face` `sleep` `pmu` `level` `power` `timed` `wifi` `dial` `net` `set` `move`. ⚠️ **`help` prints 32 lines, not 24, because three of the words take a sub-verb** — `wifi` ×5 (`scan` / `join` / `add` / `forget` / `addr`), `net` ×2 (`send` / `call`) and `dial` ×1 (`dial <ip> <port>`) — **eight extra lines over three words, and 24 + 8 = 32 is the whole arithmetic** (counted in `main.cpp` on 2026-11-08, not recalled; the count went 30 → 32 when `add` and `forget` arrived the same day).
 
 ## What it cannot do
 
@@ -194,8 +196,9 @@ a hook event (33 of them)
 6. ⛔ **The twelve LEDs' return from sleep has no eye on record.**
 7. ⚠️ **The USB console was gone on 2026-10-24 morning and came back on the second re-seat** — `/dev/cu.usbmodem1101`, ⛔ **not the `.101` every earlier record names**, because the port number moves with the port it is plugged into. **The rule stands: a flash is written only after `otadata` is read**, and the board can answer `bench pos` from an image that is not the one just written. ⛔ **An eye still has to judge the new shapes**: `focused` and `startled` have no judgment of the word, and the brow was approved as a host rendering before any panel drew it.
 8. ⛔ **No day has been measured with the mouth open**, and whether a delivered meta sentence was worth saying is not recorded.
-9. ⛔ **The goal is not verified.** One person in one room said 「そこに何かが居る」, at N=1, and ⚠️ **the session had offered that sentence a moment before** (`docs/verification-boundary.md`).
-10. ⛔ **Nothing on this page says the body is alive.** Every ✅ above says a mechanism ran on the unit; ⛔ **not one of them is a judgement that anything is there.**
+9. ⛔ **It cannot reach its host across an access point that isolates its clients.** On 2026-11-08, with both on the same SSID and the same subnet, **nothing crossed in either direction** while the body reached the gateway in 19 ms — ⚠️ **read as client isolation, not measured: no packet was captured and no second wireless client existed.** Four rows in the table do not help; **the network is the wall, not the credential.**
+10. ⛔ **The goal is not verified.** One person in one room said 「そこに何かが居る」, at N=1, and ⚠️ **the session had offered that sentence a moment before** (`docs/verification-boundary.md`).
+11. ⛔ **Nothing on this page says the body is alive.** Every ✅ above says a mechanism ran on the unit; ⛔ **not one of them is a judgement that anything is there.**
 
 ## Keeping this page true
 
