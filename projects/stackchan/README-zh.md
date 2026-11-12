@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.22.1 | canonical: projects/stackchan/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 2.23.0 | canonical: projects/stackchan/README.md | translated: 2026-11-13 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -17,6 +17,10 @@
 ✅ **它 import Pet 的 `State`，不是复制。** 五张表情只画过一次（决定 A，`projects/pet/expressions.py`）。第二套就是对同一个问题的第二个答案。
 
 ✅ **自 2026-10-18 起，它连到了机体**——守护进程每帧把一行写进板子的控制台——**而在此之前没有连上。** ⛔ **这条连接是单向的，每帧只运一行**：这一层自己不打开任何东西，⚠️ **自 0.19.23 起只读回一样东西——身势瞬间所问的 `bench pos` 的答案**——除此之外只能说主机的 tty 收下了整行。检查之外的消费者是它自己的 CLI、守护进程的日志，以及守护进程点名的端口。⚠️ **它在 2026-10-18 之前也没有连到 Claude Code。** ✅ **自那以后就连上了**——`~/.claude/settings.json` 的全部三十三个事件都运行 `projects/stackchan/hook/`，而 launchd 用户代理在登录时启动守护进程。⛔ **这个目录是层，不是安装**：这里的 plist 是副本，记录在 `docs/stackchan-daemon.md`。
+
+## 两个边缘，一层
+
+⚠️ **`projects/stackchan_next/` 是新的边缘，`projects/stackchan/` 是旧的边缘。** 它们不是同一个问题的两个答案。⛔ **判断层、声音和元数据的房间都在这里**，新的边缘 import 它们——所以**这个目录不是死代码，也不是已安装的那个**。旧的边缘在给定 `--port` 时写进板子的控制台；新的边缘绑定 `--listen`，等待板子自己拨进来，因为⛔ **测得的方向是板子那一侧给出的**——板子能到达主机，主机到不了板子（`projects/stackchan_next/launchd/`）。
 
 ## 六个阶段
 

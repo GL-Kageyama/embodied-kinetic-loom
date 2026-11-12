@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.22.1 | canonical: projects/stackchan/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 2.23.0 | canonical: projects/stackchan/README.md | translated: 2026-11-13 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -17,6 +17,10 @@
 ✅ **Pet の `State` を import する。写しではない。** 5つの表情は一度だけ描かれた（決定 A、`projects/pet/expressions.py`）。2つ目の組を持てば、同じ問いに2つ目の答えを持つことになる。
 
 ✅ **2026-10-18 から、機体に繋がっている**——デーモンが枠ごとに1行を基板のコンソールへ書く——**それ以前は繋がっていなかった。** ⛔ **繋がりは一方向で、1行を運ぶ**: この層は自分では何も開かず、⚠️ **0.19.23 からは1つだけ読み返す——身振りの瞬間に尋ねる `bench pos` の答えである**——それ以外はホストの tty が行の全体を受けたことしか言えない。検査の外の消費者は、自分の CLI、デーモンのログ、そしてデーモンが名指すポートである。⚠️ **Claude Code にも、2026-10-18 までは繋がっていなかった。** ✅ **それ以来は繋がっている**——`~/.claude/settings.json` の33の事象すべてが `projects/stackchan/hook/` を走らせ、launchd のユーザーエージェントがログイン時にデーモンを起動する。⛔ **このディレクトリは層であって、設置ではない**: ここの plist は複製であり、記録は `docs/stackchan-daemon.md` である。
+
+## 2つの縁、1つの層
+
+⚠️ **`projects/stackchan_next/` が更新版の縁、`projects/stackchan/` が旧版の縁である。** 同じ問いへの2つの答えではない。⛔ **判断の層・声・メタの部屋はここに在り**、更新版の縁はそれを import する——だから**このディレクトリは死んだコードではなく、設置されているものでもない**。旧版の縁は `--port` を与えられれば基板のコンソールへ書き、更新版は `--listen` を束縛して基板が dial してくるのを待つ。⛔ **測られた向きは基板の側のものである**——基板からホストへは届き、ホストから基板へは届かない（`projects/stackchan_next/launchd/`）。
 
 ## 6つの段階
 

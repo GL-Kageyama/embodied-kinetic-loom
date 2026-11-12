@@ -1,4 +1,4 @@
-<!-- i18n-version: 2.22.1 | canonical: projects/stackchan/README.md | translated: 2026-10-21 -->
+<!-- i18n-version: 2.23.0 | canonical: projects/stackchan/README.md | translated: 2026-11-13 -->
 
 **Language:** [English](README.md) | [日本語](README-ja.md) | [中文](README-zh.md)
 
@@ -17,6 +17,10 @@
 ✅ **It imports the Pet's `State`; it does not copy it.** The five expressions were drawn once (decision A, `projects/pet/expressions.py`), and a second set would be a second answer to the same question.
 
 ✅ **It is joined to a machine since 2026-10-18** — the daemon writes one line per frame to the board's console — **and it was not joined before that.** ⛔ **The join runs one way and carries one line**: this layer opens nothing itself, ⚠️ **reads back exactly one thing since 0.19.23 — the answer to `bench pos`, asked at a gesture** — and can otherwise confirm only that the host's tty took the whole line. Its consumers outside the tests are its own CLI, the daemon's log, and the port the daemon names. ⚠️ **It was not joined to Claude Code until 2026-10-18.** ✅ **Since then it is** — every one of the thirty-three events in `~/.claude/settings.json` runs `projects/stackchan/hook/`, and a launchd user agent starts the daemon at login. ⛔ **This directory is the layer, not the installation**: the plist here is a copy, and the record is `docs/stackchan-daemon.md`.
+
+## Two edges, one layer
+
+⚠️ **`projects/stackchan_next/` is the newer edge; `projects/stackchan/` is the older one.** They are not two answers to one question. ⛔ **The decision layer, the voice and the meta room live here**, and the newer edge imports them — so **this directory is not dead code, and it is not what is installed.** The older edge writes to the board's console when given `--port`; the newer one binds `--listen` and waits for the board to dial in, because ⛔ **the measured direction is the board's own** — the board can reach the host, and the host cannot reach the board (`projects/stackchan_next/launchd/`).
 
 ## The six phases
 
